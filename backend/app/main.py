@@ -155,3 +155,55 @@ async def health_check():
 
 @app.get("/ready")
 async def readiness_check():
+    """Readiness probe — dependencies (database) are reachable."""
+    try:
+        with engine.connect() as conn:
+            from sqlalchemy import text
+            conn.execute(text("SELECT 1"))
+        return {"status": "ready", "database": "ok"}
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Readiness check failed", extra={"error": str(exc)})
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "database": "unreachable"},
+        )
+
+
+
+# Import and include routers
+from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, tags, ai, canvas, sessions, invitations, admin, security
+
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
+app.include_router(scan.router, prefix="/api/v1/scans", tags=["Scans"])
+app.include_router(assets.router, prefix="/api/v1/assets", tags=["Assets"])
+app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports"])
+app.include_router(organizations.router, prefix="/api/v1/organizations", tags=["Organizations"])
+app.include_router(projects.router, prefix="/api/v1/projects", tags=["Projects"])
+app.include_router(api_keys.router, prefix="/api/v1/api-keys", tags=["API Keys"])
+app.include_router(compare.router, prefix="/api/v1/compare", tags=["Compare"])
+app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notifications"])
+app.include_router(tags.router, prefix="/api/v1/tags", tags=["Tags, Audit Logs, Favorites"])
+app.include_router(ai.router, prefix="/api/v1/ai", tags=["AI Intelligence"])
+app.include_router(canvas.router, prefix="/api/v1/canvases", tags=["Intelligence Canvas"])
+app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["Sessions"])
+app.include_router(invitations.router, prefix="/api/v1/invitations", tags=["Invitations"])
+app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
+app.include_router(security.router, prefix="/api/v1/security", tags=["Security"])
+
+
+# API docs (only in debug mode)
+if settings.DEBUG:
+    from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+
+    @app.get("/api/docs", include_in_schema=False)
+    async def swagger_ui():
+        return get_swagger_ui_html(openapi_url="/api/openapi.json", title="AttackSec API")
+
+    @app.get("/api/redoc", include_in_schema=False)
+    async def redoc_ui():
+        return get_redoc_html(openapi_url="/api/openapi.json", title="AttackSec API")
+
+    @app.get("/api/openapi.json", include_in_schema=False)
+    async def openapi_json():
+        return app.openapi()
