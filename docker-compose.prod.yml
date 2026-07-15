@@ -1,0 +1,44 @@
+services:
+  backend:
+    ports: []
+    expose:
+      - "8000"
+
+  frontend:
+    ports: []
+    expose:
+      - "3000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - SERVER_NAME=${SERVER_NAME:?SERVER_NAME is required}
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/templates:ro
+      - certbot-www:/var/www/certbot:ro
+      - letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot
+    environment:
+      - SERVER_NAME=${SERVER_NAME:?SERVER_NAME is required}
+      - ACME_EMAIL=${ACME_EMAIL:?ACME_EMAIL is required}
+    volumes:
+      - certbot-www:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+    # Issue a certificate on first deploy (if none exists), then keep renewing.
+    entrypoint: "/bin/sh -c 'trap exit TERM; if [ ! -d /etc/letsencrypt/live/$${SERVER_NAME} ]; then certbot certonly --webroot -w /var/www/certbot -d $${SERVER_NAME} --non-interactive --agree-tos -m $${ACME_EMAIL}; fi; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    restart: unless-stopped
+
+volumes:
+  certbot-www:
+  letsencrypt:

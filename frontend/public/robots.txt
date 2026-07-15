@@ -1,0 +1,10 @@
+# AttackSec - External Attack Surface Management Platform
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /scan
+Disallow: /api
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://attacksec.io/sitemap.xml

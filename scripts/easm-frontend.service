@@ -1,0 +1,19 @@
+[Unit]
+Description=EASM Platform Frontend (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/easm/frontend
+Environment="NODE_ENV=production"
+Environment="PORT=3000"
+Environment="HOSTNAME=127.0.0.1"
+Environment="BACKEND_URL=http://127.0.0.1:8000"
+ExecStart=/usr/bin/node /opt/easm/frontend/.next/standalone/server.js
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

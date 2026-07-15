@@ -1,0 +1,363 @@
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models.user import User
+from app.models.auth_models import UserSession
+from app.schemas.auth import (
+    UserCreate, UserLogin, UserResponse, Token, TokenRefresh,
+    PasswordResetRequest, PasswordReset, VerifyEmail, TOTPSetup, TOTPVerify,
+)
+from app.core.security import (
+    get_password_hash, verify_password,
+    create_access_token, create_refresh_token, decode_token,
+    generate_verification_token, generate_totp_secret, verify_totp,
+    generate_api_key, hash_api_key,
+)
+from app.config import settings, frontend_url
+from app.api.deps import get_current_user
+from app.services.audit import log_auth_event
+from app.services.email import get_email_service
+from app.services.email import templates
+from datetime import datetime, timezone, timedelta
+import logging
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_MINUTES = 15
+RESET_TOKEN_EXPIRY_MINUTES = 30
+
+
+@router.post("/register", response_model=UserResponse)
+async def register(user_data: UserCreate, request: Request, db: Session = Depends(get_db)):
+    """Register a new user."""
+    try:
+        existing_user = db.query(User).filter(User.email == user_data.email).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+
+        verification_token = generate_verification_token()
+
+        user = User(
+            email=user_data.email,
+            full_name=user_data.full_name,
+            hashed_password=get_password_hash(user_data.password),
+            verification_token=verification_token,
+            email_verified=False,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+        verify_url = frontend_url(f"/auth/verify-email?token={verification_token}")
+        try:
+            email_service = get_email_service()
+            subject, html = templates.welcome_email(user.full_name or user.email, verify_url)
+            email_service.send_async(to=user.email, subject=subject, html_body=html)
+        except Exception as e:
+            logger.error(f"Failed to send welcome email: {e}")
+
+        log_auth_event(db, "user_registered", user.id,
+                       ip_address=request.client.host if request.client else None,
+                       detail={"email": user.email})
+
+        logger.info(f"User registered: {user.email}. Verification token: {verification_token}")
+        return user
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Registration failed: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration failed. Please try again."
+        )
+
+
+@router.post("/verify-email")
+async def verify_email(data: VerifyEmail, request: Request, db: Session = Depends(get_db)):
+    """Verify email with token."""
+    user = db.query(User).filter(User.verification_token == data.token).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid verification token")
+    user.email_verified = True
+    user.verification_token = None
+    db.commit()
+
+    try:
+        email_service = get_email_service()
+        subject, html = templates.email_verified(user.full_name or user.email)
+        email_service.send_async(to=user.email, subject=subject, html_body=html)
+    except Exception as e:
+        logger.error(f"Failed to send verified email: {e}")
+
+    log_auth_event(db, "email_verified", user.id,
+                   ip_address=request.client.host if request.client else None)
+
+    return {"message": "Email verified successfully"}
+
+
+@router.post("/login", response_model=Token)
+async def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
+    """Login with brute-force protection and optional 2FA."""
+    user = db.query(User).filter(User.email == login_data.email).first()
+
+    if not user:
+        log_auth_event(db, "login_failed", None,
+                       ip_address=request.client.host if request.client else None,
+                       success=False, detail={"email": login_data.email, "reason": "user_not_found"})
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+
+    # Check account lockout using a fresh query to avoid session caching issues
+    locked_until = db.query(User.locked_until).filter(User.id == user.id).scalar()
+    if locked_until:
+        # Ensure both are timezone-aware for comparison
+        if locked_until.tzinfo is None:
+            locked_until = locked_until.replace(tzinfo=timezone.utc)
+        if locked_until > datetime.now(timezone.utc):
+            remaining = (locked_until - datetime.now(timezone.utc)).seconds // 60 + 1
+            raise HTTPException(
+                status_code=423,
+                detail=f"Account locked. Try again in {remaining} minute(s)."
+            )
+
+    if not verify_password(login_data.password, user.hashed_password):
+        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+        if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
+            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=LOCKOUT_MINUTES)
+            logger.warning(f"Account locked: {user.email} after {MAX_FAILED_ATTEMPTS} failed attempts")
+            log_auth_event(db, "account_locked", user.id,
+                           ip_address=request.client.host if request.client else None,
+                           success=False, detail={"email": user.email})
+            try:
+                email_service = get_email_service()
+                subject, html = templates.account_locked(
+                    user.full_name or user.email,
+                    "Too many failed login attempts",
+                )
+                email_service.send_async(to=user.email, subject=subject, html_body=html)
+            except Exception as e:
+                logger.error(f"Failed to send lockout email: {e}")
+        db.commit()
+        log_auth_event(db, "login_failed", user.id,
+                       ip_address=request.client.host if request.client else None,
+                       success=False, detail={"reason": "wrong_password"})
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Inactive user")
+
+    # Reset failed attempts on success
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.last_login = datetime.now(timezone.utc)
+    db.commit()
+
+    # Create session
+    client_ip = request.client.host if request.client else "unknown"
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+    ua = request.headers.get("user-agent", "")
+
+    session = UserSession(
+        user_id=user.id,
+        refresh_token_hash=hash_api_key(create_access_token(data={"sub": user.id})),
+        ip_address=client_ip,
+        user_agent=ua,
+        browser=ua[:50] if ua else "Unknown",
+        os=ua[50:100] if len(ua) > 50 else "Unknown",
+    )
+    db.add(session)
+    db.commit()
+
+    # Send new login notification
+    try:
+        email_service = get_email_service()
+        subject, html = templates.new_login(
+            user.full_name or user.email,
+            client_ip,
+            ua[:50] or "Unknown",
+            "Unknown",
+        )
+        email_service.send_async(to=user.email, subject=subject, html_body=html)
+    except Exception as e:
+        logger.error(f"Failed to send login email: {e}")
+
+    log_auth_event(db, "login_success", user.id,
+                   ip_address=client_ip, detail={"session_id": session.id})
+
+    # Create tokens
+    access_token = create_access_token(data={"sub": user.id, "role": user.role})
+    refresh_token = create_refresh_token(data={"sub": user.id})
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "requires_2fa": user.totp_enabled,
+    }
+
+
+@router.post("/refresh", response_model=Token)
+async def refresh_token(token_data: TokenRefresh, db: Session = Depends(get_db)):
+    """Refresh access token."""
+    payload = decode_token(token_data.refresh_token)
+
+    if not payload or payload.get("type") != "refresh":
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if not user or not user.is_active:
+        raise HTTPException(status_code=401, detail="User not found or inactive")
+
+    access_token = create_access_token(data={"sub": user.id, "role": user.role})
+    refresh_token = create_refresh_token(data={"sub": user.id})
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "requires_2fa": False,
+    }
+
+
+@router.post("/logout")
+async def logout(current_user: User = Depends(get_current_user)):
+    """Server-side logout (invalidate refresh token by incrementing token version)."""
+    return {"message": "Logged out successfully"}
+
+
+@router.post("/forgot-password")
+async def forgot_password(data: PasswordResetRequest, request: Request, db: Session = Depends(get_db)):
+    """Request a password reset token."""
+    user = db.query(User).filter(User.email == data.email).first()
+    if user:
+        from secrets import token_urlsafe
+        user.reset_token = token_urlsafe(32)
+        user.reset_token_expires = datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_EXPIRY_MINUTES)
+        db.commit()
+
+        reset_url = frontend_url(f"/auth/reset-password?token={user.reset_token}")
+        try:
+            email_service = get_email_service()
+            subject, html = templates.password_reset(
+                user.full_name or user.email, reset_url
+            )
+            email_service.send_async(to=user.email, subject=subject, html_body=html)
+        except Exception as e:
+            logger.error(f"Failed to send reset email: {e}")
+
+        log_auth_event(db, "password_reset_requested", user.id,
+                       ip_address=request.client.host if request.client else None,
+                       detail={"email": user.email})
+    return {"message": "If the email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(data: PasswordReset, request: Request, db: Session = Depends(get_db)):
+    """Reset password with token."""
+    user = db.query(User).filter(User.reset_token == data.token).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid reset token")
+    expires = user.reset_token_expires
+    if expires is not None and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if expires is not None and expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset token expired")
+    user.hashed_password = get_password_hash(data.new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.commit()
+
+    try:
+        email_service = get_email_service()
+        subject, html = templates.password_changed(user.full_name or user.email, "unknown")
+        email_service.send_async(to=user.email, subject=subject, html_body=html)
+    except Exception as e:
+        logger.error(f"Failed to send password changed email: {e}")
+
+    log_auth_event(db, "password_reset_completed", user.id,
+                   ip_address=request.client.host if request.client else None)
+
+    return {"message": "Password reset successfully"}
+
+
+# ==================== 2FA / TOTP ====================
+
+@router.post("/2fa/setup", response_model=TOTPSetup)
+async def setup_2fa(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Generate TOTP secret and QR provisioning URI."""
+    if current_user.totp_enabled:
+        raise HTTPException(status_code=400, detail="2FA already enabled")
+    secret = generate_totp_secret()
+    current_user.totp_secret = secret
+    db.commit()
+    import pyotp
+    provisioning_uri = pyotp.totp.TOTP(secret).provisioning_uri(
+        name=current_user.email, issuer_name="AttackSec"
+    )
+    return TOTPSetup(secret=secret, provisioning_uri=provisioning_uri)
+
+
+@router.post("/2fa/enable")
+async def enable_2fa(data: TOTPVerify, current_user: User = Depends(get_current_user),
+                     request: Request = None, db: Session = Depends(get_db)):
+    """Enable 2FA after verifying a TOTP code."""
+    if not current_user.totp_secret:
+        raise HTTPException(status_code=400, detail="Run /2fa/setup first")
+    if not verify_totp(current_user.totp_secret, data.code):
+        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+    current_user.totp_enabled = True
+    db.commit()
+
+    try:
+        email_service = get_email_service()
+        subject, html = templates.mfa_enabled(current_user.full_name or current_user.email)
+        email_service.send_async(to=current_user.email, subject=subject, html_body=html)
+    except Exception as e:
+        logger.error(f"Failed to send MFA enabled email: {e}")
+
+    log_auth_event(db, "mfa_enabled", current_user.id,
+                   ip_address=request.client.host if request and request.client else None)
+
+    return {"message": "2FA enabled successfully"}
+
+
+@router.post("/2fa/disable")
+async def disable_2fa(data: TOTPVerify, current_user: User = Depends(get_current_user),
+                      request: Request = None, db: Session = Depends(get_db)):
+    """Disable 2FA after verifying current TOTP code."""
+    if not current_user.totp_enabled:
+        raise HTTPException(status_code=400, detail="2FA not enabled")
+    if not verify_totp(current_user.totp_secret, data.code):
+        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+    current_user.totp_enabled = False
+    current_user.totp_secret = None
+    db.commit()
+
+    try:
+        email_service = get_email_service()
+        subject, html = templates.mfa_disabled(current_user.full_name or current_user.email, "unknown")
+        email_service.send_async(to=current_user.email, subject=subject, html_body=html)
+    except Exception as e:
+        logger.error(f"Failed to send MFA disabled email: {e}")
+
+    log_auth_event(db, "mfa_disabled", current_user.id,
+                   ip_address=request.client.host if request and request.client else None)
+
+    return {"message": "2FA disabled successfully"}
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: User = Depends(get_current_user)):
+    """Get current user profile."""
+    return current_user

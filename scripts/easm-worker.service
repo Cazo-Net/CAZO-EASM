@@ -1,0 +1,18 @@
+[Unit]
+Description=EASM Platform Celery Worker
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/easm/backend
+EnvironmentFile=/opt/easm/backend/.env
+Environment="PATH=/opt/easm/backend/venv/bin"
+ExecStart=/opt/easm/backend/venv/bin/celery -A app.celery_app.celery_app worker --loglevel=info --concurrency=4
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
