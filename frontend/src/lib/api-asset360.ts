@@ -1,0 +1,17 @@
+import api from "@/lib/api";
+import type { Asset360Response, Asset360ListItem } from "@/types/asset360";
+
+export async function getAsset360(assetId: string): Promise<Asset360Response> {
+  const { data } = await api.get(`/asset360/${assetId}`);
+  return data;
+}
+
+export async function listAssets360(params?: {
+  skip?: number;
+  limit?: number;
+}): Promise<Asset360ListItem[]> {
+  const { data } = await api.get("/asset360", {
+    params: { skip: 0, limit: 50, ...params },
+  });
+  return data;
+}

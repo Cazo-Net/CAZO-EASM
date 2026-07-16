@@ -171,7 +171,7 @@ async def readiness_check():
 
 
 # Import and include routers
-from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, tags, ai, canvas, sessions, invitations, admin, security
+from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, tags, ai, canvas, sessions, invitations, admin, security, scopes, billing, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
@@ -190,6 +190,16 @@ app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["Sessions"]
 app.include_router(invitations.router, prefix="/api/v1/invitations", tags=["Invitations"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(security.router, prefix="/api/v1/security", tags=["Security"])
+app.include_router(scopes.router, prefix="/api/v1/scopes", tags=["Authorized Scopes"])
+app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
+app.include_router(api_keys_v2.router, prefix="/api/v1/api-keys/v2", tags=["API Keys v2"])
+app.include_router(security_center.router, prefix="/api/v1/security-center", tags=["Security Center"])
+app.include_router(passkeys.router, prefix="/api/v1/passkeys", tags=["Passkeys"])
+app.include_router(replay.router, prefix="/api/v1/replay", tags=["Exposure Replay"])
+app.include_router(asset_360.router, prefix="/api/v1/asset360", tags=["Asset 360"])
+app.include_router(change_feed.router, prefix="/api/v1/changefeed", tags=["Change Feed"])
+app.include_router(collaboration.router, prefix="/api/v1/collaboration", tags=["Collaboration"])
+app.include_router(reports_v2.router, prefix="/api/v1/reports/executive", tags=["Executive Reports"])
 
 
 # API docs (only in debug mode)
@@ -198,11 +208,11 @@ if settings.DEBUG:
 
     @app.get("/api/docs", include_in_schema=False)
     async def swagger_ui():
-        return get_swagger_ui_html(openapi_url="/api/openapi.json", title="AttackSec API")
+        return get_swagger_ui_html(openapi_url="/api/openapi.json", title="CAZO API")
 
     @app.get("/api/redoc", include_in_schema=False)
     async def redoc_ui():
-        return get_redoc_html(openapi_url="/api/openapi.json", title="AttackSec API")
+        return get_redoc_html(openapi_url="/api/openapi.json", title="CAZO API")
 
     @app.get("/api/openapi.json", include_in_schema=False)
     async def openapi_json():

@@ -1,177 +1,187 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import * as React from "react";
 import {
   Lightbulb,
-  Loader2,
-  RefreshCw,
-  Check,
-  X,
   AlertTriangle,
-  Info,
-  Shield,
+  CheckCircle2,
+  ListChecks,
+  X,
+  RefreshCw,
 } from "lucide-react";
-import { motion } from "framer-motion";
-import { getAIRecommendations, dismissAIRecommendation } from "@/lib/api";
-import { cn } from "@/lib/utils";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import type { AIRecommendation } from "@/types";
+import { PageHeader } from "@/components/common/PageHeader";
+import { StatCard } from "@/components/common/StatCard";
+import { SectionCard } from "@/components/common/SectionCard";
+import { EmptyState } from "@/components/common/EmptyState";
+import {
+  getAIRecommendations,
+  dismissAIRecommendation,
+} from "@/lib/api-ai";
+import { getErrorMessage } from "@/lib/api";
+import type { AIRecommendation, AIRecordPriority } from "@/types/ai2";
 
-const priorityConfig: Record<string, { color: string; bg: string; icon: any }> = {
-  critical: { color: "text-red-400", bg: "bg-red-500/10", icon: AlertTriangle },
-  high: { color: "text-amber-400", bg: "bg-amber-500/10", icon: AlertTriangle },
-  medium: { color: "text-blue-400", bg: "bg-blue-500/10", icon: Info },
-  low: { color: "text-muted-foreground", bg: "bg-muted/50", icon: Info },
+const priorityStyles: Record<AIRecordPriority, string> = {
+  critical: "bg-destructive/15 text-destructive border border-destructive/30",
+  high: "bg-warning/15 text-warning border border-warning/30",
+  medium: "bg-info/15 text-info border border-info/30",
+  low: "bg-muted text-muted-foreground border border-border/50",
 };
 
-function RecommendationsContent() {
-  const [recommendations, setRecommendations] = useState<AIRecommendation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-
-  useEffect(() => {
-    loadRecommendations();
-  }, []);
-
-  const loadRecommendations = async () => {
-    setLoading(true);
-    try {
-      const data = await getAIRecommendations();
-      setRecommendations(data);
-    } catch {
-      // silently fail
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerate = async () => {
-    setGenerating(true);
-    try {
-      const data = await getAIRecommendations();
-      setRecommendations(data);
-    } catch {
-      // silently fail
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleDismiss = async (id: string) => {
-    try {
-      await dismissAIRecommendation(id);
-      setRecommendations((prev) => prev.filter((r) => r.id !== id));
-    } catch {
-      // silently fail
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
+function PriorityBadge({ priority }: { priority: AIRecordPriority }) {
   return (
-    <div className="min-h-screen">
-      <div className="border-b border-border/50 bg-card/30 backdrop-blur-xl sticky top-0 z-10">
-        <div className="mx-auto max-w-4xl px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-                <Lightbulb className="h-6 w-6 text-amber-400" />
-                Recommendations
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                AI-powered suggestions to improve your security posture.
-              </p>
-            </div>
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
-            >
-              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-              Generate
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-4xl px-6 py-8">
-        {recommendations.length === 0 ? (
-          <div className="flex flex-col items-center py-24 text-center">
-            <Lightbulb className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No recommendations yet</h3>
-            <p className="text-sm text-muted-foreground mb-6">
-              Click Generate to get AI-powered recommendations based on your platform data.
-            </p>
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
-              Generate Recommendations
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {recommendations.map((rec) => {
-              const config = priorityConfig[rec.priority] || priorityConfig.medium;
-              const Icon = config.icon;
-              return (
-                <motion.div
-                  key={rec.id}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="rounded-xl border border-border/50 bg-card/60 p-5"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn("mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", config.bg)}>
-                      <Icon className={cn("h-4 w-4", config.color)} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="text-sm font-semibold">{rec.title}</h3>
-                        <button
-                          onClick={() => handleDismiss(rec.id)}
-                          className="shrink-0 p-1 rounded hover:bg-muted/30 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">{rec.description}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                          config.bg, config.color
-                        )}>
-                          {rec.priority}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">{rec.category}</span>
-                        {rec.entity_type && (
-                          <span className="text-[10px] text-muted-foreground">· {rec.entity_type}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+        priorityStyles[priority] ?? priorityStyles.medium
+      }`}
+    >
+      {priority}
+    </span>
   );
 }
 
 export default function AIRecommendationsPage() {
+  const [recs, setRecs] = React.useState<AIRecommendation[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [dismissing, setDismissing] = React.useState<string | null>(null);
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getAIRecommendations();
+      setRecs(data);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to load recommendations"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleDismiss = async (id: string) => {
+    setDismissing(id);
+    try {
+      await dismissAIRecommendation(id);
+      setRecs((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to dismiss recommendation"));
+    } finally {
+      setDismissing(null);
+    }
+  };
+
+  const open = recs.filter((r) => r.status !== "dismissed").length;
+  const critical = recs.filter(
+    (r) => r.status !== "dismissed" && r.priority === "critical"
+  ).length;
+
   return (
-    <ProtectedRoute>
-      <RecommendationsContent />
-    </ProtectedRoute>
+    <div className="page-container-md">
+      <PageHeader
+        title="AI Recommendations"
+        description="Evidence-backed, prioritized actions from the AI Intelligence Engine."
+        icon={<Lightbulb className="h-5 w-5" />}
+        breadcrumbs={[{ label: "AI", href: "/ai" }, { label: "Recommendations" }]}
+        actions={
+          <button
+            onClick={load}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-surface-2 px-3 py-2 text-sm font-medium transition-colors hover:bg-surface-3 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Total"
+          value={recs.length}
+          icon={<ListChecks className="h-5 w-5" />}
+          accent="brand"
+        />
+        <StatCard
+          label="Open"
+          value={open}
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          accent="success"
+        />
+        <StatCard
+          label="Critical"
+          value={critical}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          accent="danger"
+        />
+      </div>
+
+      <SectionCard
+        title="Recommendations"
+        description={`${open} open · ${critical} critical`}
+        className="mt-6"
+        bodyClassName="p-0"
+      >
+        {loading ? (
+          <div className="flex items-center justify-center px-6 py-12 text-sm text-muted-foreground">
+            <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Loading recommendations…
+          </div>
+        ) : error ? (
+          <div className="px-6 py-10">
+            <EmptyState
+              icon={<AlertTriangle className="h-6 w-6" />}
+              title="Could not load recommendations"
+              description={error}
+            />
+          </div>
+        ) : recs.length === 0 ? (
+          <div className="px-6 py-10">
+            <EmptyState
+              icon={<Lightbulb className="h-6 w-6" />}
+              title="No recommendations yet"
+              description="Run a scan or ask the AI assistant to generate security recommendations."
+            />
+          </div>
+        ) : (
+          <ul className="divide-y divide-border/50">
+            {recs.map((r) => (
+              <li
+                key={r.id}
+                className="flex items-start gap-4 px-6 py-4 transition-colors hover:bg-surface-2/40"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <PriorityBadge priority={r.priority} />
+                    <span className="rounded-full bg-surface-3 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                      {r.category}
+                    </span>
+                  </div>
+                  <h3 className="mt-2 text-sm font-semibold">{r.title}</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {r.description}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDismiss(r.id)}
+                  disabled={dismissing === r.id}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border/60 px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                  aria-label="Dismiss recommendation"
+                >
+                  {dismissing === r.id ? (
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <X className="h-3.5 w-3.5" />
+                  )}
+                  Dismiss
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+    </div>
   );
 }

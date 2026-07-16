@@ -1,0 +1,392 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import {
+  Boxes,
+  Loader2,
+  ShieldAlert,
+  Activity,
+  CalendarPlus,
+  CalendarClock,
+  Network,
+  History,
+  LayoutGrid,
+  ArrowUpRight,
+  ArrowDownLeft,
+  PlusCircle,
+  MinusCircle,
+  Pencil,
+  Circle,
+} from "lucide-react";
+import { PageHeader } from "@/components/common/PageHeader";
+import { StatCard } from "@/components/common/StatCard";
+import { SectionCard } from "@/components/common/SectionCard";
+import { EmptyState } from "@/components/common/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
+import { getAsset360 } from "@/lib/api-asset360";
+import type { Asset360Response } from "@/types/asset360";
+
+function formatDate(value: string | null): string {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function scoreDisplay(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return String(Math.round(value));
+}
+
+function changeIcon(type: string) {
+  switch (type) {
+    case "added":
+      return <PlusCircle className="h-4 w-4 text-emerald-500" />;
+    case "removed":
+      return <MinusCircle className="h-4 w-4 text-destructive" />;
+    case "modified":
+      return <Pencil className="h-4 w-4 text-amber-500" />;
+    default:
+      return <Circle className="h-4 w-4 text-muted-foreground" />;
+  }
+}
+
+export default function Asset360Page() {
+  const params = useParams();
+  const assetId = Array.isArray(params?.id) ? params.id[0] : (params?.id as string);
+  const { user, loading: authLoading } = useAuth();
+  const orgId = user?.organization_id;
+
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [error, setError] = useState("");
+  const [data, setData] = useState<Asset360Response | null>(null);
+  const [tab, setTab] = useState("overview");
+
+  const load = useCallback(async () => {
+    if (!assetId) return;
+    setLoading(true);
+    setError("");
+    setNotFound(false);
+    try {
+      const res = await getAsset360(assetId);
+      setData(res);
+    } catch (e) {
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        setNotFound(true);
+      } else {
+        setError("Failed to load asset intelligence.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [assetId]);
+
+  useEffect(() => {
+    if (!authLoading) load();
+  }, [authLoading, load]);
+
+  if (loading || authLoading) {
+    return (
+      <div className="page-container-lg">
+        <div className="flex items-center justify-center py-32 text-muted-foreground">
+          <Loader2 className="mr-2 h-6 w-6 animate-spin" /> Loading asset...
+        </div>
+      </div>
+    );
+  }
+
+  if (notFound || (!data && !error)) {
+    return (
+      <div className="page-container-lg">
+        <EmptyState
+          icon={<Boxes className="h-8 w-8" />}
+          title="Asset not found"
+          description="This asset does not exist or you do not have access to it."
+          action={
+            <Link href="/assets">
+              <Button variant="outline">Back to Assets</Button>
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="page-container-lg">
+        <EmptyState
+          icon={<ShieldAlert className="h-8 w-8" />}
+          title="Something went wrong"
+          description={error || "Unable to load this asset."}
+          action={<Button onClick={load}>Retry</Button>}
+        />
+      </div>
+    );
+  }
+
+  const { asset, score, relationships, changes, counts } = data;
+  const title = asset.label || asset.value;
+  const attributes = asset.attributes || {};
+  const attributeEntries = Object.entries(attributes);
+
+  return (
+    <div className="page-container-lg">
+      <PageHeader
+        title={title}
+        description={asset.value}
+        icon={<Boxes className="h-5 w-5" />}
+        breadcrumbs={[{ label: "Assets", href: "/assets" }, { label: "360° View" }]}
+        actions={
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="capitalize">
+              {asset.asset_type}
+            </Badge>
+            <Badge variant={asset.is_alive ? "success" : "secondary"}>
+              {asset.is_alive ? "Alive" : "Inactive"}
+            </Badge>
+            {orgId && (
+              <Link href="/assets">
+                <Button variant="outline" size="sm">
+                  Back
+                </Button>
+              </Link>
+            )}
+          </div>
+        }
+      />
+
+      <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <StatCard
+          label="Exposure Score"
+          value={scoreDisplay(score?.exposure_score)}
+          icon={<ShieldAlert className="h-5 w-5" />}
+          accent="danger"
+        />
+        <StatCard
+          label="Health Score"
+          value={scoreDisplay(score?.health_score)}
+          icon={<Activity className="h-5 w-5" />}
+          accent="success"
+        />
+        <StatCard
+          label="First Seen"
+          value={<span className="text-lg">{formatDate(data.first_seen)}</span>}
+          icon={<CalendarPlus className="h-5 w-5" />}
+          accent="info"
+        />
+        <StatCard
+          label="Last Seen"
+          value={<span className="text-lg">{formatDate(data.last_seen)}</span>}
+          icon={<CalendarClock className="h-5 w-5" />}
+          accent="brand"
+        />
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="overview" className="gap-1.5">
+            <LayoutGrid className="h-3.5 w-3.5" /> Overview
+          </TabsTrigger>
+          <TabsTrigger value="relationships" className="gap-1.5">
+            <Network className="h-3.5 w-3.5" /> Relationships
+            {relationships.length > 0 && (
+              <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px]">
+                {relationships.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="timeline" className="gap-1.5">
+            <History className="h-3.5 w-3.5" /> Timeline
+            {changes.length > 0 && (
+              <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-[10px]">
+                {changes.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <div className="grid gap-4 md:grid-cols-2">
+            <SectionCard
+              title="Details"
+              description="Core asset information"
+              icon={<Boxes className="h-4 w-4" />}
+            >
+              <dl className="space-y-3 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">Label</dt>
+                  <dd className="truncate font-medium">{asset.label || "—"}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">Value</dt>
+                  <dd className="truncate font-mono text-xs">{asset.value}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">Type</dt>
+                  <dd className="capitalize">{asset.asset_type}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-muted-foreground">Status</dt>
+                  <dd>
+                    <Badge variant={asset.is_alive ? "success" : "secondary"}>
+                      {asset.is_alive ? "Alive" : "Inactive"}
+                    </Badge>
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border/40 pt-4 text-center">
+                <div>
+                  <p className="text-lg font-bold tabular-nums">{counts.subdomains}</p>
+                  <p className="text-[11px] uppercase text-muted-foreground">Subdomains</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold tabular-nums">{counts.ports}</p>
+                  <p className="text-[11px] uppercase text-muted-foreground">Ports</p>
+                </div>
+                <div>
+                  <p className="text-lg font-bold tabular-nums">
+                    {counts.vulnerabilities}
+                  </p>
+                  <p className="text-[11px] uppercase text-muted-foreground">Vulns</p>
+                </div>
+              </div>
+            </SectionCard>
+
+            <SectionCard
+              title="Attributes"
+              description="Discovered metadata"
+              icon={<LayoutGrid className="h-4 w-4" />}
+            >
+              {attributeEntries.length === 0 ? (
+                <EmptyState
+                  icon={<LayoutGrid className="h-8 w-8" />}
+                  title="No attributes"
+                  description="No metadata has been recorded for this asset."
+                />
+              ) : (
+                <dl className="space-y-2.5 text-sm">
+                  {attributeEntries.map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="flex items-start justify-between gap-4 border-b border-border/30 pb-2 last:border-0 last:pb-0"
+                    >
+                      <dt className="capitalize text-muted-foreground">
+                        {key.replace(/_/g, " ")}
+                      </dt>
+                      <dd className="max-w-[60%] truncate text-right font-mono text-xs">
+                        {typeof value === "object"
+                          ? JSON.stringify(value)
+                          : String(value)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </SectionCard>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="relationships">
+          <SectionCard
+            title="Related Assets"
+            description="Connections in the attack-surface graph"
+            icon={<Network className="h-4 w-4" />}
+          >
+            {relationships.length === 0 ? (
+              <EmptyState
+                icon={<Network className="h-8 w-8" />}
+                title="No relationships"
+                description="This asset has no recorded connections to other assets."
+              />
+            ) : (
+              <div className="divide-y divide-border/40">
+                {relationships.map((rel) => (
+                  <div
+                    key={rel.id}
+                    className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+                      {rel.direction === "outgoing" ? (
+                        <ArrowUpRight className="h-4 w-4" />
+                      ) : (
+                        <ArrowDownLeft className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/assets/${rel.related_asset_id}`}
+                        className="truncate text-sm font-medium hover:text-brand"
+                      >
+                        {rel.related_asset_label || rel.related_asset_id}
+                      </Link>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {rel.direction} · {rel.relationship_type.replace(/_/g, " ")}
+                      </p>
+                    </div>
+                    {rel.related_asset_type && (
+                      <Badge variant="outline" className="capitalize">
+                        {rel.related_asset_type}
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="timeline">
+          <SectionCard
+            title="Change Timeline"
+            description="Recorded changes affecting this asset"
+            icon={<History className="h-4 w-4" />}
+          >
+            {changes.length === 0 ? (
+              <EmptyState
+                icon={<History className="h-8 w-8" />}
+                title="No changes"
+                description="No change events have been detected for this asset."
+              />
+            ) : (
+              <div className="space-y-3">
+                {changes.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-start gap-3 rounded-lg border border-border/40 bg-muted/20 p-3"
+                  >
+                    <div className="mt-0.5">{changeIcon(c.change_type)}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium capitalize">
+                        {c.change_type}{" "}
+                        <span className="text-muted-foreground">{c.entity_type}</span>
+                      </p>
+                      <p className="truncate font-mono text-xs text-muted-foreground">
+                        {c.entity_key}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatDate(c.detected_at)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SectionCard>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

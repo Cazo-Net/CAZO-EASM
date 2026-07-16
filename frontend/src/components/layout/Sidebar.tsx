@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import {
   Shield,
   LayoutDashboard,
@@ -16,11 +17,18 @@ import {
   Network,
   Search,
   Waypoints,
+  ShieldCheck,
   Sparkles,
   Bot,
-  LayoutList,
   BookOpen,
   Lightbulb,
+  Zap,
+  ChevronsUpDown,
+  Plus,
+  Building,
+  History,
+  BarChart3,
+  MessagesSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -32,6 +40,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 const navSections = [
   {
@@ -47,6 +63,8 @@ const navSections = [
       { href: "/dns", label: "DNS Records", icon: Network },
       { href: "/whois", label: "WHOIS", icon: Search },
       { href: "/graph", label: "Attack Graph", icon: Waypoints },
+      { href: "/scopes", label: "Authorized Scopes", icon: ShieldCheck },
+      { href: "/change-feed", label: "Change Feed", icon: History },
     ],
   },
   {
@@ -63,13 +81,18 @@ const navSections = [
     label: "OUTPUT",
     items: [
       { href: "/reports", label: "Reports", icon: FileText },
+      { href: "/reports/executive", label: "Executive Report", icon: BarChart3 },
       { href: "/compare", label: "Compare Scans", icon: Waypoints },
       { href: "/canvas", label: "Intelligence Canvas", icon: Network },
     ],
   },
+  {
+    label: "COLLABORATION",
+    items: [
+      { href: "/collab-demo", label: "Team Comments", icon: MessagesSquare },
+    ],
+  },
 ];
-
-const bottomItems = [{ href: "/settings", label: "Settings", icon: Settings }];
 
 interface SidebarProps {
   collapsed: boolean;
@@ -79,6 +102,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [orgMenuOpen, setOrgMenuOpen] = useState(false);
 
   function isActive(href: string) {
     return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -99,36 +123,85 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
     return "AS";
   }
 
+  const sidebarWidth = collapsed ? "w-[68px]" : "w-64";
+
   return (
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-border/50 transition-all duration-300 ease-in-out",
-          "bg-card/80 backdrop-blur-xl",
-          collapsed ? "w-[68px]" : "w-64"
+          "flex h-screen flex-col border-r border-border/50 transition-all duration-300 ease-in-out shrink-0",
+          "bg-card/90 backdrop-blur-xl",
+          sidebarWidth
         )}
+        role="navigation"
+        aria-label="Main navigation"
       >
-        <div className="flex h-16 items-center gap-3 border-b border-border/50 px-4">
-          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#09090B] border border-border/50 overflow-hidden">
-            <img src="/icon.ico" alt="AttackSec" className="h-7 w-7 object-contain" />
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary to-cyan-400 opacity-20 blur-md" />
-          </div>
-          {!collapsed && (
-            <span className="text-lg font-bold tracking-tight gradient-text whitespace-nowrap">
-              AttackSec
-            </span>
-          )}
+        {/* Workspace / Brand Header */}
+        <div className="flex h-14 items-center gap-3 border-b border-border/50 px-4 shrink-0">
+          <Link href="/dashboard" className="flex items-center gap-3 min-w-0">
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#09090B] border border-border/50 overflow-hidden">
+              <img src="/icon.ico" alt="" className="h-6 w-6 object-contain" />
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br gradient-brand opacity-20 blur-md" />
+            </div>
+            {!collapsed && (
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-bold tracking-tight gradient-text truncate">
+                  CAZO EASM
+                </span>
+                <span className="text-[10px] text-muted-foreground/60 truncate">
+                  Enterprise
+                </span>
+              </div>
+            )}
+          </Link>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
+        {/* Quick Actions - only visible when expanded */}
+        {!collapsed && (
+          <div className="px-3 pt-3 pb-1 shrink-0">
+            <Link href="/scan/new">
+              <Button
+                size="sm"
+                className="w-full justify-start gap-2 h-9 gradient-brand text-white shadow-elevation-1 text-xs font-medium"
+              >
+                <Zap className="h-3.5 w-3.5" />
+                Quick Scan
+              </Button>
+            </Link>
+          </div>
+        )}
+
+        {collapsed && (
+          <div className="flex justify-center pt-3 pb-1 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/scan/new">
+                  <Button
+                    size="icon"
+                    className="h-9 w-9 gradient-brand text-white shadow-elevation-1"
+                    aria-label="Quick Scan"
+                  >
+                    <Zap className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                Quick Scan
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto px-3 py-3 sidebar-scroll" aria-label="Main menu">
           {navSections.map((section) => (
-            <div key={section.label} className="mb-5">
+            <div key={section.label} className="mb-4">
               {!collapsed && (
-                <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
                   {section.label}
                 </p>
               )}
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 {section.items.map((item) => {
                   const active = isActive(item.href);
                   const link = (
@@ -136,24 +209,25 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                       key={item.href}
                       href={item.href}
                       className={cn(
-                        "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                        "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                         active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                          ? "bg-brand/10 text-brand"
+                          : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                       )}
+                      aria-current={active ? "page" : undefined}
                     >
                       {active && (
-                        <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-primary to-cyan-400" />
+                        <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b gradient-brand" />
                       )}
                       <item.icon
                         className={cn(
                           "h-4 w-4 shrink-0 transition-colors duration-200",
                           active
-                            ? "text-primary"
+                            ? "text-brand"
                             : "text-muted-foreground group-hover:text-foreground"
                         )}
                       />
-                      {!collapsed && <span>{item.label}</span>}
+                      {!collapsed && <span className="truncate">{item.label}</span>}
                     </Link>
                   );
 
@@ -174,56 +248,90 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
           ))}
         </nav>
 
-        <div className="border-t border-border/50 px-3 py-3">
-          {bottomItems.map((item) => {
-            const active = isActive(item.href);
+        {/* Bottom Section */}
+        <div className="border-t border-border/50 px-3 py-3 shrink-0">
+          {/* Settings */}
+          {(() => {
+            const active = isActive("/settings");
             const link = (
               <Link
-                key={item.href}
-                href={item.href}
+                href="/settings"
                 className={cn(
-                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                   active
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    ? "bg-brand/10 text-brand"
+                    : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                 )}
+                aria-current={active ? "page" : undefined}
               >
                 {active && (
-                  <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-primary to-cyan-400" />
+                  <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b gradient-brand" />
                 )}
-                <item.icon
+                <Settings
                   className={cn(
                     "h-4 w-4 shrink-0 transition-colors duration-200",
                     active
-                      ? "text-primary"
+                      ? "text-brand"
                       : "text-muted-foreground group-hover:text-foreground"
                   )}
                 />
-                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && <span>Settings</span>}
               </Link>
             );
 
             if (collapsed) {
               return (
-                <Tooltip key={item.href}>
+                <Tooltip>
                   <TooltipTrigger asChild>{link}</TooltipTrigger>
                   <TooltipContent side="right" sideOffset={8}>
-                    {item.label}
+                    Settings
                   </TooltipContent>
                 </Tooltip>
               );
             }
-            return <div key={item.href}>{link}</div>;
-          })}
+            return link;
+          })()}
 
-          <Separator className="my-3 bg-border/50" />
+          <Separator className="my-2.5 bg-border/50" />
 
+          {/* Organization Switcher (expanded only) */}
+          {!collapsed && user?.organization_id && (
+            <DropdownMenu open={orgMenuOpen} onOpenChange={setOrgMenuOpen}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-muted/40 mb-1"
+                  aria-label="Organization menu"
+                >
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cyan-500/10">
+                    <Building className="h-3.5 w-3.5 text-cyan-500" />
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-xs font-medium truncate">Organization</p>
+                    <p className="text-[10px] text-muted-foreground/60 truncate">
+                      {user.organization_id.slice(0, 12)}...
+                    </p>
+                  </div>
+                  <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56" side="top">
+                <Link href="/settings/organization" passHref legacyBehavior>
+                  <DropdownMenuItem className="text-xs" onSelect={() => setOrgMenuOpen(false)}>
+                    <Building className="h-3.5 w-3.5 mr-2" />
+                    Manage Organization
+                  </DropdownMenuItem>
+                </Link>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
+          {/* User Profile */}
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex justify-center">
-                  <Avatar className="h-8 w-8 ring-2 ring-primary/30 ring-offset-2 ring-offset-card">
-                    <AvatarFallback className="bg-gradient-to-br from-primary/20 to-cyan-400/20 text-xs font-semibold text-primary">
+                  <Avatar className="h-8 w-8 ring-2 ring-border ring-offset-2 ring-offset-card cursor-pointer">
+                    <AvatarFallback className="bg-gradient-to-br from-brand/20 to-brand-2/20 text-xs font-semibold text-brand">
                       {getInitials()}
                     </AvatarFallback>
                   </Avatar>
@@ -237,51 +345,56 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
               </TooltipContent>
             </Tooltip>
           ) : (
-            <div className="flex items-center gap-3 px-2 py-1.5">
-              <Avatar className="h-9 w-9 ring-2 ring-primary/30 ring-offset-2 ring-offset-card">
-                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-cyan-400/20 text-xs font-semibold text-primary">
+            <div className="flex items-center gap-2.5 px-2 py-1.5">
+              <Avatar className="h-8 w-8 ring-2 ring-border ring-offset-2 ring-offset-card shrink-0">
+                <AvatarFallback className="bg-gradient-to-br from-brand/20 to-brand-2/20 text-xs font-semibold text-brand">
                   {getInitials()}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1 overflow-hidden">
-                <p className="truncate text-sm font-medium">
+              <div className="flex-1 overflow-hidden min-w-0">
+                <p className="truncate text-xs font-medium">
                   {user?.full_name || user?.email || "User"}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="truncate text-[10px] text-muted-foreground/60">
                   {user?.email || ""}
                 </p>
               </div>
             </div>
           )}
 
+          {/* Logout */}
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   onClick={logout}
-                  className="mt-2 flex w-full items-center justify-center rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  className="mt-2 flex w-full items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  aria-label="Log out"
                 >
                   <LogOut className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>
-                Logout
+                Log out
               </TooltipContent>
             </Tooltip>
           ) : (
             <button
               onClick={logout}
-              className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+              aria-label="Log out"
             >
               <LogOut className="h-4 w-4 shrink-0" />
-              <span>Logout</span>
+              <span>Log out</span>
             </button>
           )}
         </div>
 
+        {/* Collapse Toggle */}
         <button
           onClick={() => onCollapsedChange(!collapsed)}
-          className="absolute -right-3 top-20 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-lg transition-colors hover:text-foreground"
+          className="absolute -right-3 top-20 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-lg transition-colors hover:text-foreground z-50"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (
             <ChevronRight className="h-3 w-3" />

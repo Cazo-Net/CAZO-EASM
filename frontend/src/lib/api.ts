@@ -6,6 +6,8 @@ import type {
   Port,
   SSLCertificate,
   Technology,
+  AuthorizedScope,
+  ScopeCheckResult,
 } from "@/types";
 
 const api = axios.create({
@@ -64,6 +66,26 @@ export function getToken(): string | null {
   return localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
 }
 
+// Normalize an API error into a human-readable string. FastAPI returns 422
+// validation errors as `detail: [{ type, loc, msg, ... }]` (an array of objects)
+// which must never be rendered directly as a React child.
+export function getErrorMessage(err: unknown, fallback = "Something went wrong"): string {
+  const detail = (err as any)?.response?.data?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const msg = detail
+      .map((d) => (typeof d === "string" ? d : d?.msg))
+      .filter(Boolean)
+      .join(", ");
+    if (msg) return msg;
+  }
+  if (detail && typeof detail === "object" && typeof detail.msg === "string") {
+    return detail.msg;
+  }
+  if (typeof (err as any)?.message === "string") return (err as any).message;
+  return fallback;
+}
+
 // --- Auth (new endpoints) ---
 export async function forgotPassword(email: string) {
   const { data } = await api.post("/auth/forgot-password", { email });
@@ -96,8 +118,29 @@ export async function disable2FA(code: string) {
 }
 
 // --- Scans ---
-export async function createScan(domain: string, scanType = "full"): Promise<Scan> {
-  const { data } = await api.post("/scans", { domain, scan_type: scanType });
+export async function createScan(
+  domain: string,
+  scanType = "full",
+  scanOptions?: {
+    scan_size?: string;
+    max_subdomains?: number;
+    port_mode?: string;
+    include_nuclei?: boolean;
+    subdomain_tools?: string[];
+  }
+): Promise<Scan> {
+  const payload: Record<string, any> = { domain, scan_type: scanType };
+  if (scanOptions) {
+    payload.scan_options = {
+      scan_size: "large",
+      max_subdomains: 0,
+      port_mode: "full",
+      include_nuclei: true,
+      subdomain_tools: ["default", "subfinder", "amass"],
+      ...scanOptions,
+    };
+  }
+  const { data } = await api.post("/scans", payload);
   return data;
 }
 
@@ -532,20 +575,9 @@ export async function exportCanvas(canvasId: string, format = "json") {
   return res.data;
 }
 
-// ==================== SESSIONS ====================
+// ==================== SESSIONS (security-center) ====================
 
-export async function listSessions() {
-  const res = await api.get("/sessions");
-  return res.data;
-}
-
-export async function revokeSession(sessionId: string) {
-  await api.delete(`/sessions/${sessionId}`);
-}
-
-export async function revokeAllSessions() {
-  await api.delete("/sessions");
-}
+// Note: session management is in the SECURITY CENTER section below
 
 // ==================== INVITATIONS ====================
 
@@ -626,3 +658,284 @@ export async function listRecoveryCodes() {
   const res = await api.get("/security/recovery-codes");
   return res.data;
 }
+
+// --- Authorized Scopes ---
+export async function listScopes(): Promise<AuthorizedScope[]> {
+  const res = await api.get("/scopes");
+  return res.data;
+}
+
+export async function createScope(
+  scopeType: string,
+  value: string,
+  note?: string
+): Promise<AuthorizedScope> {
+  const res = await api.post("/scopes", { scope_type: scopeType, value, note });
+  return res.data;
+}
+
+export async function deleteScope(scopeId: string): Promise<void> {
+  await api.delete(`/scopes/${scopeId}`);
+}
+
+export async function checkScope(value: string): Promise<ScopeCheckResult> {
+  const res = await api.post("/scopes/check", { scope_type: "domain", value });
+  return res.data;
+}
+
+// ==================== BILLING & SUBSCRIPTION ====================
+
+export async function listPlans() {
+  const res = await api.get("/billing/plans");
+  return res.data;
+}
+
+export async function getSubscription() {
+  const res = await api.get("/billing/subscription");
+  return res.data;
+}
+
+export async function createCheckoutSession(data: {
+  plan: string;
+  success_url: string;
+  cancel_url: string;
+}) {
+  const res = await api.post("/billing/checkout", data);
+  return res.data;
+}
+
+export async function getBillingPortal(returnUrl: string) {
+  const res = await api.get(`/billing/portal?return_url=${encodeURIComponent(returnUrl)}`);
+  return res.data;
+}
+
+export async function upgradePlan(plan: string) {
+  const res = await api.post("/billing/subscription/upgrade", { plan });
+  return res.data;
+}
+
+export async function downgradePlan(plan: string) {
+  const res = await api.post("/billing/subscription/downgrade", { plan });
+  return res.data;
+}
+
+export async function cancelSubscription(atPeriodEnd = true) {
+  const res = await api.post("/billing/subscription/cancel", { at_period_end: atPeriodEnd });
+  return res.data;
+}
+
+export async function resumeSubscription() {
+  const res = await api.post("/billing/subscription/resume");
+  return res.data;
+}
+
+export async function startTrial() {
+  const res = await api.post("/billing/subscription/trial");
+  return res.data;
+}
+
+export async function listInvoices(limit = 20) {
+  const res = await api.get(`/billing/invoices?limit=${limit}`);
+  return res.data;
+}
+
+export async function listPaymentMethods() {
+  const res = await api.get("/billing/payment-methods");
+  return res.data;
+}
+
+export async function addPaymentMethod(paymentMethodId: string, setAsDefault = false) {
+  const res = await api.post("/billing/payment-methods", {
+    payment_method_id: paymentMethodId,
+    set_as_default: setAsDefault,
+  });
+  return res.data;
+}
+
+export async function removePaymentMethod(paymentMethodId: string) {
+  await api.delete(`/billing/payment-methods/${paymentMethodId}`);
+}
+
+export async function setDefaultPaymentMethod(paymentMethodId: string) {
+  await api.put(`/billing/payment-methods/${paymentMethodId}/default`);
+}
+
+export async function getUsageSummary() {
+  const res = await api.get("/billing/usage");
+  return res.data;
+}
+
+export async function refreshUsage() {
+  const res = await api.post("/billing/usage/refresh");
+  return res.data;
+}
+
+// ==================== SECURITY CENTER ====================
+
+export async function getSecurityDashboard() {
+  const res = await api.get("/security-center/dashboard");
+  return res.data;
+}
+
+export async function listSecurityCenterSessions() {
+  const res = await api.get("/security-center/sessions");
+  return res.data;
+}
+
+export async function revokeSecurityCenterSession(sessionId: string) {
+  await api.delete(`/security-center/sessions/${sessionId}`);
+}
+
+export async function revokeAllSecurityCenterSessions() {
+  const res = await api.delete("/security-center/sessions");
+  return res.data;
+}
+
+export async function listSecurityCenterDevices() {
+  const res = await api.get("/security-center/devices");
+  return res.data;
+}
+
+export async function removeSecurityCenterDevice(deviceId: string) {
+  await api.delete(`/security-center/devices/${deviceId}`);
+}
+
+export async function getSecurityCenterLoginHistory(limit = 20) {
+  const res = await api.get(`/security-center/login-history?limit=${limit}`);
+  return res.data;
+}
+
+export async function getSecurityCenterAuditTrail(limit = 50) {
+  const res = await api.get(`/security-center/audit-trail?limit=${limit}`);
+  return res.data;
+}
+
+// ==================== ORGANIZATION MANAGEMENT ====================
+
+export async function listOrganizations(): Promise<import("@/types").Organization[]> {
+  const res = await api.get("/organizations");
+  return res.data;
+}
+
+export async function getOrganization(orgId: string): Promise<import("@/types").Organization> {
+  const res = await api.get(`/organizations/${orgId}`);
+  return res.data;
+}
+
+export async function createOrganization(data: {
+  name: string;
+  slug?: string;
+  plan?: string;
+}): Promise<import("@/types").Organization> {
+  const res = await api.post("/organizations", data);
+  return res.data;
+}
+
+export async function updateOrganization(
+  orgId: string,
+  data: Record<string, unknown>
+): Promise<import("@/types").Organization> {
+  const res = await api.put(`/organizations/${orgId}`, data);
+  return res.data;
+}
+
+export async function deleteOrganization(orgId: string): Promise<void> {
+  await api.delete(`/organizations/${orgId}`);
+}
+
+export async function listOrganizationMembers(
+  orgId: string
+): Promise<import("@/types").OrganizationMember[]> {
+  const res = await api.get(`/organizations/${orgId}/members`);
+  return res.data;
+}
+
+export async function updateMemberRole(
+  orgId: string,
+  userId: string,
+  role: string
+): Promise<import("@/types").OrganizationMember> {
+  const res = await api.put(`/organizations/${orgId}/members/${userId}/role`, { role });
+  return res.data;
+}
+
+export async function removeOrganizationMember(
+  orgId: string,
+  userId: string
+): Promise<void> {
+  await api.delete(`/organizations/${orgId}/members/${userId}`);
+}
+
+export async function getOrganizationStats(
+  orgId: string
+): Promise<import("@/types").OrganizationStats> {
+  const res = await api.get(`/organizations/${orgId}/stats`);
+  return res.data;
+}
+
+export async function inviteMember(email: string, role = "analyst") {
+  const res = await api.post("/invitations", { email, role });
+  return res.data;
+}
+
+// revokeInvitation and resendInvitation are in the INVITATIONS section above
+
+// ==================== API KEYS V2 ====================
+
+export async function listApiKeysV2() {
+  const res = await api.get("/api-keys/v2");
+  return res.data;
+}
+
+export async function createApiKeyV2(data: {
+  name: string;
+  scopes?: string[];
+  expires_in_days?: number;
+}) {
+  const res = await api.post("/api-keys/v2", data);
+  return res.data;
+}
+
+export async function revokeApiKeyV2(keyId: string) {
+  await api.delete(`/api-keys/v2/${keyId}`);
+}
+
+export async function rotateApiKeyV2(keyId: string) {
+  const res = await api.post(`/api-keys/v2/${keyId}/rotate`);
+  return res.data;
+}
+
+// ==================== PASSKEYS ====================
+
+export async function listPasskeys() {
+  const res = await api.get("/passkeys");
+  return res.data;
+}
+
+export async function registerPasskeyBegin() {
+  const res = await api.post("/passkeys/register/begin");
+  return res.data;
+}
+
+export async function registerPasskeyComplete(data: {
+  credential_id: string;
+  public_key: string;
+  device_name?: string;
+  aaguid?: string;
+  sign_count?: number;
+}) {
+  const res = await api.post("/passkeys/register/complete", data);
+  return res.data;
+}
+
+export async function removePasskey(passkeyId: string) {
+  await api.delete(`/passkeys/${passkeyId}`);
+}
+
+// ==================== FEATURE MODULES (Phases 1.2 - 4.2) ====================
+export * from "./api-asset360";
+export * from "./api-changefeed";
+export * from "./api-replay";
+export * from "./api-ai";
+export * from "./api-collab";
+export * from "./api-reports";

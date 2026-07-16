@@ -1,9 +1,18 @@
+export interface ScanOptions {
+  scan_size: "small" | "large";
+  max_subdomains: number;
+  port_mode: "quick" | "full";
+  include_nuclei: boolean;
+  subdomain_tools: ("default" | "subfinder" | "amass")[];
+}
+
 export interface Scan {
   id: string;
   domain: string;
   status: "pending" | "running" | "completed" | "failed";
   progress: number;
   scan_type: string;
+  scan_options: ScanOptions | null;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -158,6 +167,62 @@ export interface User {
   created_at: string;
   last_login: string | null;
 }
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  settings: Record<string, unknown> | null;
+  logo_url: string | null;
+  website: string | null;
+  description: string | null;
+  industry: string | null;
+  company_size: string | null;
+  billing_email: string | null;
+  tax_id: string | null;
+  invoice_prefix: string | null;
+  stripe_customer_id: string | null;
+  trial_ends_at: string | null;
+  mfa_enforced: boolean;
+  allowed_email_domains: string[] | null;
+  is_active: boolean;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface OrganizationMember {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: string;
+  is_active: boolean;
+  email_verified: boolean;
+  last_login: string | null;
+  created_at: string;
+}
+
+export interface OrganizationStats {
+  member_count: number;
+  project_count: number;
+  scan_count: number;
+  active_scan_count: number;
+  asset_count: number;
+  invitation_count: number;
+  role_distribution: Record<string, number>;
+  plan: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type OrgRole =
+  | "owner"
+  | "admin"
+  | "billing_admin"
+  | "security_manager"
+  | "analyst"
+  | "viewer";
 
 export interface Tag {
   id: string;
@@ -329,3 +394,191 @@ export interface ScanPreviewResponse {
   assets: Record<string, ScanAssetPreview[]>;
   counts: Record<string, number>;
 }
+
+export type ScopeType = "domain" | "wildcard" | "ip" | "cidr";
+
+export interface AuthorizedScope {
+  id: string;
+  organization_id: string;
+  scope_type: ScopeType;
+  value: string;
+  verified: boolean;
+  note: string | null;
+  added_by: string | null;
+  created_at: string | null;
+}
+
+export interface ScopeCheckResult {
+  target: string;
+  authorized: boolean;
+  reason: string | null;
+  matched_scope_id: string | null;
+}
+
+// ==================== BILLING & SUBSCRIPTION ====================
+
+export interface Plan {
+  id: string;
+  name: string;
+  description: string;
+  price_monthly: number;
+  price_yearly: number;
+  limits: Record<string, number>;
+  features: string[];
+}
+
+export interface Subscription {
+  id: string;
+  plan: string;
+  status: string;
+  stripe_subscription_id: string | null;
+  trial_starts_at: string | null;
+  trial_ends_at: string | null;
+  current_period_starts_at: string | null;
+  current_period_ends_at: string | null;
+  canceled_at: string | null;
+  cancel_at_period_end: boolean;
+}
+
+export interface Invoice {
+  id: string;
+  amount_cents: number;
+  currency: string;
+  status: string;
+  invoice_url: string | null;
+  invoice_pdf_url: string | null;
+  period_starts_at: string | null;
+  period_ends_at: string | null;
+  created_at: string;
+}
+
+export interface PaymentMethod {
+  id: string;
+  brand: string;
+  last4: string;
+  exp_month: number;
+  exp_year: number;
+}
+
+export interface UsageMetric {
+  current: number;
+  limit: number;
+  remaining: number;
+  percentage: number;
+  unlimited: boolean;
+}
+
+export interface UsageSummary {
+  plan: string;
+  metrics: Record<string, UsageMetric>;
+  period_starts_at: string;
+  period_ends_at: string;
+}
+
+// ==================== SECURITY CENTER ====================
+
+export interface SecurityFactor {
+  name: string;
+  points: number;
+  status: "good" | "warning" | "critical" | "info";
+  detail?: string;
+  recommendation?: string;
+}
+
+export interface SecurityDashboard {
+  security_score: { score: number; factors: SecurityFactor[] };
+  mfa_enabled: boolean;
+  email_verified: boolean;
+  last_login: string | null;
+  active_sessions: number;
+  trusted_devices: number;
+  active_api_keys: number;
+  recovery_codes_available: number;
+  failed_logins_30d: number;
+  password_age_days: number | null;
+}
+
+export interface SessionInfo {
+  id: string;
+  browser: string | null;
+  os: string | null;
+  ip_address: string | null;
+  location_city: string | null;
+  location_country: string | null;
+  is_trusted: boolean;
+  last_activity: string | null;
+  created_at: string | null;
+}
+
+export interface TrustedDeviceInfo {
+  id: string;
+  device_name: string | null;
+  browser: string | null;
+  os: string | null;
+  ip_address: string | null;
+  trusted_at: string | null;
+  last_used: string | null;
+}
+
+export interface LoginHistoryEntry {
+  id: string;
+  event_type: string;
+  success: boolean;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string | null;
+}
+
+// ==================== API KEYS V2 ====================
+
+export interface ApiKeyV2 {
+  id: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  expires_at: string | null;
+  last_used_at: string | null;
+  last_used_ip: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface ApiKeyCreateResponse {
+  id: string;
+  key: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  expires_at: string | null;
+  created_at: string;
+}
+
+// ==================== PASSKEYS ====================
+
+export interface PasskeyInfo {
+  id: string;
+  device_name: string | null;
+  aaguid: string | null;
+  created_at: string | null;
+  last_used_at: string | null;
+}
+
+// ==================== INVITATIONS ====================
+
+export interface Invitation {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  invited_by: string;
+  created_at: string;
+  expires_at: string;
+}
+
+// ==================== FEATURE TYPES (Phases 1.2 - 4.2) ====================
+export * from "./asset360";
+export * from "./changefeed";
+export * from "./replay2";
+export * from "./ai2";
+export * from "./collab";
+export * from "./report";
