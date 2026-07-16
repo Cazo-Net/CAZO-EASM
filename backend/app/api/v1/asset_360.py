@@ -111,7 +111,14 @@ async def get_asset_360(
 
     related_map = {}
     if related_ids:
-        for related in db.query(Asset).filter(Asset.id.in_(related_ids)).all():
+        for related in (
+            db.query(Asset)
+            .filter(
+                Asset.id.in_(related_ids),
+                Asset.organization_id == asset.organization_id,
+            )
+            .all()
+        ):
             related_map[related.id] = related
 
     for rel in outgoing:

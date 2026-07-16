@@ -38,19 +38,22 @@ def _require_scan_org(db: Session, scan_id: str, org_id: str) -> None:
 
 @router.get("/timeline", response_model=ReplayTimelineResponse)
 async def replay_timeline(
-    org_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List one snapshot per completed scan for the organization."""
-    effective_org = org_id or current_user.organization_id
-    if not effective_org:
+    """List one snapshot per completed scan for the caller's organization.
+
+    Always scopes to the authenticated user's organization; the ``org_id``
+    query parameter was removed to prevent cross-tenant timeline reads.
+    """
+    org_id = current_user.organization_id
+    if not org_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Organization context is required",
         )
-    snapshots: list[ReplaySnapshot] = replay_service.get_timeline(db, effective_org)
-    return ReplayTimelineResponse(organization_id=effective_org, snapshots=snapshots)
+    snapshots: list[ReplaySnapshot] = replay_service.get_timeline(db, org_id)
+    return ReplayTimelineResponse(organization_id=org_id, snapshots=snapshots)
 
 
 @router.get("/changes", response_model=ReplayChangesResponse)

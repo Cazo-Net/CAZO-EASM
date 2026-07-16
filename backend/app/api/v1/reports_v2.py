@@ -26,17 +26,16 @@ def _build_summary(
 
     total_assets = db.query(Asset).filter(Asset.organization_id == org_id).count()
 
-    # Scans are linked to users via created_by; count scans owned by org members.
+    # Scans are scoped directly by organization_id (created_by may be NULL for
+    # system/orchestrated scans, so we must not infer org via the user join).
     total_scans = (
         db.query(Scan)
-        .join(User, Scan.created_by == User.id)
-        .filter(User.organization_id == org_id)
+        .filter(Scan.organization_id == org_id)
         .count()
     )
     active_scans = (
         db.query(Scan)
-        .join(User, Scan.created_by == User.id)
-        .filter(User.organization_id == org_id, Scan.status == "running")
+        .filter(Scan.organization_id == org_id, Scan.status == "running")
         .count()
     )
 
@@ -44,8 +43,7 @@ def _build_summary(
     sev_rows = (
         db.query(Vulnerability.severity, func.count(Vulnerability.id))
         .join(Scan, Vulnerability.scan_id == Scan.id)
-        .join(User, Scan.created_by == User.id)
-        .filter(User.organization_id == org_id)
+        .filter(Scan.organization_id == org_id)
         .group_by(Vulnerability.severity)
         .all()
     )

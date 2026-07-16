@@ -29,6 +29,7 @@ import {
   History,
   BarChart3,
   MessagesSquare,
+  Boxes,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -65,6 +66,7 @@ const navSections = [
       { href: "/graph", label: "Attack Graph", icon: Waypoints },
       { href: "/scopes", label: "Authorized Scopes", icon: ShieldCheck },
       { href: "/change-feed", label: "Change Feed", icon: History },
+      { href: "/assets/360", label: "Asset 360°", icon: Boxes },
     ],
   },
   {
