@@ -1,22 +1,43 @@
 import asyncio
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
+from app.scanners.registry import registry, ScannerCategory
 from app.scanners.subdomain import SubdomainScanner
 from app.scanners.dns import DNSScanner
 from app.scanners.whois import WhoisScanner
 from app.scanners.ssl_check import SSLScanner
 from app.scanners.ports import PortScanner
 from app.scanners.tech import TechScanner
-from app.scanners.nuclei_scanner import NucleiScanner
+from app.scanners.security_findings import SecurityFindingsScanner
+from app.scanners.zone_transfer import ZoneTransferScanner
+from app.scanners.cve_correlation import CVECorrelationScanner
+from app.scanners.relationships import RelationshipsScanner
 from app.risk_scorer import calculate_risk
 import logging
 
 logger = logging.getLogger(__name__)
 
+# How many subdomains to scan concurrently. Each subdomain runs 4 scanners
+# (DNS, SSL, Ports, Tech) in parallel, so this controls total I/O concurrency.
+_SUBDOMAIN_CONCURRENCY = 50
+
+
+def _plugin_instance(category: ScannerCategory, fallback) -> Optional[Any]:
+    plugins = registry.by_category(category)
+    if plugins:
+        return plugins[0].instantiate()
+    return fallback
+
 
 class ScanRunner:
-    """Orchestrates all scanner modules for a complete scan."""
-    
+    """Orchestrates all scanner modules for a complete scan.
+
+    Performance model: all subdomains are scanned concurrently (capped by a
+    semaphore). Within each subdomain, DNS, SSL, Ports, and Tech run in
+    parallel via ``asyncio.gather``. Subdomain discovery sources also run in
+    parallel.
+    """
+
     def __init__(self):
         self.subdomain_scanner = SubdomainScanner()
         self.dns_scanner = DNSScanner()
@@ -24,16 +45,93 @@ class ScanRunner:
         self.ssl_scanner = SSLScanner()
         self.port_scanner = PortScanner()
         self.tech_scanner = TechScanner()
-        self.nuclei_scanner = NucleiScanner()
-    
+        self.security_findings_scanner = SecurityFindingsScanner()
+        self.zone_transfer_scanner = ZoneTransferScanner()
+        self.cve_scanner = CVECorrelationScanner()
+        self.relationships_scanner = RelationshipsScanner()
+
+    # ------------------------------------------------------------------
+    # Per-subdomain parallel scan (DNS + SSL + Ports + Tech at once)
+    # ------------------------------------------------------------------
+    async def _scan_one_subdomain(
+        self,
+        subdomain: str,
+        port_mode: str,
+        ports_list: List[int],
+        domain: str,
+    ) -> Dict[str, Any]:
+        """Run DNS, SSL, Ports, and Tech concurrently for one subdomain."""
+        result = {
+            "subdomain": subdomain,
+            "dns": None,
+            "ssl": None,
+            "ports": None,
+            "tech": None,
+            "san_hostnames": [],
+            "ips": [],
+            "errors": [],
+        }
+
+        async def _dns():
+            try:
+                r = await self.dns_scanner.run_with_retry(subdomain)
+                result["dns"] = r
+                if r and r.get("success"):
+                    result["ips"] = r.get("ips", [])
+            except Exception as e:
+                result["errors"].append({"scanner": "dns", "target": subdomain, "error": str(e)})
+
+        async def _ssl():
+            try:
+                r = await self.ssl_scanner.run_with_retry(subdomain)
+                result["ssl"] = r
+                if r and r.get("success"):
+                    cert = r.get("certificate")
+                    if cert and cert.get("san_names"):
+                        for san in cert["san_names"]:
+                            san = san.strip().lower()
+                            if san.endswith(f".{domain}"):
+                                result["san_hostnames"].append(san)
+            except Exception as e:
+                result["errors"].append({"scanner": "ssl", "target": subdomain, "error": str(e)})
+
+        async def _ports():
+            try:
+                r = await self.port_scanner.run_with_retry(
+                    subdomain,
+                    scan_type="quick" if port_mode == "quick" else "full",
+                )
+                result["ports"] = r
+            except Exception as e:
+                result["errors"].append({"scanner": "ports", "target": subdomain, "error": str(e)})
+
+        async def _tech():
+            try:
+                r = await self.tech_scanner.run_with_retry(subdomain)
+                result["tech"] = r
+            except Exception as e:
+                result["errors"].append({"scanner": "tech", "target": subdomain, "error": str(e)})
+
+        await asyncio.gather(_dns(), _ssl(), _ports(), _tech(), return_exceptions=True)
+        return result
+
+    # ------------------------------------------------------------------
+    # Full scan pipeline
+    # ------------------------------------------------------------------
     async def run_full_scan(
         self,
         domain: str,
         progress_callback=None,
-        **kwargs
+        options: Optional[Dict[str, Any]] = None,
+        **kwargs,
     ) -> Dict[str, Any]:
-        """Execute a complete scan pipeline."""
-        results = {
+        options = options or {}
+        scan_size = options.get("scan_size", "large")
+        max_subdomains = options.get("max_subdomains", 0)
+        port_mode = options.get("port_mode", "full")
+        subdomain_tools = options.get("subdomain_tools", ["default", "bruteforce", "permutations"])
+
+        results: Dict[str, Any] = {
             "domain": domain,
             "started_at": datetime.now(timezone.utc).isoformat(),
             "subdomains": [],
@@ -43,206 +141,376 @@ class ScanRunner:
             "technologies": {},
             "vulnerabilities": {},
             "whois": None,
-            "errors": []
+            "errors": [],
+            "scanner_status": {},
         }
-        
+
         try:
-            # Step 1: Discover subdomains from multiple sources
+            # ── Step 1: Subdomain discovery (all sources in parallel) ──
             if progress_callback:
                 await progress_callback(5, "Discovering subdomains...")
-            
-            subdomains = set()
-            subdomains.add(domain)
-            
-            # Source: Multi-source (crt.sh + HackerTarget + AlienVault)
-            try:
-                subdomain_result = await self.subdomain_scanner.run_with_retry(domain)
-                if subdomain_result.get("success"):
-                    subdomains.update(subdomain_result.get("subdomains", []))
-            except Exception as e:
-                results["errors"].append({"scanner": "subdomain", "error": str(e)})
-            
+
+            subdomains = {domain}
+            from app.config import settings
+            ports_list = list(range(1, 10000)) if port_mode == "full" else settings.SCAN_QUICK_PORTS
+
+            async def _run_source(name, scanner):
+                try:
+                    r = await scanner.run_with_retry(domain)
+                    if r and r.get("success"):
+                        return name, r.get("subdomains", []), "ok"
+                    return name, [], "failed"
+                except Exception as e:
+                    return name, [], f"error: {type(e).__name__}"
+
+            source_tasks = []
+            if "default" in subdomain_tools:
+                source_tasks.append(_run_source("subdomain-default", self.subdomain_scanner))
+            if "bruteforce" in subdomain_tools:
+                bf_plugin = registry.get("subdomain-bruteforce")
+                if bf_plugin:
+                    source_tasks.append(_run_source("subdomain-bruteforce", bf_plugin.instantiate()))
+            if "permutations" in subdomain_tools:
+                perm_plugin = registry.get("subdomain-permutations")
+                if perm_plugin:
+                    source_tasks.append(_run_source("subdomain-permutations", perm_plugin.instantiate()))
+
+            source_results = await asyncio.gather(*source_tasks, return_exceptions=True)
+            for item in source_results:
+                if isinstance(item, Exception):
+                    results["errors"].append({"scanner": "subdomain-source", "error": str(item)})
+                    continue
+                name, found, status = item
+                subdomains.update(found)
+                results["scanner_status"][name] = f"ok ({len(found)} found)" if status == "ok" else status
+
             subdomains = sorted(subdomains)
             results["subdomains"] = subdomains
-            
-            # Step 2: WHOIS on main domain
+            if max_subdomains > 0:
+                subdomains = subdomains[:max_subdomains]
+                results["subdomains"] = subdomains
+            total = len(subdomains)
+
+            # ── Step 2: WHOIS (parallel with nothing else, but fast) ──
             if progress_callback:
-                await progress_callback(15, "Running WHOIS lookup...")
-            
+                await progress_callback(10, "Running WHOIS lookup...")
             try:
                 whois_result = await self.whois_scanner.run_with_retry(domain)
-                if whois_result.get("success"):
+                if whois_result and whois_result.get("success"):
                     results["whois"] = whois_result.get("data")
+                    results["scanner_status"]["whois"] = "ok"
+                else:
+                    results["scanner_status"]["whois"] = "failed"
             except Exception as e:
+                results["scanner_status"]["whois"] = f"error: {type(e).__name__}"
                 results["errors"].append({"scanner": "whois", "error": str(e)})
-            
-            # Step 3: Process each subdomain
-            http_urls = []
-            total = len(subdomains)
-            
-            for idx, subdomain in enumerate(subdomains):
-                progress = 20 + int((idx / total) * 55)
-                
-                if progress_callback:
-                    await progress_callback(progress, f"Scanning {subdomain} ({idx + 1}/{total})...")
-                
-                # DNS
-                try:
-                    dns_result = await self.dns_scanner.run_with_retry(subdomain)
-                    if dns_result.get("success"):
-                        results["dns_records"][subdomain] = dns_result.get("records", {})
-                except Exception as e:
-                    results["errors"].append({"scanner": "dns", "target": subdomain, "error": str(e)})
-                
-                # SSL
-                try:
-                    ssl_result = await self.ssl_scanner.run_with_retry(subdomain)
-                    if ssl_result.get("success"):
-                        results["ssl_certificates"][subdomain] = ssl_result.get("certificate")
-                except Exception as e:
-                    results["errors"].append({"scanner": "ssl", "target": subdomain, "error": str(e)})
-                
-                # Ports
-                try:
-                    port_result = await self.port_scanner.run_with_retry(subdomain, scan_type="quick")
-                    if port_result.get("success"):
-                        results["ports"][subdomain] = port_result.get("ports", [])
-                        # Track HTTP URLs for nuclei
-                        for port_info in port_result.get("ports", []):
-                            port = port_info.get("port")
-                            if port in (80, 443, 8080, 8443):
-                                scheme = "https" if port in (443, 8443) else "http"
-                                http_urls.append(f"{scheme}://{subdomain}")
-                except Exception as e:
-                    results["errors"].append({"scanner": "ports", "target": subdomain, "error": str(e)})
-                
-                # Technology detection
-                try:
-                    tech_result = await self.tech_scanner.run_with_retry(subdomain)
-                    if tech_result.get("success"):
-                        results["technologies"][subdomain] = tech_result.get("technologies", [])
-                except Exception as e:
-                    results["errors"].append({"scanner": "tech", "target": subdomain, "error": str(e)})
-            
-            # Step 4: Nuclei vulnerability scanning
+
+            # ── Step 3: Scan ALL subdomains concurrently ──
             if progress_callback:
-                await progress_callback(80, "Running vulnerability scans...")
-            
-            if http_urls:
+                await progress_callback(15, f"Scanning {total} subdomains (concurrent)...")
+
+            sem = asyncio.Semaphore(_SUBDOMAIN_CONCURRENCY)
+            all_san_hostnames: List[str] = []
+            all_ips: List[str] = []
+            counters = {"dns_ok": 0, "dns_fail": 0, "ssl_ok": 0, "ssl_fail": 0,
+                        "port_ok": 0, "port_fail": 0, "tech_ok": 0, "tech_fail": 0}
+            completed = 0
+
+            async def _bounded_scan(subdomain):
+                nonlocal completed
+                async with sem:
+                    r = await self._scan_one_subdomain(subdomain, port_mode, ports_list, domain)
+                    completed += 1
+                    if progress_callback and completed % max(total // 20, 1) == 0:
+                        pct = 15 + int((completed / max(total, 1)) * 55)
+                        await progress_callback(pct, f"Scanned {completed}/{total} subdomains...")
+
+                    # Collect results
+                    if r["dns"] and r["dns"].get("success"):
+                        results["dns_records"][subdomain] = r["dns"].get("records", {})
+                        all_ips.extend(r["dns"].get("ips", []))
+                        counters["dns_ok"] += 1
+                    else:
+                        counters["dns_fail"] += 1
+
+                    if r["ssl"] and r["ssl"].get("success"):
+                        results["ssl_certificates"][subdomain] = r["ssl"].get("certificate")
+                        counters["ssl_ok"] += 1
+                        all_san_hostnames.extend(r["san_hostnames"])
+                    else:
+                        counters["ssl_fail"] += 1
+
+                    if r["ports"] and r["ports"].get("success"):
+                        results["ports"][subdomain] = r["ports"].get("ports", [])
+                        counters["port_ok"] += 1
+                    else:
+                        counters["port_fail"] += 1
+
+                    if r["tech"] and r["tech"].get("success"):
+                        results["technologies"][subdomain] = r["tech"].get("technologies", [])
+                        counters["tech_ok"] += 1
+                    else:
+                        counters["tech_fail"] += 1
+
+                    results["errors"].extend(r["errors"])
+
+            scan_tasks = [_bounded_scan(sub) for sub in subdomains]
+            await asyncio.gather(*scan_tasks, return_exceptions=True)
+
+            # Scanner status
+            for key, ok_key, fail_key in [
+                ("dns", "dns_ok", "dns_fail"), ("ssl", "ssl_ok", "ssl_fail"),
+                ("ports", "port_ok", "port_fail"), ("tech", "tech_ok", "tech_fail"),
+            ]:
+                ok, fail = counters[ok_key], counters[fail_key]
+                total_sq = ok + fail
+                results["scanner_status"][key] = f"ok ({ok}/{total_sq} hosts)" if total_sq > 0 else "ok"
+
+            # ── Step 3.5: Reverse DNS on discovered IPs (parallel) ──
+            unique_ips = sorted(set(all_ips))
+            if unique_ips:
+                if progress_callback:
+                    await progress_callback(72, f"Reverse DNS on {len(unique_ips)} IPs...")
+
+                async def _rev_dns(ip):
+                    try:
+                        r = await self.dns_scanner.resolve_ip(ip)
+                        if r and r.get("success"):
+                            return [h.rstrip(".") for h in r.get("hostnames", []) if h]
+                    except Exception:
+                        pass
+                    return []
+
+                rev_results = await asyncio.gather(
+                    *[_rev_dns(ip) for ip in unique_ips[:50]], return_exceptions=True
+                )
+                reverse_hostnames = set()
+                for item in rev_results:
+                    if isinstance(item, list):
+                        reverse_hostnames.update(h for h in item if h not in subdomains)
+
+                # Scan reverse-DNS hostnames in parallel
+                if reverse_hostnames:
+                    results["subdomains"].extend(sorted(reverse_hostnames))
+                    rev_tasks = [_bounded_scan(h) for h in sorted(reverse_hostnames)]
+                    await asyncio.gather(*rev_tasks, return_exceptions=True)
+
+            # ── Step 3.6: SSL SAN hostnames (parallel) ──
+            unique_sans = sorted(set(all_san_hostnames) - set(subdomains))
+            if unique_sans:
+                if progress_callback:
+                    await progress_callback(77, f"Scanning {len(unique_sans)} SAN hostnames...")
+                results["subdomains"].extend(unique_sans)
+                san_tasks = [_bounded_scan(h) for h in unique_sans]
+                await asyncio.gather(*san_tasks, return_exceptions=True)
+
+            # ── Step 3.7: Zone transfer ──
+            if progress_callback:
+                await progress_callback(79, "Attempting zone transfer...")
+            try:
+                zt_result = await self.zone_transfer_scanner.run_with_retry(domain)
+                if zt_result and zt_result.get("success") and zt_result.get("transfer_success"):
+                    for hostname in zt_result.get("subdomains", []):
+                        if hostname not in results["subdomains"]:
+                            results["subdomains"].append(hostname)
+                            zt_records = zt_result.get("records", {}).get(hostname, {})
+                            if zt_records:
+                                results["dns_records"][hostname] = zt_records
+                    results["scanner_status"]["zone-transfer"] = f"ok ({zt_result.get('transfer_count', 0)} records)"
+                else:
+                    results["scanner_status"]["zone-transfer"] = "ok (blocked or not vulnerable)"
+            except Exception as e:
+                results["scanner_status"]["zone-transfer"] = f"error: {type(e).__name__}"
+                results["errors"].append({"scanner": "zone-transfer", "error": str(e)})
+
+            # ── Step 4: Vulnerability scanning (parallel: findings + CVE) ──
+            if progress_callback:
+                await progress_callback(85, "Running vulnerability scan...")
+
+            results["scanner_status"]["nuclei"] = "removed: replaced by pure code (security-findings + cve-correlation)"
+
+            async def _findings():
                 try:
-                    nuclei_result = await self.nuclei_scanner.run_with_retry(
-                        domain,
-                        urls=http_urls[:50]  # Limit to 50 URLs
-                    )
-                    if nuclei_result.get("success"):
-                        vulns = nuclei_result.get("vulnerabilities", [])
-                        if vulns:
-                            results["vulnerabilities"][domain] = vulns
+                    r = await self.security_findings_scanner.run_with_retry(domain, scan_results=results)
+                    if r and r.get("success"):
+                        results["scanner_status"]["security-findings"] = f"ok ({r.get('count', 0)} findings)"
+                        return r.get("vulnerabilities", [])
+                    results["scanner_status"]["security-findings"] = "failed"
                 except Exception as e:
-                    results["errors"].append({"scanner": "nuclei", "error": str(e)})
-            
-            # Step 5: Calculate risk score
+                    results["scanner_status"]["security-findings"] = f"error: {type(e).__name__}"
+                    results["errors"].append({"scanner": "security-findings", "error": str(e)})
+                return []
+
+            async def _cve():
+                try:
+                    r = await self.cve_scanner.run_with_retry(domain, scan_results=results)
+                    if r and r.get("success"):
+                        results["scanner_status"]["cve-correlation"] = f"ok ({len(r.get('vulnerabilities', []))} CVEs)"
+                        return r.get("vulnerabilities", [])
+                    results["scanner_status"]["cve-correlation"] = "failed"
+                except Exception as e:
+                    results["scanner_status"]["cve-correlation"] = f"error: {type(e).__name__}"
+                    results["errors"].append({"scanner": "cve-correlation", "error": str(e)})
+                return []
+
+            findings_list, cve_list = await asyncio.gather(_findings(), _cve(), return_exceptions=True)
+            merged_vulns = []
+            if isinstance(findings_list, list):
+                merged_vulns.extend(findings_list)
+            if isinstance(cve_list, list):
+                merged_vulns.extend(cve_list)
+            results["vulnerabilities"] = merged_vulns
+
+            # ── Step 4.6: Relationships ──
+            try:
+                rel_result = await self.relationships_scanner.run_with_retry(domain, scan_results=results)
+                if rel_result and rel_result.get("success"):
+                    results["relationships"] = {
+                        "ip_asn_mapping": rel_result.get("ip_asn_mapping", {}),
+                        "hosting_providers": rel_result.get("hosting_providers", {}),
+                        "registrar_clusters": rel_result.get("registrar_clusters", {}),
+                        "relationships": rel_result.get("relationships", []),
+                    }
+                    results["scanner_status"]["relationships"] = f"ok ({len(rel_result.get('relationships', []))} edges)"
+                else:
+                    results["scanner_status"]["relationships"] = "failed"
+            except Exception as e:
+                results["scanner_status"]["relationships"] = f"error: {type(e).__name__}"
+                results["errors"].append({"scanner": "relationships", "error": str(e)})
+
+            # ── Step 5: Risk score ──
             if progress_callback:
                 await progress_callback(95, "Calculating risk score...")
-            
-            risk = calculate_risk(results)
-            results["risk_score"] = {
-                "overall": risk["risk_score"],
-                "label": risk["label"],
-                "breakdown": {f["category"]: f["points"] for f in risk["findings"]},
-                "factors": [f["detail"] for f in risk["findings"]],
-            }
-            results["completed_at"] = datetime.now(timezone.utc).isoformat()
+            try:
+                results["risk_score"] = calculate_risk(results)
+            except Exception as e:
+                logger.error(f"Risk score calculation failed: {e}")
+                results["errors"].append({"scanner": "risk_score", "error": str(e)})
+
             results["success"] = True
-            
             if progress_callback:
                 await progress_callback(100, "Scan completed")
-            
             return results
-            
+
         except Exception as e:
             logger.error(f"Scan failed: {e}")
             results["success"] = False
             results["error"] = str(e)
             return results
-    
+
     async def run_quick_scan(
         self,
         domain: str,
-        progress_callback=None
+        progress_callback=None,
     ) -> Dict[str, Any]:
-        """Run a quick scan — reduced port set, skip nuclei, skip WHOIS."""
-        from app.scanners.subdomain import SubdomainScanner
-        from app.scanners.dns import DNSScanner
-        from app.scanners.ssl_check import SSLScanner
-        from app.scanners.ports import PortScanner
-        from app.scanners.tech import TechScanner
-
+        """Quick scan: top 20 subdomains, top 10 ports, no vuln scanning."""
         results: Dict[str, Any] = {
             "success": True,
+            "domain": domain,
+            "started_at": datetime.now(timezone.utc).isoformat(),
             "subdomains": [],
             "dns_records": {},
             "ssl_certificates": {},
             "ports": {},
             "technologies": {},
             "vulnerabilities": {},
+            "whois": None,
+            "errors": [],
             "risk_score": {},
+            "scanner_status": {},
         }
 
         try:
             if progress_callback:
                 await progress_callback(5, "Starting quick scan...")
 
-            # Step 1: Subdomain discovery only (crt.sh, skip OTX/HackerTarget for speed)
             subdomain_scanner = SubdomainScanner()
-            subdomains = await subdomain_scanner.scan(domain, use_all_sources=False)
+            subdomain_result = await subdomain_scanner.scan(domain, use_all_sources=False)
+            subdomains = subdomain_result.get("subdomains", []) if isinstance(subdomain_result, dict) else []
             results["subdomains"] = subdomains
+            if isinstance(subdomain_result, dict) and subdomain_result.get("success"):
+                results["scanner_status"]["subdomain-default"] = f"ok ({len(subdomains)} found)"
+            else:
+                results["scanner_status"]["subdomain-default"] = "failed"
 
             if progress_callback:
                 await progress_callback(30, f"Found {len(subdomains)} subdomains")
 
-            # Step 2: Quick port scan (top 10 ports only)
-            port_scanner = PortScanner()
+            # Quick port list
             quick_ports = [80, 443, 22, 8080, 8443, 21, 25, 53, 3306, 5432]
+            scan_targets = subdomains[:20]
+            total = max(len(scan_targets), 1)
+            sem = asyncio.Semaphore(20)
+            counters = {"dns_ok": 0, "dns_fail": 0, "ssl_ok": 0, "ssl_fail": 0,
+                        "port_ok": 0, "port_fail": 0, "tech_ok": 0, "tech_fail": 0}
 
-            # Step 3: DNS + SSL + Tech + Quick ports per subdomain
-            total = max(len(subdomains), 1)
-            for i, sub in enumerate(subdomains[:20]):  # Limit to top 20 subdomains for quick scan
-                hostname = sub if isinstance(sub, str) else sub.get("hostname", sub)
-                pct = 30 + int((i / total) * 60)
-                if progress_callback:
-                    await progress_callback(pct, f"Scanning {hostname}")
+            async def _quick_one(hostname):
+                async with sem:
+                    # All 4 in parallel
+                    async def _d():
+                        try:
+                            r = await self.dns_scanner.scan(hostname)
+                            if isinstance(r, dict) and r.get("success"):
+                                results["dns_records"][hostname] = r.get("records", {})
+                                counters["dns_ok"] += 1
+                            else:
+                                counters["dns_fail"] += 1
+                        except Exception:
+                            counters["dns_fail"] += 1
 
-                # DNS
-                dns_scanner = DNSScanner()
-                dns = await dns_scanner.scan(hostname)
-                if dns:
-                    results["dns_records"][hostname] = dns
+                    async def _s():
+                        try:
+                            r = await self.ssl_scanner.scan(hostname)
+                            if isinstance(r, dict) and r.get("success"):
+                                results["ssl_certificates"][hostname] = r.get("certificate")
+                                counters["ssl_ok"] += 1
+                            else:
+                                counters["ssl_fail"] += 1
+                        except Exception:
+                            counters["ssl_fail"] += 1
 
-                # SSL
-                ssl_scanner = SSLScanner()
-                cert = await ssl_scanner.scan(hostname)
-                if cert:
-                    results["ssl_certificates"][hostname] = cert
+                    async def _p():
+                        try:
+                            port_scanner = PortScanner()
+                            r = await port_scanner.scan(hostname, ports=",".join(str(p) for p in quick_ports))
+                            if isinstance(r, dict) and r.get("success"):
+                                results["ports"][hostname] = r.get("ports", [])
+                                counters["port_ok"] += 1
+                            else:
+                                counters["port_fail"] += 1
+                        except Exception:
+                            counters["port_fail"] += 1
 
-                # Quick port scan
-                port_result = await port_scanner.scan(hostname, quick_ports)
-                if port_result:
-                    results["ports"][hostname] = port_result
+                    async def _t():
+                        try:
+                            r = await self.tech_scanner.scan(hostname)
+                            if isinstance(r, dict) and r.get("success"):
+                                results["technologies"][hostname] = r.get("technologies", [])
+                                counters["tech_ok"] += 1
+                            else:
+                                counters["tech_fail"] += 1
+                        except Exception:
+                            counters["tech_fail"] += 1
 
-                # Tech detection
-                tech_scanner = TechScanner()
-                techs = await tech_scanner.scan(hostname)
-                if techs:
-                    results["technologies"][hostname] = techs
+                    await asyncio.gather(_d(), _s(), _p(), _t(), return_exceptions=True)
 
-            # Step 4: Risk score (skip nuclei for quick scan)
-            from app.risk_scorer import calculate_risk
+            await asyncio.gather(*[_quick_one(sub) for sub in scan_targets], return_exceptions=True)
+
+            for key in ("dns", "ssl", "ports", "tech"):
+                ok = counters[f"{key}_ok"]
+                fail = counters[f"{key}_fail"]
+                tot = ok + fail
+                results["scanner_status"][key] = f"ok ({ok}/{tot} hosts)" if tot > 0 else "ok"
+
+            results["scanner_status"]["nuclei"] = "skipped: quick scan"
+            results["scanner_status"]["security-findings"] = "skipped: quick scan"
+            results["scanner_status"]["cve-correlation"] = "skipped: quick scan"
+            results["scanner_status"]["whois"] = "skipped: quick scan"
+
             results["risk_score"] = calculate_risk(results)
 
             if progress_callback:
                 await progress_callback(100, "Quick scan completed")
-
             return results
 
         except Exception as e:

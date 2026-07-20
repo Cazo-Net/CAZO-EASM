@@ -158,9 +158,8 @@ class ScanService:
                 scan = db.query(Scan).filter(Scan.id == scan_id).first()
                 if scan:
                     break
-                import time
-
-                time.sleep(0.1)
+                import asyncio
+                await asyncio.sleep(0.1)
             if not scan:
                 raise ValueError(f"Scan not found: {scan_id}")
             
@@ -251,40 +250,45 @@ class ScanService:
         await self._store_results(self.db, scan, results)
 
     async def _store_results(self, db: Session, scan: Scan, results: Dict[str, Any]):
-        """Store scan results in database."""
+        """Store scan results in database — batch inserts for performance."""
         domain = results.get("domain")
         
+        subdomain_objects = []
         subdomain_map = {}
         for hostname in results.get("subdomains", []):
             subdomain = Subdomain(
                 scan_id=scan.id,
                 hostname=hostname,
                 ip_addresses=self._extract_ips(results.get("dns_records", {}).get(hostname, {})),
-                is_alive=True
+                is_alive=True,
             )
-            db.add(subdomain)
-            db.flush()
+            subdomain_objects.append(subdomain)
             subdomain_map[hostname] = subdomain
+        db.add_all(subdomain_objects)
+        db.flush()  # one flush for all subdomains
         
+        dns_records = []
         for hostname, records in results.get("dns_records", {}).items():
             subdomain = subdomain_map.get(hostname)
             if not subdomain:
                 continue
             for record_type, record_list in records.items():
                 for record in record_list:
-                    dns_record = DNSRecord(
+                    dns_records.append(DNSRecord(
                         subdomain_id=subdomain.id,
                         record_type=record_type,
                         value=str(record.get("value", "")),
-                        ttl=record.get("ttl")
-                    )
-                    db.add(dns_record)
+                        ttl=record.get("ttl"),
+                    ))
+        if dns_records:
+            db.add_all(dns_records)
         
+        ssl_objects = []
         for hostname, cert in results.get("ssl_certificates", {}).items():
             subdomain = subdomain_map.get(hostname)
             if not subdomain or not cert:
                 continue
-            ssl_cert = SSLCertificate(
+            ssl_objects.append(SSLCertificate(
                 subdomain_id=subdomain.id,
                 issuer=cert.get("issuer"),
                 subject=cert.get("subject"),
@@ -295,50 +299,51 @@ class ScanService:
                 grade=cert.get("grade"),
                 protocol=cert.get("version"),
                 cipher_suite=cert.get("cipher_suite"),
-                san=cert.get("san_names", []) or []
-            )
-            db.add(ssl_cert)
+                san=cert.get("san_names", []) or [],
+            ))
+        if ssl_objects:
+            db.add_all(ssl_objects)
         
+        port_objects = []
         for hostname, port_list in results.get("ports", {}).items():
             subdomain = subdomain_map.get(hostname)
             if not subdomain:
                 continue
             for port_info in port_list:
-                port = Port(
+                port_objects.append(Port(
                     subdomain_id=subdomain.id,
                     port_number=port_info.get("port"),
                     state=port_info.get("state", "open"),
                     service=port_info.get("service"),
                     version=port_info.get("version"),
-                    banner=port_info.get("product")
-                )
-                db.add(port)
+                    banner=port_info.get("product"),
+                ))
+        if port_objects:
+            db.add_all(port_objects)
         
+        tech_objects = []
         for hostname, tech_list in results.get("technologies", {}).items():
             subdomain = subdomain_map.get(hostname)
             if not subdomain:
                 continue
             for tech in tech_list:
-                technology = Technology(
+                tech_objects.append(Technology(
                     subdomain_id=subdomain.id,
                     name=tech.get("name"),
                     category=tech.get("category"),
                     version=tech.get("version"),
-                    confidence=tech.get("confidence", 100)
-                )
-                db.add(technology)
+                    confidence=tech.get("confidence", 100),
+                ))
+        if tech_objects:
+            db.add_all(tech_objects)
         
-        # Store vulnerabilities / security findings.
-        # ``results["vulnerabilities"]`` is a flat list of finding dicts
-        # (produced by the Nuclei scanner and/or the pure-Python findings
-        # pass). Each finding carries its own ``host`` so we resolve the
-        # owning subdomain from it.
         vuln_payload = results.get("vulnerabilities", [])
         vuln_list = vuln_payload if isinstance(vuln_payload, list) else list(vuln_payload.values())
+        vuln_objects = []
         for vuln in vuln_list:
             host = vuln.get("host") or vuln.get("matched_at") or domain
             subdomain = subdomain_map.get(host)
-            vulnerability = Vulnerability(
+            vuln_objects.append(Vulnerability(
                 scan_id=scan.id,
                 subdomain_id=subdomain.id if subdomain else None,
                 template_id=vuln.get("template_id", ""),
@@ -352,12 +357,13 @@ class ScanService:
                 tags=vuln.get("tags", []),
                 curl_command=vuln.get("curl_command", ""),
                 extracted_results=vuln.get("extracted_results", []),
-            )
-            db.add(vulnerability)
+            ))
+        if vuln_objects:
+            db.add_all(vuln_objects)
         
         whois_data = results.get("whois")
         if whois_data:
-            whois_record = WhoisRecord(
+            db.add(WhoisRecord(
                 domain=domain,
                 scan_id=scan.id,
                 registrar=whois_data.get("registrar"),
@@ -366,21 +372,19 @@ class ScanService:
                 name_servers=whois_data.get("name_servers", []),
                 registrant_name=whois_data.get("registrant_name"),
                 registrant_org=whois_data.get("registrant_org"),
-                registrant_country=whois_data.get("registrant_country")
-            )
-            db.add(whois_record)
+                registrant_country=whois_data.get("registrant_country"),
+            ))
         
         risk_data = results.get("risk_score", {})
         if risk_data:
-            risk_score = RiskScore(
+            db.add(RiskScore(
                 scan_id=scan.id,
                 overall_score=risk_data.get("overall", 0),
                 breakdown=risk_data.get("breakdown", {}),
-                factors=risk_data.get("factors", [])
-            )
-            db.add(risk_score)
+                factors=risk_data.get("factors", []),
+            ))
 
-        db.commit()
+        db.commit()  # single commit for all results
 
         # Build the canonical, cross-scan asset inventory + relationships.
         try:
