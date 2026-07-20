@@ -7,6 +7,7 @@ from app.scanners.dns import DNSScanner
 from app.scanners.whois import WhoisScanner
 from app.scanners.ssl_check import SSLScanner
 from app.scanners.ports import PortScanner
+from app.scanners.nmap_scanner import NmapPortScanner
 from app.scanners.tech import TechScanner
 from app.scanners.security_findings import SecurityFindingsScanner
 from app.scanners.zone_transfer import ZoneTransferScanner
@@ -41,6 +42,7 @@ class ScanRunner:
         self.whois_scanner = WhoisScanner()
         self.ssl_scanner = SSLScanner()
         self.port_scanner = PortScanner()
+        self.nmap_scanner = NmapPortScanner()
         self.tech_scanner = TechScanner()
         self.security_findings_scanner = SecurityFindingsScanner()
         self.zone_transfer_scanner = ZoneTransferScanner()
@@ -60,6 +62,8 @@ class ScanRunner:
             "ssl": None,
             "ports": None,
             "tech": None,
+            "os": None,
+            "scripts": None,
             "san_hostnames": [],
             "ips": [],
             "errors": [],
@@ -79,20 +83,37 @@ class ScanRunner:
                 r = await self.ssl_scanner.run_with_retry(subdomain)
                 result["ssl"] = r
                 if r and r.get("success"):
-                    cert = r.get("certificate")
-                    if cert and cert.get("san_names"):
-                        for san in cert["san_names"]:
-                            san = san.strip().lower()
-                            if san.endswith(f".{domain}"):
-                                result["san_hostnames"].append(san)
+                    result["san_hostnames"] = r.get("san_hostnames", [])
             except Exception as e:
                 result["errors"].append({"scanner": "ssl", "target": subdomain, "error": str(e)})
 
         async def _ports():
             try:
+                if port_mode == "full" and settings.USE_NMAP and self.nmap_scanner.available():
+                    # High-fidelity nmap path: real -sV service/version + OS.
+                    try:
+                        r = await self.nmap_scanner.run_with_retry(
+                            subdomain,
+                            scan_type="full",
+                            port_list=ports_list,
+                        )
+                        result["ports"] = r
+                        result["os"] = r.get("os")
+                        result["scripts"] = r.get("scripts")
+                        return
+                    except Exception as e:
+                        # Fall through to the pure-Python scanner so a scan
+                        # never completely loses port data because nmap choked.
+                        logger.warning("nmap port scan failed for %s, falling back to python: %s",
+                                       subdomain, e)
+                        result["errors"].append(
+                            {"scanner": "ports-nmap", "target": subdomain, "error": str(e)})
+
+                # Pure-Python connect scanner (quick mode, or nmap fallback).
                 r = await self.port_scanner.run_with_retry(
                     subdomain,
                     scan_type="quick" if port_mode == "quick" else "full",
+                    port_list=ports_list if port_mode == "full" else None,
                 )
                 result["ports"] = r
             except Exception as e:
@@ -128,6 +149,8 @@ class ScanRunner:
             "dns_records": {},
             "ssl_certificates": {},
             "ports": {},
+            "os_detection": {},
+            "host_scripts": {},
             "technologies": {},
             "vulnerabilities": {},
             "whois": None,
@@ -234,6 +257,10 @@ class ScanRunner:
 
                     if r["ports"] and r["ports"].get("success"):
                         results["ports"][subdomain] = r["ports"].get("ports", [])
+                        if r.get("os"):
+                            results["os_detection"][subdomain] = r["os"]
+                        if r.get("scripts"):
+                            results["host_scripts"][subdomain] = r["scripts"]
                         counters["port_ok"] += 1
                     else:
                         counters["port_fail"] += 1

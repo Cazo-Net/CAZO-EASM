@@ -189,9 +189,14 @@ async def rate_limit_middleware(request: Request, call_next):
         path.startswith("/api/v1/assets")
         or path.startswith("/api/v1/scans")
         or path.startswith("/api/v1/notifications")
-        or path.startswith("/api/v1/shadow-assets")
     )
     if is_polling:
+        return await call_next(request)
+
+    # Shadow-asset endpoints (list, review, review-log) are interactive,
+    # authenticated user actions — exempt from the global throttle so a user
+    # can confirm/reject candidates without tripping the 429 limit.
+    if path.startswith("/api/v1/shadow-assets"):
         return await call_next(request)
 
     client_ip = _client_ip(request)
