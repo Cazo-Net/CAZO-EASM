@@ -69,6 +69,10 @@ class SecurityFindingsScanner(BaseScanner):
     findings on every scan.
     """
 
+    def __init__(self, config: dict = None):
+        super().__init__(config)
+        self.timeout = self.config.get("timeout", 120)
+
     def validate_target(self, target: str) -> bool:
         return bool(target)
 

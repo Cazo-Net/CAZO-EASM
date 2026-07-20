@@ -331,7 +331,7 @@ class ScanRunner:
                         return r.get("vulnerabilities", [])
                     results["scanner_status"]["security-findings"] = "failed"
                 except Exception as e:
-                    results["scanner_status"]["security-findings"] = f"error: {type(e).__name__}"
+                    results["scanner_status"]["security-findings"] = f"error: {e}"
                     results["errors"].append({"scanner": "security-findings", "error": str(e)})
                 return []
 
@@ -343,7 +343,7 @@ class ScanRunner:
                         return r.get("vulnerabilities", [])
                     results["scanner_status"]["cve-correlation"] = "failed"
                 except Exception as e:
-                    results["scanner_status"]["cve-correlation"] = f"error: {type(e).__name__}"
+                    results["scanner_status"]["cve-correlation"] = f"error: {e}"
                     results["errors"].append({"scanner": "cve-correlation", "error": str(e)})
                 return []
 

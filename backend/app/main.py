@@ -186,9 +186,10 @@ async def rate_limit_middleware(request: Request, call_next):
     # Never throttle read-only polling endpoints (GET only).
     path = request.url.path
     is_polling = request.method == "GET" and (
-        path.startswith("/api/v1/assets/")
-        or path.startswith("/api/v1/scans/")
-        or path.startswith("/api/v1/notifications/")
+        path.startswith("/api/v1/assets")
+        or path.startswith("/api/v1/scans")
+        or path.startswith("/api/v1/notifications")
+        or path.startswith("/api/v1/shadow-assets")
     )
     if is_polling:
         return await call_next(request)

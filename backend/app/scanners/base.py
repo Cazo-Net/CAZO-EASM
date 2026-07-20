@@ -39,9 +39,13 @@ class BaseScanner(ABC):
                     timeout=self.timeout
                 )
             except asyncio.TimeoutError:
-                last_error = f"Scan timed out after {self.timeout}s"
+                last_error = f"TimeoutError: scan timed out after {self.timeout}s"
+                logger.warning("%s timed out after %ss (attempt %d/%d) on %s",
+                               self.__class__.__name__, self.timeout, attempt + 1, retries, target)
             except Exception as e:
-                last_error = str(e)
+                last_error = f"{type(e).__name__}: {e}"
+                logger.warning("%s failed (attempt %d/%d) on %s: %s",
+                               self.__class__.__name__, attempt + 1, retries, target, last_error)
             
             if attempt < retries - 1:
                 await asyncio.sleep(0.5 * (attempt + 1))

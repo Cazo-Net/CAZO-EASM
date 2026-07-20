@@ -26,6 +26,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Response interceptor — transparently retry rate-limited (429) GETs with backoff.
+const MAX_RETRIES = 3;
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const config = error?.config;
+    const status = error?.response?.status;
+    if (status === 429 && config && (config.method ?? "get").toLowerCase() === "get") {
+      config.__retryCount = (config.__retryCount ?? 0) + 1;
+      if (config.__retryCount <= MAX_RETRIES) {
+        const retryAfter = Number(error.response?.headers?.["retry-after"]);
+        const delay = Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : 500 * 2 ** (config.__retryCount - 1);
+        await new Promise((r) => setTimeout(r, delay));
+        return api(config);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
 
 // --- Auth ---
