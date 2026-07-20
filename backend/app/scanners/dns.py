@@ -48,7 +48,7 @@ class DNSScanner(BaseScanner):
         try:
             answers = await asyncio.wait_for(
                 asyncio.to_thread(_resolve_sync, target, record_type),
-                timeout=5,
+                timeout=3,
             )
             rrset_ttl = int(answers.ttl) if getattr(answers, "ttl", None) is not None else None
             records = []
@@ -154,7 +154,7 @@ class DNSScanner(BaseScanner):
 
             # DMARC (in thread)
             try:
-                dmarc_answers = await asyncio.wait_for(dmarc_task, timeout=5)
+                dmarc_answers = await asyncio.wait_for(dmarc_task, timeout=3)
                 dmarc_ttl = int(dmarc_answers.ttl) if getattr(dmarc_answers, "ttl", None) is not None else None
                 for rdata in dmarc_answers:
                     results["records"]["DMARC"] = [{"type": "DMARC", "value": str(rdata), "ttl": dmarc_ttl}]
@@ -198,7 +198,7 @@ class DNSScanner(BaseScanner):
             def _reverse():
                 result = dns.reversename.from_address(ip)
                 return dns.resolver.resolve(result, 'PTR')
-            answers = await asyncio.wait_for(asyncio.to_thread(_reverse), timeout=5)
+            answers = await asyncio.wait_for(asyncio.to_thread(_reverse), timeout=3)
             return {
                 "success": True,
                 "ip": ip,

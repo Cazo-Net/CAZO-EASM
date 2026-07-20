@@ -24,7 +24,7 @@ def _ssl_connect_sync(target: str, port: int):
     context = ssl.create_default_context()
     context.set_ciphers("ALL:@SECLEVEL=0")
     der_certs: List[bytes] = []
-    with socket.create_connection((target, port), timeout=8) as sock:
+    with socket.create_connection((target, port), timeout=5) as sock:
         with context.wrap_socket(sock, server_hostname=target) as ssock:
             cert = ssock.getpeercert()
             cipher = ssock.cipher()
@@ -63,7 +63,7 @@ class SSLScanner(BaseScanner):
             # Run the blocking SSL connect in a thread
             cert, cipher, version, der_certs = await asyncio.wait_for(
                 asyncio.to_thread(_ssl_connect_sync, target, port),
-                timeout=12,
+                    timeout=8,
             )
             
             if not cert:

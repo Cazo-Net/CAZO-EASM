@@ -242,7 +242,7 @@ class SecurityFindingsScanner(BaseScanner):
         ports_by_host = scan_results.get("ports", {}) or {}
         hosts = set(tech_by_host) | set(ports_by_host) | {scan_results.get("domain", "")}
 
-        sem = asyncio.Semaphore(30)  # limit concurrent hosts
+        sem = asyncio.Semaphore(50)  # limit concurrent hosts
 
         async def _check_host(client, host):
             async with sem:
@@ -293,7 +293,7 @@ class SecurityFindingsScanner(BaseScanner):
                 probe_tasks = [probe(p, _, fn, sev, tid) for p, _, fn, sev, tid in self._EXPOSED_FILES + self._ADMIN_PANELS]
                 await asyncio.gather(*probe_tasks, return_exceptions=True)
 
-        async with httpx.AsyncClient(verify=False, timeout=8, follow_redirects=True) as client:
+        async with httpx.AsyncClient(verify=False, timeout=5, follow_redirects=True) as client:
             host_tasks = [_check_host(client, h) for h in sorted(h for h in hosts if h)]
             await asyncio.gather(*host_tasks, return_exceptions=True)
 

@@ -17,9 +17,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# How many subdomains to scan concurrently. Each subdomain runs 4 scanners
-# (DNS, SSL, Ports, Tech) in parallel, so this controls total I/O concurrency.
-_SUBDOMAIN_CONCURRENCY = 50
+_SUBDOMAIN_CONCURRENCY = 75
 
 
 def _plugin_instance(category: ScannerCategory, fallback) -> Optional[Any]:
@@ -32,10 +30,9 @@ def _plugin_instance(category: ScannerCategory, fallback) -> Optional[Any]:
 class ScanRunner:
     """Orchestrates all scanner modules for a complete scan.
 
-    Performance model: all subdomains are scanned concurrently (capped by a
-    semaphore). Within each subdomain, DNS, SSL, Ports, and Tech run in
-    parallel via ``asyncio.gather``. Subdomain discovery sources also run in
-    parallel.
+    Performance model: maximum parallelism at every level. WHOIS, zone
+    transfer, and reverse DNS run concurrently with the main subdomain scan.
+    Within each subdomain, DNS, SSL, Ports, and Tech run in parallel.
     """
 
     def __init__(self):
@@ -50,9 +47,6 @@ class ScanRunner:
         self.cve_scanner = CVECorrelationScanner()
         self.relationships_scanner = RelationshipsScanner()
 
-    # ------------------------------------------------------------------
-    # Per-subdomain parallel scan (DNS + SSL + Ports + Tech at once)
-    # ------------------------------------------------------------------
     async def _scan_one_subdomain(
         self,
         subdomain: str,
@@ -60,7 +54,6 @@ class ScanRunner:
         ports_list: List[int],
         domain: str,
     ) -> Dict[str, Any]:
-        """Run DNS, SSL, Ports, and Tech concurrently for one subdomain."""
         result = {
             "subdomain": subdomain,
             "dns": None,
@@ -115,9 +108,6 @@ class ScanRunner:
         await asyncio.gather(_dns(), _ssl(), _ports(), _tech(), return_exceptions=True)
         return result
 
-    # ------------------------------------------------------------------
-    # Full scan pipeline
-    # ------------------------------------------------------------------
     async def run_full_scan(
         self,
         domain: str,
@@ -146,13 +136,19 @@ class ScanRunner:
         }
 
         try:
-            # ── Step 1: Subdomain discovery (all sources in parallel) ──
+            # Increase thread pool for high-concurrency scanning
+            loop = asyncio.get_event_loop()
+            executor = loop._default_executor
+            if executor:
+                executor._max_workers = 200
+
+            # ── Step 1: Subdomain discovery + WHOIS (PARALLEL) ──
             if progress_callback:
-                await progress_callback(5, "Discovering subdomains...")
+                await progress_callback(5, "Discovering subdomains + WHOIS (parallel)...")
 
             subdomains = {domain}
             from app.config import settings
-            ports_list = list(range(1, 10000)) if port_mode == "full" else settings.SCAN_QUICK_PORTS
+            ports_list = list(range(1, 10001)) if port_mode == "full" else settings.SCAN_QUICK_PORTS
 
             async def _run_source(name, scanner):
                 try:
@@ -175,6 +171,9 @@ class ScanRunner:
                 if perm_plugin:
                     source_tasks.append(_run_source("subdomain-permutations", perm_plugin.instantiate()))
 
+            # WHOIS runs in parallel with subdomain discovery
+            whois_task = asyncio.create_task(self._safe_whois(domain))
+
             source_results = await asyncio.gather(*source_tasks, return_exceptions=True)
             for item in source_results:
                 if isinstance(item, Exception):
@@ -184,6 +183,14 @@ class ScanRunner:
                 subdomains.update(found)
                 results["scanner_status"][name] = f"ok ({len(found)} found)" if status == "ok" else status
 
+            # Collect WHOIS result
+            whois_result = await whois_task
+            if whois_result and whois_result.get("success"):
+                results["whois"] = whois_result.get("data")
+                results["scanner_status"]["whois"] = "ok"
+            else:
+                results["scanner_status"]["whois"] = "failed"
+
             subdomains = sorted(subdomains)
             results["subdomains"] = subdomains
             if max_subdomains > 0:
@@ -191,21 +198,7 @@ class ScanRunner:
                 results["subdomains"] = subdomains
             total = len(subdomains)
 
-            # ── Step 2: WHOIS (parallel with nothing else, but fast) ──
-            if progress_callback:
-                await progress_callback(10, "Running WHOIS lookup...")
-            try:
-                whois_result = await self.whois_scanner.run_with_retry(domain)
-                if whois_result and whois_result.get("success"):
-                    results["whois"] = whois_result.get("data")
-                    results["scanner_status"]["whois"] = "ok"
-                else:
-                    results["scanner_status"]["whois"] = "failed"
-            except Exception as e:
-                results["scanner_status"]["whois"] = f"error: {type(e).__name__}"
-                results["errors"].append({"scanner": "whois", "error": str(e)})
-
-            # ── Step 3: Scan ALL subdomains concurrently ──
+            # ── Step 2: Scan ALL subdomains + Zone Transfer (PARALLEL) ──
             if progress_callback:
                 await progress_callback(15, f"Scanning {total} subdomains (concurrent)...")
 
@@ -225,7 +218,6 @@ class ScanRunner:
                         pct = 15 + int((completed / max(total, 1)) * 55)
                         await progress_callback(pct, f"Scanned {completed}/{total} subdomains...")
 
-                    # Collect results
                     if r["dns"] and r["dns"].get("success"):
                         results["dns_records"][subdomain] = r["dns"].get("records", {})
                         all_ips.extend(r["dns"].get("ips", []))
@@ -254,10 +246,12 @@ class ScanRunner:
 
                     results["errors"].extend(r["errors"])
 
+            # Zone transfer runs in parallel with main scan
+            zone_transfer_task = asyncio.create_task(self._safe_zone_transfer(domain, results))
+
             scan_tasks = [_bounded_scan(sub) for sub in subdomains]
             await asyncio.gather(*scan_tasks, return_exceptions=True)
 
-            # Scanner status
             for key, ok_key, fail_key in [
                 ("dns", "dns_ok", "dns_fail"), ("ssl", "ssl_ok", "ssl_fail"),
                 ("ports", "port_ok", "port_fail"), ("tech", "tech_ok", "tech_fail"),
@@ -266,50 +260,10 @@ class ScanRunner:
                 total_sq = ok + fail
                 results["scanner_status"][key] = f"ok ({ok}/{total_sq} hosts)" if total_sq > 0 else "ok"
 
-            # ── Step 3.5: Reverse DNS on discovered IPs (parallel) ──
-            unique_ips = sorted(set(all_ips))
-            if unique_ips:
-                if progress_callback:
-                    await progress_callback(72, f"Reverse DNS on {len(unique_ips)} IPs...")
-
-                async def _rev_dns(ip):
-                    try:
-                        r = await self.dns_scanner.resolve_ip(ip)
-                        if r and r.get("success"):
-                            return [h.rstrip(".") for h in r.get("hostnames", []) if h]
-                    except Exception:
-                        pass
-                    return []
-
-                rev_results = await asyncio.gather(
-                    *[_rev_dns(ip) for ip in unique_ips[:50]], return_exceptions=True
-                )
-                reverse_hostnames = set()
-                for item in rev_results:
-                    if isinstance(item, list):
-                        reverse_hostnames.update(h for h in item if h not in subdomains)
-
-                # Scan reverse-DNS hostnames in parallel
-                if reverse_hostnames:
-                    results["subdomains"].extend(sorted(reverse_hostnames))
-                    rev_tasks = [_bounded_scan(h) for h in sorted(reverse_hostnames)]
-                    await asyncio.gather(*rev_tasks, return_exceptions=True)
-
-            # ── Step 3.6: SSL SAN hostnames (parallel) ──
-            unique_sans = sorted(set(all_san_hostnames) - set(subdomains))
-            if unique_sans:
-                if progress_callback:
-                    await progress_callback(77, f"Scanning {len(unique_sans)} SAN hostnames...")
-                results["subdomains"].extend(unique_sans)
-                san_tasks = [_bounded_scan(h) for h in unique_sans]
-                await asyncio.gather(*san_tasks, return_exceptions=True)
-
-            # ── Step 3.7: Zone transfer ──
-            if progress_callback:
-                await progress_callback(79, "Attempting zone transfer...")
-            try:
-                zt_result = await self.zone_transfer_scanner.run_with_retry(domain)
-                if zt_result and zt_result.get("success") and zt_result.get("transfer_success"):
+            # Collect zone transfer result
+            zt_result = await zone_transfer_task
+            if zt_result:
+                if zt_result.get("success") and zt_result.get("transfer_success"):
                     for hostname in zt_result.get("subdomains", []):
                         if hostname not in results["subdomains"]:
                             results["subdomains"].append(hostname)
@@ -319,13 +273,53 @@ class ScanRunner:
                     results["scanner_status"]["zone-transfer"] = f"ok ({zt_result.get('transfer_count', 0)} records)"
                 else:
                     results["scanner_status"]["zone-transfer"] = "ok (blocked or not vulnerable)"
-            except Exception as e:
-                results["scanner_status"]["zone-transfer"] = f"error: {type(e).__name__}"
-                results["errors"].append({"scanner": "zone-transfer", "error": str(e)})
 
-            # ── Step 4: Vulnerability scanning (parallel: findings + CVE) ──
+            # ── Step 3: Reverse DNS + SAN scanning (PARALLEL with each other) ──
+            unique_ips = sorted(set(all_ips))
+            unique_sans = sorted(set(all_san_hostnames) - set(subdomains))
+
+            rev_and_san_tasks = []
+
+            if unique_ips:
+                if progress_callback:
+                    await progress_callback(72, f"Reverse DNS on {len(unique_ips)} IPs + {len(unique_sans)} SANs...")
+
+                async def _rev_dns_batch():
+                    async def _rev_dns(ip):
+                        try:
+                            r = await self.dns_scanner.resolve_ip(ip)
+                            if r and r.get("success"):
+                                return [h.rstrip(".") for h in r.get("hostnames", []) if h]
+                        except Exception:
+                            pass
+                        return []
+
+                    rev_results = await asyncio.gather(
+                        *[_rev_dns(ip) for ip in unique_ips[:50]], return_exceptions=True
+                    )
+                    reverse_hostnames = set()
+                    for item in rev_results:
+                        if isinstance(item, list):
+                            reverse_hostnames.update(h for h in item if h not in subdomains)
+                    return reverse_hostnames
+
+                rev_and_san_tasks.append(_rev_dns_batch())
+
+            if unique_sans:
+                results["subdomains"].extend(unique_sans)
+                rev_and_san_tasks.append(self._scan_sans_batch(unique_sans, _bounded_scan))
+
+            if rev_and_san_tasks:
+                rev_results = await asyncio.gather(*rev_and_san_tasks, return_exceptions=True)
+                # Scan reverse-DNS hostnames
+                for item in rev_results:
+                    if isinstance(item, set) and item:
+                        rev_tasks = [_bounded_scan(h) for h in sorted(item)]
+                        await asyncio.gather(*rev_tasks, return_exceptions=True)
+
+            # ── Step 4: Vulnerability scanning + Relationships (PARALLEL) ──
             if progress_callback:
-                await progress_callback(85, "Running vulnerability scan...")
+                await progress_callback(85, "Running vulnerability scan + relationships...")
 
             results["scanner_status"]["nuclei"] = "removed: replaced by pure code (security-findings + cve-correlation)"
 
@@ -353,30 +347,32 @@ class ScanRunner:
                     results["errors"].append({"scanner": "cve-correlation", "error": str(e)})
                 return []
 
-            findings_list, cve_list = await asyncio.gather(_findings(), _cve(), return_exceptions=True)
+            async def _relationships():
+                try:
+                    rel_result = await self.relationships_scanner.run_with_retry(domain, scan_results=results)
+                    if rel_result and rel_result.get("success"):
+                        results["relationships"] = {
+                            "ip_asn_mapping": rel_result.get("ip_asn_mapping", {}),
+                            "hosting_providers": rel_result.get("hosting_providers", {}),
+                            "registrar_clusters": rel_result.get("registrar_clusters", {}),
+                            "relationships": rel_result.get("relationships", []),
+                        }
+                        results["scanner_status"]["relationships"] = f"ok ({len(rel_result.get('relationships', []))} edges)"
+                    else:
+                        results["scanner_status"]["relationships"] = "failed"
+                except Exception as e:
+                    results["scanner_status"]["relationships"] = f"error: {type(e).__name__}"
+                    results["errors"].append({"scanner": "relationships", "error": str(e)})
+
+            findings_list, cve_list, _ = await asyncio.gather(
+                _findings(), _cve(), _relationships(), return_exceptions=True
+            )
             merged_vulns = []
             if isinstance(findings_list, list):
                 merged_vulns.extend(findings_list)
             if isinstance(cve_list, list):
                 merged_vulns.extend(cve_list)
             results["vulnerabilities"] = merged_vulns
-
-            # ── Step 4.6: Relationships ──
-            try:
-                rel_result = await self.relationships_scanner.run_with_retry(domain, scan_results=results)
-                if rel_result and rel_result.get("success"):
-                    results["relationships"] = {
-                        "ip_asn_mapping": rel_result.get("ip_asn_mapping", {}),
-                        "hosting_providers": rel_result.get("hosting_providers", {}),
-                        "registrar_clusters": rel_result.get("registrar_clusters", {}),
-                        "relationships": rel_result.get("relationships", []),
-                    }
-                    results["scanner_status"]["relationships"] = f"ok ({len(rel_result.get('relationships', []))} edges)"
-                else:
-                    results["scanner_status"]["relationships"] = "failed"
-            except Exception as e:
-                results["scanner_status"]["relationships"] = f"error: {type(e).__name__}"
-                results["errors"].append({"scanner": "relationships", "error": str(e)})
 
             # ── Step 5: Risk score ──
             if progress_callback:
@@ -397,6 +393,26 @@ class ScanRunner:
             results["success"] = False
             results["error"] = str(e)
             return results
+
+    async def _safe_whois(self, domain: str) -> Optional[Dict[str, Any]]:
+        try:
+            return await self.whois_scanner.run_with_retry(domain)
+        except Exception as e:
+            logger.warning(f"WHOIS failed: {e}")
+            return None
+
+    async def _safe_zone_transfer(self, domain: str, results: Dict) -> Optional[Dict[str, Any]]:
+        try:
+            return await self.zone_transfer_scanner.run_with_retry(domain)
+        except Exception as e:
+            logger.warning(f"Zone transfer failed: {e}")
+            results["scanner_status"]["zone-transfer"] = f"error: {type(e).__name__}"
+            results["errors"].append({"scanner": "zone-transfer", "error": str(e)})
+            return None
+
+    async def _scan_sans_batch(self, sans: List[str], bounded_scan_fn):
+        tasks = [bounded_scan_fn(h) for h in sans]
+        await asyncio.gather(*tasks, return_exceptions=True)
 
     async def run_quick_scan(
         self,
@@ -436,7 +452,6 @@ class ScanRunner:
             if progress_callback:
                 await progress_callback(30, f"Found {len(subdomains)} subdomains")
 
-            # Quick port list
             quick_ports = [80, 443, 22, 8080, 8443, 21, 25, 53, 3306, 5432]
             scan_targets = subdomains[:20]
             total = max(len(scan_targets), 1)
@@ -446,7 +461,6 @@ class ScanRunner:
 
             async def _quick_one(hostname):
                 async with sem:
-                    # All 4 in parallel
                     async def _d():
                         try:
                             r = await self.dns_scanner.scan(hostname)
