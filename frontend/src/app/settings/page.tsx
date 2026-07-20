@@ -971,7 +971,7 @@ function NotificationsTab({ notifications, setNotifications, savingPrefs, handle
     { type: "weekly_digest", label: "Weekly Digest", category: "Reports" },
   ];
 
-  const categories = [...new Set(notifTypes.map((t) => t.category))];
+  const categories = Array.from(new Set(notifTypes.map((t) => t.category)));
 
   return (
     <div className="space-y-4">
