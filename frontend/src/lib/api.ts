@@ -52,6 +52,15 @@ export async function login(email: string, password: string, rememberMe = true) 
   return data;
 }
 
+export async function loginWithGoogle(credential: string) {
+  const { data } = await api.post("/auth/google", { credential });
+  if (typeof window !== "undefined") {
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
+  }
+  return data;
+}
+
 export function logout() {
   if (typeof window !== "undefined") {
     localStorage.removeItem("access_token");
@@ -306,6 +315,25 @@ export async function updateUserPreferences(prefs: {
   scan_complete_alerts: boolean;
 }): Promise<void> {
   await api.put("/users/me/preferences", prefs);
+}
+
+// --- Notification Preferences (per-type/per-channel) ---
+export interface NotificationPreferenceItem {
+  notification_type: string;
+  in_app_enabled: boolean;
+  email_enabled: boolean;
+}
+
+export async function getNotificationPreferences(): Promise<NotificationPreferenceItem[]> {
+  const { data } = await api.get("/notification-preferences");
+  return data;
+}
+
+export async function updateNotificationPreference(
+  notificationType: string,
+  updates: { in_app_enabled?: boolean; email_enabled?: boolean }
+): Promise<void> {
+  await api.put(`/notification-preferences/${notificationType}`, updates);
 }
 
 // --- API Keys ---
@@ -936,6 +964,130 @@ export async function removePasskey(passkeyId: string) {
 export * from "./api-asset360";
 export * from "./api-changefeed";
 export * from "./api-replay";
-export * from "./api-ai";
 export * from "./api-collab";
 export * from "./api-reports";
+
+// ==================== SHADOW ASSET DETECTION ====================
+
+export interface ShadowSignal {
+  type: "shared_ip" | "shared_cert" | "shared_asn";
+  with: string[];
+  cloud?: boolean | null;
+}
+
+export interface ShadowCandidate {
+  asset_id: string;
+  value: string;
+  label: string | null;
+  first_seen: string | null;
+  confidence: number;
+  signals: ShadowSignal[];
+  inventory_status: string | null;
+}
+
+export interface ShadowListResponse {
+  shadows: ShadowCandidate[];
+  total: number;
+  known_count: number;
+  discovered_count: number;
+}
+
+export async function listShadowAssets(minConfidence = 0): Promise<ShadowListResponse> {
+  const { data } = await api.get("/shadow-assets", {
+    params: { min_confidence: minConfidence },
+  });
+  return data;
+}
+
+export async function reviewShadowAsset(
+  assetId: string,
+  action: "confirm" | "reject" | "investigate",
+  note?: string
+): Promise<{ asset_id: string; inventory_status: string; confirmed: boolean }> {
+  const { data } = await api.post(`/shadow-assets/${assetId}/review`, {
+    action,
+    note,
+  });
+  return data;
+}
+
+export async function getShadowReviewLog(): Promise<any[]> {
+  const { data } = await api.get("/shadow-assets/review-log");
+  return data;
+}
+
+// ==================== SHODAN-STYLE SEARCH ====================
+
+export interface SearchResult {
+  asset_id: string | null;
+  subdomain_id: string;
+  hostname: string;
+  ip_addresses: string[];
+  is_alive: boolean;
+  asn: string | null;
+  org: string | null;
+  open_ports: { port: string | number; service: string | null; version: string | null }[];
+  port_count: number;
+  vulnerability_count: number;
+}
+
+export interface SearchResponse {
+  query: string;
+  total: number;
+  results: SearchResult[];
+}
+
+export async function searchAssets(query: string, limit = 50): Promise<SearchResponse> {
+  const { data } = await api.get("/search", { params: { q: query, limit } });
+  return data;
+}
+
+// ==================== OSINT INTELLIGENCE ENGINE ====================
+
+export interface OsintResult {
+  query: string;
+  subdomains: { hostname: string; ips: string[]; sources: string[] }[];
+  dns_records: Record<string, string[]>;
+  certificates: {
+    issuer: string | null;
+    subject: string | null;
+    san: string[];
+    not_before: string | null;
+    not_after: string | null;
+    serial: string | null;
+    source: string | null;
+  }[];
+  ports: {
+    port: number;
+    state: string;
+    service: string | null;
+    banner: string | null;
+    tls: boolean;
+    title: string | null;
+  }[];
+  technologies: string[];
+  vulnerabilities: {
+    cve_id: string;
+    description: string;
+    severity: string | null;
+    cvss: number | null;
+    published: string | null;
+    is_kev: boolean;
+    source: string;
+  }[];
+  sources_status: Record<string, string>;
+}
+
+export async function osintLookup(query: string): Promise<OsintResult> {
+  const { data } = await api.get("/osint", { params: { q: query } });
+  return data;
+}
+
+export async function osintImport(query: string): Promise<{
+  domain: string;
+  imported: Record<string, number>;
+  sources_status: Record<string, string>;
+}> {
+  const { data } = await api.post("/osint/import", null, { params: { q: query } });
+  return data;
+}

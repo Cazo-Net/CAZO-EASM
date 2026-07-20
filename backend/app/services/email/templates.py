@@ -1,5 +1,5 @@
 """
-Premium HTML email templates for AttackSec.
+Premium HTML email templates for CAZO EASM.
 All templates are responsive, accessible, and work across Gmail, Outlook, Apple Mail, Yahoo.
 """
 
@@ -75,16 +75,16 @@ def _base(title: str, body_html: str, preview_text: str = "") -> str:
 <div class="email-wrapper">
   <div class="email-container">
     <div class="email-header">
-      <div class="logo"><span class="logo-icon">A</span>AttackSec</div>
+      <div class="logo"><span class="logo-icon">C</span>CAZO</div>
     </div>
     <div class="email-body">
       {body_html}
     </div>
     <div class="email-footer">
       <p class="footer-text">
-        &copy; 2026 AttackSec. All rights reserved.<br>
+        &copy; 2026 CAZO. All rights reserved.<br>
         <a href="#">Unsubscribe</a> &middot; <a href="#">Privacy Policy</a> &middot; <a href="#">Terms of Service</a><br>
-        Need help? <a href="mailto:support@attacksec.io">support@attacksec.io</a>
+        Need help? <a href="mailto:support@cazo.io">support@cazo.io</a>
       </p>
     </div>
   </div>
@@ -97,9 +97,9 @@ def _base(title: str, body_html: str, preview_text: str = "") -> str:
 
 def welcome_email(name: str, verify_url: str) -> tuple[str, str]:
     """Welcome email after registration."""
-    html = _base("Welcome to AttackSec", f"""
-      <h1>Welcome to AttackSec, {name}!</h1>
-      <p>You're now part of a community of security professionals using AttackSec to map, monitor, and secure their external attack surface.</p>
+    html = _base("Welcome to CAZO EASM", f"""
+      <h1>Welcome to CAZO EASM, {name}!</h1>
+      <p>You're now part of a community of security professionals using CAZO EASM to map, monitor, and secure their external attack surface.</p>
       <div class="card">
         <p style="margin:0;font-size:13px;color:#6B7280;">Get started by verifying your email address:</p>
       </div>
@@ -107,20 +107,20 @@ def welcome_email(name: str, verify_url: str) -> tuple[str, str]:
         <a href="{verify_url}" class="btn">Verify Email Address</a>
       </div>
       <p style="font-size:13px;color:#6B7280;">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
-    """, f"Welcome to AttackSec! Verify your email to get started.")
-    return f"Welcome to AttackSec, {name}", html
+    """, f"Welcome to CAZO EASM! Verify your email to get started.")
+    return f"Welcome to CAZO EASM, {name}", html
 
 
 def verify_email(name: str, verify_url: str) -> tuple[str, str]:
     """Email verification."""
     html = _base("Verify Your Email", f"""
       <h1>Verify your email address</h1>
-      <p>Hi {name}, click the button below to verify your email address and activate your AttackSec account.</p>
+      <p>Hi {name}, click the button below to verify your email address and activate your CAZO EASM account.</p>
       <div style="text-align:center;margin:24px 0;">
         <a href="{verify_url}" class="btn">Verify Email Address</a>
       </div>
       <p style="font-size:13px;color:#6B7280;">This link expires in 24 hours. If you didn't request this, please ignore this email.</p>
-    """, "Verify your email address for AttackSec.")
+    """, "Verify your email address for CAZO EASM.")
     return "Verify your email address", html
 
 
@@ -131,11 +131,11 @@ def email_verified(name: str) -> tuple[str, str]:
         <div style="display:inline-block;width:48px;height:48px;background:#D1FAE5;border-radius:50%;text-align:center;line-height:48px;font-size:24px;">&#10003;</div>
       </div>
       <h1 style="text-align:center;">Email Verified!</h1>
-      <p style="text-align:center;">Your email address has been verified. Your AttackSec account is now fully active.</p>
+      <p style="text-align:center;">Your email address has been verified. Your CAZO EASM account is now fully active.</p>
       <div style="text-align:center;margin:24px 0;">
         <a href="{_FRONTEND_BASE}/dashboard" class="btn">Go to Dashboard</a>
       </div>
-    """, "Your email has been verified. Welcome to AttackSec!")
+    """, "Your email has been verified. Welcome to CAZO EASM!")
     return "Email Verified", html
 
 
@@ -143,7 +143,7 @@ def password_reset(name: str, reset_url: str) -> tuple[str, str]:
     """Password reset request."""
     html = _base("Reset Your Password", f"""
       <h1>Reset your password</h1>
-      <p>Hi {name}, we received a request to reset the password for your AttackSec account.</p>
+      <p>Hi {name}, we received a request to reset the password for your CAZO EASM account.</p>
       <div style="text-align:center;margin:24px 0;">
         <a href="{reset_url}" class="btn">Reset Password</a>
       </div>
@@ -151,7 +151,7 @@ def password_reset(name: str, reset_url: str) -> tuple[str, str]:
       <div class="alert alert-warning">
         <strong>Security tip:</strong> Choose a strong, unique password that you don't use elsewhere.
       </div>
-    """, "Reset your AttackSec password.")
+    """, "Reset your CAZO EASM password.")
     return "Reset your password", html
 
 
@@ -162,14 +162,14 @@ def password_changed(name: str, ip_address: str) -> tuple[str, str]:
         <div style="display:inline-block;width:48px;height:48px;background:#D1FAE5;border-radius:50%;text-align:center;line-height:48px;font-size:24px;">&#10003;</div>
       </div>
       <h1 style="text-align:center;">Password Changed</h1>
-      <p style="text-align:center;">Your AttackSec password has been successfully changed.</p>
+      <p style="text-align:center;">Your CAZO EASM password has been successfully changed.</p>
       <div class="card">
         <div class="info-row"><span class="info-label">When</span><span class="info-value">{ip_address}</span></div>
       </div>
       <div class="alert alert-warning">
-        <strong>Didn't change your password?</strong> Contact <a href="mailto:support@attacksec.io">support@attacksec.io</a> immediately.
+        <strong>Didn't change your password?</strong> Contact <a href="mailto:support@cazo.io">support@cazo.io</a> immediately.
       </div>
-    """, "Your AttackSec password has been changed.")
+    """, "Your CAZO EASM password has been changed.")
     return "Password Changed", html
 
 
@@ -177,7 +177,7 @@ def email_changed(name: str, old_email: str, new_email: str, verify_url: str) ->
     """Email change confirmation."""
     html = _base("Email Change Request", f"""
       <h1>Email change requested</h1>
-      <p>Hi {name}, we received a request to change the email address on your AttackSec account.</p>
+      <p>Hi {name}, we received a request to change the email address on your CAZO EASM account.</p>
       <div class="card">
         <div class="info-row"><span class="info-label">From</span><span class="info-value">{old_email}</span></div>
         <div class="info-row"><span class="info-label">To</span><span class="info-value">{new_email}</span></div>
@@ -186,7 +186,7 @@ def email_changed(name: str, old_email: str, new_email: str, verify_url: str) ->
         <a href="{verify_url}" class="btn">Confirm Email Change</a>
       </div>
       <p style="font-size:13px;color:#6B7280;">If you didn't request this change, please secure your account immediately.</p>
-    """, "Confirm your email change on AttackSec.")
+    """, "Confirm your email change on CAZO EASM.")
     return "Confirm email change", html
 
 
@@ -195,7 +195,7 @@ def new_login(name: str, ip_address: str, browser: str, os_name: str, location: 
     device_badge = '<span class="security-badge">New Device</span>' if is_new_device else ""
     html = _base("New Login Detected", f"""
       <h1>New login detected {device_badge}</h1>
-      <p>Hi {name}, we detected a new sign-in to your AttackSec account.</p>
+      <p>Hi {name}, we detected a new sign-in to your CAZO EASM account.</p>
       <div class="card">
         <div class="info-row"><span class="info-label">Browser</span><span class="info-value">{browser}</span></div>
         <div class="info-row"><span class="info-label">OS</span><span class="info-value">{os_name}</span></div>
@@ -203,7 +203,7 @@ def new_login(name: str, ip_address: str, browser: str, os_name: str, location: 
         {f'<div class="info-row"><span class="info-label">Location</span><span class="info-value">{location}</span></div>' if location else ''}
       </div>
       <p style="font-size:13px;color:#6B7280;">If this was you, no action needed. If you don't recognize this activity, please change your password immediately.</p>
-    """, f"New login to your AttackSec account from {ip_address}.")
+    """, f"New login to your CAZO EASM account from {ip_address}.")
     return "New login detected", html
 
 
@@ -214,11 +214,11 @@ def mfa_enabled(name: str) -> tuple[str, str]:
         <div style="display:inline-block;width:48px;height:48px;background:#D1FAE5;border-radius:50%;text-align:center;line-height:48px;font-size:24px;">&#128274;</div>
       </div>
       <h1 style="text-align:center;">Two-Factor Authentication Enabled</h1>
-      <p style="text-align:center;">Two-factor authentication has been enabled on your AttackSec account. Your account is now more secure.</p>
+      <p style="text-align:center;">Two-factor authentication has been enabled on your CAZO EASM account. Your account is now more secure.</p>
       <div class="alert alert-success">
         <strong>Important:</strong> Store your backup codes in a safe place. You'll need them if you lose access to your authenticator app.
       </div>
-    """, "Two-factor authentication has been enabled on your AttackSec account.")
+    """, "Two-factor authentication has been enabled on your CAZO EASM account.")
     return "MFA Enabled", html
 
 
@@ -226,14 +226,14 @@ def mfa_disabled(name: str, ip_address: str) -> tuple[str, str]:
     """MFA disabled notification."""
     html = _base("MFA Disabled", f"""
       <h1>Two-Factor Authentication Disabled</h1>
-      <p>Hi {name}, two-factor authentication has been disabled on your AttackSec account.</p>
+      <p>Hi {name}, two-factor authentication has been disabled on your CAZO EASM account.</p>
       <div class="card">
         <div class="info-row"><span class="info-label">IP</span><span class="info-value">{ip_address}</span></div>
       </div>
       <div class="alert alert-warning">
         <strong>Didn't do this?</strong> Your account security may be at risk. Change your password immediately and contact support.
       </div>
-    """, "Two-factor authentication has been disabled on your AttackSec account.")
+    """, "Two-factor authentication has been disabled on your CAZO EASM account.")
     return "MFA Disabled", html
 
 
@@ -241,7 +241,7 @@ def account_locked(name: str, reason: str = "Too many failed login attempts") ->
     """Account locked notification."""
     html = _base("Account Locked", f"""
       <h1>Account Locked</h1>
-      <p>Hi {name}, your AttackSec account has been temporarily locked.</p>
+      <p>Hi {name}, your CAZO EASM account has been temporarily locked.</p>
       <div class="card">
         <div class="info-row"><span class="info-label">Reason</span><span class="info-value">{reason}</span></div>
       </div>
@@ -249,15 +249,15 @@ def account_locked(name: str, reason: str = "Too many failed login attempts") ->
       <div class="alert alert-danger">
         <strong>Security notice:</strong> If you didn't attempt to log in, your credentials may be compromised. We recommend changing your password.
       </div>
-    """, "Your AttackSec account has been locked for security.")
+    """, "Your CAZO EASM account has been locked for security.")
     return "Account Locked", html
 
 
 def invitation_email(inviter_name: str, org_name: str, role: str, accept_url: str) -> tuple[str, str]:
     """Team invitation email."""
-    html = _base("You're Invited to AttackSec", f"""
+    html = _base("You're Invited to CAZO EASM", f"""
       <h1>You're invited to join {org_name}</h1>
-      <p><strong>{inviter_name}</strong> has invited you to join their team on AttackSec as a <strong>{role}</strong>.</p>
+      <p><strong>{inviter_name}</strong> has invited you to join their team on CAZO EASM as a <strong>{role}</strong>.</p>
       <div class="card">
         <div class="info-row"><span class="info-label">Organization</span><span class="info-value">{org_name}</span></div>
         <div class="info-row"><span class="info-label">Role</span><span class="info-value">{role}</span></div>
@@ -266,16 +266,16 @@ def invitation_email(inviter_name: str, org_name: str, role: str, accept_url: st
       <div style="text-align:center;margin:24px 0;">
         <a href="{accept_url}" class="btn">Accept Invitation</a>
       </div>
-      <p style="font-size:13px;color:#6B7280;">This invitation expires in 7 days. If you don't have an AttackSec account, you'll be prompted to create one.</p>
-    """, f"{inviter_name} invited you to join {org_name} on AttackSec.")
-    return f"Join {org_name} on AttackSec", html
+      <p style="font-size:13px;color:#6B7280;">This invitation expires in 7 days. If you don't have an CAZO EASM account, you'll be prompted to create one.</p>
+    """, f"{inviter_name} invited you to join {org_name} on CAZO EASM.")
+    return f"Join {org_name} on CAZO EASM", html
 
 
 def invitation_accepted(name: str, org_name: str) -> tuple[str, str]:
     """Invitation accepted notification to the inviter."""
     html = _base("Invitation Accepted", f"""
       <h1>Invitation Accepted</h1>
-      <p><strong>{name}</strong> has accepted your invitation and joined your team on AttackSec.</p>
+      <p><strong>{name}</strong> has accepted your invitation and joined your team on CAZO EASM.</p>
       <div class="card">
         <div class="info-row"><span class="info-label">Member</span><span class="info-value">{name}</span></div>
         <div class="info-row"><span class="info-label">Organization</span><span class="info-value">{org_name}</span></div>
@@ -288,7 +288,7 @@ def security_alert(name: str, alert_type: str, details: str) -> tuple[str, str]:
     """Generic security alert."""
     html = _base("Security Alert", f"""
       <h1>Security Alert</h1>
-      <p>Hi {name}, we detected unusual activity on your AttackSec account.</p>
+      <p>Hi {name}, we detected unusual activity on your CAZO EASM account.</p>
       <div class="alert alert-danger">
         <strong>{alert_type}</strong><br>{details}
       </div>
@@ -312,9 +312,149 @@ def workspace_created(name: str, org_name: str) -> tuple[str, str]:
         <div style="display:inline-block;width:48px;height:48px;background:#EFF6FF;border-radius:50%;text-align:center;line-height:48px;font-size:24px;">&#127970;</div>
       </div>
       <h1 style="text-align:center;">Workspace Created</h1>
-      <p style="text-align:center;">Your workspace <strong>{org_name}</strong> has been created on AttackSec.</p>
+      <p style="text-align:center;">Your workspace <strong>{org_name}</strong> has been created on CAZO EASM.</p>
       <div style="text-align:center;margin:24px 0;">
         <a href="{_FRONTEND_BASE}/dashboard" class="btn">Go to Dashboard</a>
       </div>
-    """, f"Your workspace {org_name} is ready on AttackSec.")
+    """, f"Your workspace {org_name} is ready on CAZO EASM.")
     return "Workspace Created", html
+
+
+# ==================== NOTIFICATION EMAIL TEMPLATES ====================
+# Used by the centralized notification dispatch service.
+# All use light-mode styling for maximum email client compatibility.
+
+
+def scan_completed_email(name: str, domain: str, subdomains: int, vulns: int, scan_url: str) -> tuple[str, str]:
+    """Scan completion notification email."""
+    stats_html = ""
+    if subdomains:
+        stats_html += f'<div class="info-row"><span class="info-label">Subdomains</span><span class="info-value">{subdomains}</span></div>'
+    if vulns:
+        stats_html += f'<div class="info-row"><span class="info-label">Vulnerabilities</span><span class="info-value" style="color:#DC2626;">{vulns}</span></div>'
+    if not stats_html:
+        stats_html = '<p style="font-size:13px;color:#6B7280;">No issues detected.</p>'
+
+    html = _base(f"Scan Completed: {domain}", f"""
+      <h1>Scan Completed</h1>
+      <p>Hi {name}, your scan for <strong>{domain}</strong> has completed.</p>
+      <div class="card">
+        {stats_html}
+      </div>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="{_FRONTEND_BASE}{scan_url}" class="btn">View Scan Results</a>
+      </div>
+    """, f"Scan completed for {domain}. {subdomains} subdomains, {vulns} vulnerabilities.")
+    return f"Scan completed: {domain}", html
+
+
+def scan_failed_email(name: str, domain: str, error: str, scan_url: str) -> tuple[str, str]:
+    """Scan failure notification email."""
+    html = _base(f"Scan Failed: {domain}", f"""
+      <h1>Scan Failed</h1>
+      <p>Hi {name}, your scan for <strong>{domain}</strong> has failed.</p>
+      <div class="alert alert-danger">
+        <strong>Error:</strong> {error}
+      </div>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="{_FRONTEND_BASE}{scan_url}" class="btn">View Details</a>
+      </div>
+    """, f"Scan failed for {domain}: {error}")
+    return f"Scan failed: {domain}", html
+
+
+def new_finding_email(name: str, domain: str, vuln_name: str, severity: str, scan_url: str) -> tuple[str, str]:
+    """New vulnerability finding notification email."""
+    severity_colors = {
+        "critical": ("#DC2626", "#FEE2E2", "#991B1B"),
+        "high": ("#EA580C", "#FFF7ED", "#9A3412"),
+        "medium": ("#D97706", "#FFFBEB", "#92400E"),
+        "low": ("#2563EB", "#EFF6FF", "#1E40AF"),
+    }
+    color, bg, text_color = severity_colors.get(severity.lower(), ("#6B7280", "#F3F4F6", "#374151"))
+
+    html = _base(f"New {severity.title()} Finding: {vuln_name}", f"""
+      <h1>New Vulnerability Found</h1>
+      <p>Hi {name}, a <strong style="color:{color};">{severity.upper()}</strong> vulnerability was detected on <strong>{domain}</strong>.</p>
+      <div class="card">
+        <div class="info-row"><span class="info-label">Severity</span><span class="info-value"><span style="display:inline-block;padding:2px 8px;background:{bg};color:{text_color};border-radius:10px;font-size:11px;font-weight:600;">{severity.upper()}</span></span></div>
+        <div class="info-row"><span class="info-label">Finding</span><span class="info-value">{vuln_name}</span></div>
+        <div class="info-row"><span class="info-label">Domain</span><span class="info-value">{domain}</span></div>
+      </div>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="{_FRONTEND_BASE}{scan_url}" class="btn">Review Finding</a>
+      </div>
+    """, f"New {severity} finding: {vuln_name} on {domain}")
+    return f"[{severity.upper()}] {vuln_name} — {domain}", html
+
+
+def ssl_expiring_email(name: str, hostname: str, days_left: int, cert_url: str) -> tuple[str, str]:
+    """SSL certificate expiring notification email."""
+    urgency = "expired" if days_left <= 0 else f"expires in {days_left} day{'s' if days_left != 1 else ''}"
+    alert_class = "alert-danger" if days_left <= 3 else "alert-warning"
+
+    html = _base(f"SSL Certificate Expiring: {hostname}", f"""
+      <h1>SSL Certificate Expiring</h1>
+      <p>Hi {name}, the SSL certificate for <strong>{hostname}</strong> {urgency}.</p>
+      <div class="alert {alert_class}">
+        <strong>{'Expired' if days_left <= 0 else 'Days remaining'}:</strong> {abs(days_left) if days_left <= 0 else days_left}
+      </div>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="{_FRONTEND_BASE}{cert_url}" class="btn">View Certificate Details</a>
+      </div>
+    """, f"SSL certificate for {hostname} {urgency}.")
+    return f"SSL {'expired' if days_left <= 0 else 'expiring'}: {hostname}", html
+
+
+def new_shadow_asset_email(name: str, domain: str, asset_count: int, shadow_url: str) -> tuple[str, str]:
+    """New shadow asset detected notification email."""
+    html = _base(f"Shadow Assets Detected: {domain}", f"""
+      <h1>Shadow Assets Detected</h1>
+      <p>Hi {name}, CAZO detected <strong>{asset_count}</strong> potential shadow asset{'s' if asset_count != 1 else ''} associated with <strong>{domain}</strong>.</p>
+      <div class="card">
+        <p style="margin:0;font-size:13px;color:#6B7280;">Shadow assets are infrastructure that may belong to your organization but aren't in your known inventory. Review them to ensure they're authorized.</p>
+      </div>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="{_FRONTEND_BASE}{shadow_url}" class="btn">Review Shadow Assets</a>
+      </div>
+    """, f"{asset_count} shadow asset{'s' if asset_count != 1 else ''} detected for {domain}.")
+    return f"Shadow assets detected: {domain}", html
+
+
+def new_cve_email(name: str, domain: str, cve_id: str, severity: str, tech_name: str, cve_url: str) -> tuple[str, str]:
+    """New CVE match notification email."""
+    html = _base(f"New CVE Match: {cve_id}", f"""
+      <h1>New CVE Match</h1>
+      <p>Hi {name}, a new CVE was matched against your technology stack on <strong>{domain}</strong>.</p>
+      <div class="card">
+        <div class="info-row"><span class="info-label">CVE ID</span><span class="info-value" style="font-family:monospace;">{cve_id}</span></div>
+        <div class="info-row"><span class="info-label">Severity</span><span class="info-value">{severity.upper()}</span></div>
+        <div class="info-row"><span class="info-label">Technology</span><span class="info-value">{tech_name}</span></div>
+        <div class="info-row"><span class="info-label">Domain</span><span class="info-value">{domain}</span></div>
+      </div>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="{_FRONTEND_BASE}{cve_url}" class="btn">Review CVE Match</a>
+      </div>
+    """, f"New CVE match: {cve_id} on {tech_name} ({domain}).")
+    return f"[{severity.upper()}] {cve_id} — {tech_name}", html
+
+
+def security_event_email(name: str, event_type: str, ip: str, browser: str, timestamp: str) -> tuple[str, str]:
+    """Security event notification email (login, password change, email change)."""
+    html = _base(event_type, f"""
+      <h1>{event_type}</h1>
+      <p>Hi {name}, a security event was detected on your account.</p>
+      <div class="card">
+        <div class="info-row"><span class="info-label">Event</span><span class="info-value">{event_type}</span></div>
+        <div class="info-row"><span class="info-label">IP Address</span><span class="info-value" style="font-family:monospace;">{ip}</span></div>
+        <div class="info-row"><span class="info-label">Device</span><span class="info-value">{browser[:60]}</span></div>
+        <div class="info-row"><span class="info-label">Time</span><span class="info-value">{timestamp}</span></div>
+      </div>
+      <div class="alert alert-warning">
+        <strong>If this wasn't you,</strong> change your password immediately and enable two-factor authentication.
+      </div>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="{_FRONTEND_BASE}/settings/security" class="btn">Review Security Settings</a>
+      </div>
+    """, f"Security alert: {event_type} on your CAZO account.")
+    return f"Security Alert: {event_type}", html

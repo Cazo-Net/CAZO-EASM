@@ -14,6 +14,7 @@ from app.core.security import (
     generate_api_key, hash_api_key,
 )
 from app.config import settings, frontend_url
+from app.services.notification_service import dispatch_notification
 from app.api.deps import get_current_user
 from app.services.audit import log_auth_event
 from app.services.email import get_email_service
@@ -65,7 +66,6 @@ async def register(user_data: UserCreate, request: Request, db: Session = Depend
                        ip_address=request.client.host if request.client else None,
                        detail={"email": user.email})
 
-        logger.info(f"User registered: {user.email}. Verification token: {verification_token}")
         return user
     except HTTPException:
         raise
@@ -157,7 +157,18 @@ async def login(login_data: UserLogin, request: Request, db: Session = Depends(g
     user.last_login = datetime.now(timezone.utc)
     db.commit()
 
-    # Create session
+    # Create tokens (embed token_version so logout / password change can
+    # invalidate previously issued tokens)
+    token_version = user.token_version or 0
+    access_token = create_access_token(
+        data={"sub": user.id, "role": user.role, "tv": token_version}
+    )
+    refresh_token = create_refresh_token(
+        data={"sub": user.id, "tv": token_version}
+    )
+
+    # Create session — store hash of the refresh token (not access token)
+    # so rotation can invalidate the old session on refresh.
     client_ip = request.client.host if request.client else "unknown"
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
@@ -166,7 +177,7 @@ async def login(login_data: UserLogin, request: Request, db: Session = Depends(g
 
     session = UserSession(
         user_id=user.id,
-        refresh_token_hash=hash_api_key(create_access_token(data={"sub": user.id})),
+        refresh_token_hash=hash_api_key(refresh_token),
         ip_address=client_ip,
         user_agent=ua,
         browser=ua[:50] if ua else "Unknown",
@@ -191,9 +202,25 @@ async def login(login_data: UserLogin, request: Request, db: Session = Depends(g
     log_auth_event(db, "login_success", user.id,
                    ip_address=client_ip, detail={"session_id": session.id})
 
-    # Create tokens
-    access_token = create_access_token(data={"sub": user.id, "role": user.role})
-    refresh_token = create_refresh_token(data={"sub": user.id})
+    # Dispatch login notification (detects new device/IP via dedup logic)
+    try:
+        dispatch_notification(
+            db=db,
+            organization_id=user.organization_id,
+            user_id=user.id,
+            notification_type="new_login",
+            title="New login detected",
+            message=f"New login from {client_ip} ({ua[:60] or 'Unknown device'})",
+            related_entity_type="user",
+            related_entity_id=user.id,
+            data={
+                "ip_address": client_ip,
+                "user_agent": ua,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    except Exception as e:
+        logger.error(f"Failed to dispatch login notification: {e}")
 
     return {
         "access_token": access_token,
@@ -203,9 +230,26 @@ async def login(login_data: UserLogin, request: Request, db: Session = Depends(g
     }
 
 
+def _validate_token_version(user: User, payload: dict) -> None:
+    """Raise 401 if the token's embedded version is stale."""
+    token_tv = payload.get("tv")
+    if token_tv is None:
+        return
+    if token_tv != (user.token_version or 0):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session invalidated. Please log in again.",
+        )
+
+
 @router.post("/refresh", response_model=Token)
 async def refresh_token(token_data: TokenRefresh, db: Session = Depends(get_db)):
-    """Refresh access token."""
+    """Refresh access token with rotation.
+
+    SECURITY: On each refresh, the old refresh token is invalidated and a new
+    pair is issued. If a revoked refresh token is reused (reuse detection), ALL
+    sessions for the user are terminated — indicating token theft.
+    """
     payload = decode_token(token_data.refresh_token)
 
     if not payload or payload.get("type") != "refresh":
@@ -217,20 +261,68 @@ async def refresh_token(token_data: TokenRefresh, db: Session = Depends(get_db))
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found or inactive")
 
-    access_token = create_access_token(data={"sub": user.id, "role": user.role})
-    refresh_token = create_refresh_token(data={"sub": user.id})
+    _validate_token_version(user, payload)
+
+    # Find the session matching this refresh token
+    old_token_hash = hash_api_key(token_data.refresh_token)
+    session = db.query(UserSession).filter(
+        UserSession.user_id == user_id,
+        UserSession.refresh_token_hash == old_token_hash,
+    ).first()
+
+    if session and not session.is_active:
+        # REUSE DETECTION: A revoked refresh token was reused.
+        # This strongly suggests token theft. Kill all sessions.
+        logger.warning(f"Refresh token reuse detected for user {user_id} — terminating all sessions")
+        db.query(UserSession).filter(UserSession.user_id == user_id).update({"is_active": False})
+        # Bump token version to invalidate all outstanding tokens
+        user.token_version = (user.token_version or 0) + 1
+        db.commit()
+        raise HTTPException(
+            status_code=401,
+            detail="Refresh token reuse detected. All sessions have been terminated.",
+        )
+
+    # Invalidate the old session
+    if session:
+        session.is_active = False
+
+    # Issue new token pair
+    token_version = user.token_version or 0
+    new_access = create_access_token(
+        data={"sub": user.id, "role": user.role, "tv": token_version}
+    )
+    new_refresh = create_refresh_token(
+        data={"sub": user.id, "tv": token_version}
+    )
+
+    # Create new session with the new refresh token
+    new_session = UserSession(
+        user_id=user.id,
+        refresh_token_hash=hash_api_key(new_refresh),
+        is_active=True,
+    )
+    db.add(new_session)
+    db.commit()
 
     return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
+        "access_token": new_access,
+        "refresh_token": new_refresh,
         "token_type": "bearer",
         "requires_2fa": False,
     }
 
 
 @router.post("/logout")
-async def logout(current_user: User = Depends(get_current_user)):
-    """Server-side logout (invalidate refresh token by incrementing token version)."""
+async def logout(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Server-side logout: invalidate all refresh tokens and sessions."""
+    current_user.token_version = (current_user.token_version or 0) + 1
+    # Also deactivate all sessions for this user
+    db.query(UserSession).filter(
+        UserSession.user_id == current_user.id,
+        UserSession.is_active == True,
+    ).update({"is_active": False})
+    db.commit()
     return {"message": "Logged out successfully"}
 
 
@@ -276,6 +368,8 @@ async def reset_password(data: PasswordReset, request: Request, db: Session = De
     user.reset_token_expires = None
     user.failed_login_attempts = 0
     user.locked_until = None
+    # Invalidate all existing sessions/tokens
+    user.token_version = (user.token_version or 0) + 1
     db.commit()
 
     try:
@@ -287,6 +381,27 @@ async def reset_password(data: PasswordReset, request: Request, db: Session = De
 
     log_auth_event(db, "password_reset_completed", user.id,
                    ip_address=request.client.host if request.client else None)
+
+    # Dispatch password changed notification
+    try:
+        client_ip = request.client.host if request.client else "unknown"
+        dispatch_notification(
+            db=db,
+            organization_id=user.organization_id,
+            user_id=user.id,
+            notification_type="password_changed",
+            title="Password changed",
+            message="Your password was changed via reset link.",
+            related_entity_type="user",
+            related_entity_id=user.id,
+            data={
+                "ip_address": client_ip,
+                "user_agent": request.headers.get("user-agent", ""),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    except Exception as e:
+        logger.error(f"Failed to dispatch password changed notification: {e}")
 
     return {"message": "Password reset successfully"}
 
@@ -303,7 +418,7 @@ async def setup_2fa(current_user: User = Depends(get_current_user), db: Session 
     db.commit()
     import pyotp
     provisioning_uri = pyotp.totp.TOTP(secret).provisioning_uri(
-        name=current_user.email, issuer_name="AttackSec"
+        name=current_user.email, issuer_name="CAZO"
     )
     return TOTPSetup(secret=secret, provisioning_uri=provisioning_uri)
 

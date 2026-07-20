@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Dict
+from datetime import datetime, timezone
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserUpdate, PasswordChange, UserProfileResponse
 from app.api.deps import get_current_user
 from app.core.security import verify_password, get_password_hash
+from app.services.notification_service import dispatch_notification
 
 router = APIRouter()
 
@@ -53,6 +55,7 @@ async def update_current_user(
 @router.put("/me/password")
 async def change_password(
     password_data: PasswordChange,
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -64,7 +67,29 @@ async def change_password(
         )
 
     current_user.hashed_password = get_password_hash(password_data.new_password)
+    current_user.token_version = (current_user.token_version or 0) + 1
     db.commit()
+
+    # Dispatch password changed notification
+    try:
+        client_ip = request.client.host if request.client else "unknown"
+        dispatch_notification(
+            db=db,
+            organization_id=current_user.organization_id,
+            user_id=current_user.id,
+            notification_type="password_changed",
+            title="Password changed",
+            message="Your password was changed.",
+            related_entity_type="user",
+            related_entity_id=current_user.id,
+            data={
+                "ip_address": client_ip,
+                "user_agent": request.headers.get("user-agent", ""),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    except Exception:
+        pass
 
     return {"message": "Password changed successfully"}
 

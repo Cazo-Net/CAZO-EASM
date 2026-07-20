@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone, timedelta
 import secrets
 import time
 import logging
@@ -30,9 +31,48 @@ async def lifespan(app: FastAPI):
     configure_logging(getattr(settings, "LOG_LEVEL", "INFO"))
     init_db()
     get_rate_limiter()
+    _reap_stuck_scans()
     logger.info("Application started", extra={"environment": settings.ENVIRONMENT})
     yield
     logger.info("Application shutting down")
+
+
+def _reap_stuck_scans() -> None:
+    """Mark scans left in running/pending after a process crash as failed.
+
+    Background scans run in-process; if the server dies mid-scan the row is
+    left dangling in ``running`` with a frozen progress. On startup we flip
+    any such scan older than the timeout to ``failed`` so the UI stops showing
+    it perpetually "in progress".
+    """
+    from app.database import SessionLocal
+    from app.models.scan import Scan
+
+    timeout = timedelta(minutes=30)
+    cutoff = datetime.now(timezone.utc) - timeout
+    db = SessionLocal()
+    try:
+        stuck = (
+            db.query(Scan)
+            .filter(Scan.status.in_(["running", "pending"]))
+            .filter(Scan.started_at < cutoff)
+            .all()
+        )
+        for scan in stuck:
+            scan.status = "failed"
+            scan.error_message = "Scan interrupted (server restarted). Please re-run."
+            scan.completed_at = datetime.now(timezone.utc)
+        if stuck:
+            db.commit()
+            logger.warning(
+                "Reaped %d stuck scan(s) left running before cutoff %s",
+                len(stuck), cutoff.isoformat(),
+            )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to reap stuck scans: %s", exc)
+        db.rollback()
+    finally:
+        db.close()
 
 
 app = FastAPI(
@@ -44,6 +84,24 @@ app = FastAPI(
     redoc_url=None,
     openapi_url=None,
 )
+
+
+# ---------------------------------------------------------------------------
+# SECURITY: Global exception handler — strip stack traces and internal details
+# from 500 responses in production to prevent information leakage.
+# ---------------------------------------------------------------------------
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    if is_production():
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+        )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "type": type(exc).__name__},
+    )
 
 # CORS
 app.add_middleware(
@@ -80,7 +138,11 @@ async def security_headers_middleware(request: Request, call_next):
             "max-age=31536000; includeSubDomains; preload"
         )
         response.headers["Content-Security-Policy"] = (
-            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
+            "default-src 'none'; "
+            "script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com; "
+            "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com; "
+            "frame-src 'self' https://accounts.google.com; "
+            "frame-ancestors 'none'; base-uri 'none'"
         )
     return response
 
@@ -121,11 +183,21 @@ async def rate_limit_middleware(request: Request, call_next):
     if request.url.path in _PROBE_PATHS:
         return await call_next(request)
 
+    # Never throttle read-only polling endpoints (GET only).
+    path = request.url.path
+    is_polling = request.method == "GET" and (
+        path.startswith("/api/v1/assets/")
+        or path.startswith("/api/v1/scans/")
+        or path.startswith("/api/v1/notifications/")
+    )
+    if is_polling:
+        return await call_next(request)
+
     client_ip = _client_ip(request)
 
     # Stricter limit for login/register endpoints
     path = request.url.path
-    is_auth_endpoint = path in ("/api/v1/auth/login", "/api/v1/auth/register")
+    is_auth_endpoint = path in ("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/forgot-password")
     max_requests = LOGIN_RATE_LIMIT if is_auth_endpoint else GLOBAL_RATE_LIMIT
     bucket = "auth" if is_auth_endpoint else "global"
 
@@ -171,9 +243,10 @@ async def readiness_check():
 
 
 # Import and include routers
-from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, tags, ai, canvas, sessions, invitations, admin, security, scopes, billing, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2
+from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, billing, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(auth_google.router, prefix="/api/v1/auth", tags=["Google OAuth"])
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(scan.router, prefix="/api/v1/scans", tags=["Scans"])
 app.include_router(assets.router, prefix="/api/v1/assets", tags=["Assets"])
@@ -183,8 +256,8 @@ app.include_router(projects.router, prefix="/api/v1/projects", tags=["Projects"]
 app.include_router(api_keys.router, prefix="/api/v1/api-keys", tags=["API Keys"])
 app.include_router(compare.router, prefix="/api/v1/compare", tags=["Compare"])
 app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["Notifications"])
+app.include_router(notification_preferences.router, prefix="/api/v1/notification-preferences", tags=["Notification Preferences"])
 app.include_router(tags.router, prefix="/api/v1/tags", tags=["Tags, Audit Logs, Favorites"])
-app.include_router(ai.router, prefix="/api/v1/ai", tags=["AI Intelligence"])
 app.include_router(canvas.router, prefix="/api/v1/canvases", tags=["Intelligence Canvas"])
 app.include_router(sessions.router, prefix="/api/v1/sessions", tags=["Sessions"])
 app.include_router(invitations.router, prefix="/api/v1/invitations", tags=["Invitations"])
@@ -200,6 +273,10 @@ app.include_router(asset_360.router, prefix="/api/v1/asset360", tags=["Asset 360
 app.include_router(change_feed.router, prefix="/api/v1/changefeed", tags=["Change Feed"])
 app.include_router(collaboration.router, prefix="/api/v1/collaboration", tags=["Collaboration"])
 app.include_router(reports_v2.router, prefix="/api/v1/reports/executive", tags=["Executive Reports"])
+app.include_router(evidence.router, prefix="/api/v1/findings", tags=["Evidence Center"])
+app.include_router(shadow.router, prefix="/api/v1/shadow-assets", tags=["Shadow Assets"])
+app.include_router(search.router, prefix="/api/v1/search", tags=["Search"])
+app.include_router(osint.router, prefix="/api/v1/osint", tags=["OSINT Intelligence"])
 
 
 # API docs (only in debug mode)

@@ -1,5 +1,6 @@
 """Security settings endpoints."""
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session as DBSession
 from typing import List, Optional
@@ -15,6 +16,10 @@ from app.core.security import verify_password, get_password_hash
 from app.services.audit import log_auth_event
 from app.services.email import get_email_service
 from app.services.email import templates
+from app.services.notification_service import dispatch_notification
+from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -87,6 +92,29 @@ async def request_email_change(
     log_auth_event(db, "email_change_requested", current_user.id,
                    ip_address=request.client.host if request.client else None,
                    detail={"new_email": data.new_email})
+
+    # Dispatch email changed notification
+    try:
+        client_ip = request.client.host if request.client else "unknown"
+        dispatch_notification(
+            db=db,
+            organization_id=current_user.organization_id,
+            user_id=current_user.id,
+            notification_type="email_changed",
+            title="Email change requested",
+            message=f"Email change requested from {current_user.email} to {data.new_email}.",
+            related_entity_type="user",
+            related_entity_id=current_user.id,
+            data={
+                "ip_address": client_ip,
+                "user_agent": request.headers.get("user-agent", ""),
+                "old_email": current_user.email,
+                "new_email": data.new_email,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    except Exception as e:
+        logger.error(f"Failed to dispatch email change notification: {e}")
 
     return ChangeEmailResponse(
         message="Verification email sent to new address",
