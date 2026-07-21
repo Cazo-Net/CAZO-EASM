@@ -37,6 +37,7 @@ backend/reports/
 node_modules/
 .next/
 out/
+*.tsbuildinfo
 
 # OS files
 .DS_Store
