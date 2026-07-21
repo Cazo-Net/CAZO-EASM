@@ -33,6 +33,8 @@ export interface RawGraphNode {
   version?: string | null;
   banner?: string | null;
   host?: string;
+  os_detection?: any;
+  host_scripts?: any;
 }
 
 export interface RawGraphEdge {

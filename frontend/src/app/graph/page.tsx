@@ -235,6 +235,8 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
   const meta = TYPE_META[type] || TYPE_META.subdomain;
   const ringColor = type === "vulnerability" ? SEVERITY_COLOR[(d.severity as string) || "unknown"] : meta.color;
   const ports: any[] = Array.isArray(d.ports) ? d.ports : [];
+  const osDetection: any = d.os_detection || d.attributes?.os_detection || null;
+  const hostScripts: any[] = d.host_scripts || d.attributes?.host_scripts || [];
 
   return (
     <motion.div
@@ -292,6 +294,45 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
                 <div key={i} className="flex items-center justify-between rounded px-2 py-1" style={{ background: "#1C1D2A" }}>
                   <span className="font-mono text-[10px] text-foreground">{p.port}</span>
                   <span className="font-mono text-[9px] text-muted-foreground">{p.service || "?"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {osDetection && (
+          <div>
+            <span className="font-mono text-[9px] text-muted-foreground uppercase">OS Detection</span>
+            <div className="mt-1 rounded px-2 py-1" style={{ background: "#1C1D2A" }}>
+              {typeof osDetection === "string" ? (
+                <p className="font-mono text-[10px] text-foreground">{osDetection}</p>
+              ) : (
+                <>
+                  {osDetection.name && (
+                    <p className="font-mono text-[10px] text-foreground">{osDetection.name}</p>
+                  )}
+                  {osDetection.accuracy && (
+                    <p className="font-mono text-[9px] text-muted-foreground">Accuracy: {osDetection.accuracy}%</p>
+                  )}
+                  {osDetection.os_classes && osDetection.os_classes.length > 0 && (
+                    <p className="font-mono text-[9px] text-muted-foreground">
+                      {osDetection.os_classes.map((c: any) => `${c.type}/${c.vendor} ${c.osfamily} ${c.accuracy}%`).join(", ")}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+        {hostScripts.length > 0 && (
+          <div>
+            <span className="font-mono text-[9px] text-muted-foreground uppercase">Host Scripts ({hostScripts.length})</span>
+            <div className="mt-1 space-y-1">
+              {hostScripts.slice(0, 5).map((s: any, i: number) => (
+                <div key={i} className="rounded px-2 py-1" style={{ background: "#1C1D2A" }}>
+                  <p className="font-mono text-[10px] text-foreground">{s.id || s.name || "script"}</p>
+                  {s.output && (
+                    <p className="font-mono text-[9px] text-muted-foreground mt-0.5 break-all">{s.output.slice(0, 200)}</p>
+                  )}
                 </div>
               ))}
             </div>

@@ -255,12 +255,16 @@ class ScanService:
         
         subdomain_objects = []
         subdomain_map = {}
+        os_detection = results.get("os_detection", {})
+        host_scripts = results.get("host_scripts", {})
         for hostname in results.get("subdomains", []):
             subdomain = Subdomain(
                 scan_id=scan.id,
                 hostname=hostname,
                 ip_addresses=self._extract_ips(results.get("dns_records", {}).get(hostname, {})),
                 is_alive=True,
+                os_detection=os_detection.get(hostname),
+                host_scripts=host_scripts.get(hostname),
             )
             subdomain_objects.append(subdomain)
             subdomain_map[hostname] = subdomain

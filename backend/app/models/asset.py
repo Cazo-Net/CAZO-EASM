@@ -14,6 +14,8 @@ class Subdomain(Base):
     ip_addresses = Column(JSON, default=list)
     is_alive = Column(Boolean, default=False)
     status = Column(String(20), default="active")
+    os_detection = Column(JSON, default=None, nullable=True)
+    host_scripts = Column(JSON, default=None, nullable=True)
     discovered_at = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -209,6 +209,11 @@ def backfill_from_scan(db: Session, scan) -> None:
             reg = registrar_by_domain.get(parent_domain)
             if reg:
                 host_attrs["registrar"] = reg
+        # Nmap OS detection and host scripts (enriches Node Intel panel).
+        if sub.os_detection:
+            host_attrs["os_detection"] = sub.os_detection
+        if sub.host_scripts:
+            host_attrs["host_scripts"] = sub.host_scripts
 
         host_asset = upsert_asset(
             db, org_id, "host", sub.hostname,
