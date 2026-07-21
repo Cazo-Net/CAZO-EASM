@@ -13,7 +13,6 @@ from app.services.scan_dispatch import dispatch_scan
 from app.api.deps import get_current_user
 from app.core.permissions import require_permission, Permission
 from app.scanners.registry import discovery_manifest
-from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -41,20 +40,6 @@ async def create_scan(
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN))
 ):
     """Create and start a new scan (authorized-scope enforced)."""
-    # SECURITY: Per-user scan quota enforcement
-    now = datetime.now(timezone.utc)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    scan_count = db.query(Scan).filter(
-        Scan.created_by == current_user.id,
-        Scan.created_at >= month_start,
-    ).count()
-    MAX_SCANS = 50  # per-month cap for all plans (adjust per plan if needed)
-    if scan_count >= MAX_SCANS:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Monthly scan quota exceeded ({MAX_SCANS}/month). Upgrade your plan for more scans.",
-        )
-
     service = ScanService(db)
     request_id = request.headers.get("x-request-id")
 

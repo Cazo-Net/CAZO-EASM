@@ -19,9 +19,7 @@ import {
   LogOut,
   History,
   Link2,
-  CreditCard,
   ShieldCheck,
-  ChevronDown,
   ChevronRight,
 } from "lucide-react";
 import api, {
@@ -75,7 +73,6 @@ const navSections: NavSection[] = [
   {
     items: [
       { id: "profile", label: "Public profile", icon: User },
-      { id: "account", label: "Account", icon: CreditCard, href: "/billing" },
       { id: "organization", label: "Organization", icon: Building, href: "/settings/organization" },
     ],
   },

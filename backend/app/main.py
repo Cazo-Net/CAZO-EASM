@@ -249,7 +249,7 @@ async def readiness_check():
 
 
 # Import and include routers
-from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, billing, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint
+from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(auth_google.router, prefix="/api/v1/auth", tags=["Google OAuth"])
@@ -270,7 +270,6 @@ app.include_router(invitations.router, prefix="/api/v1/invitations", tags=["Invi
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(security.router, prefix="/api/v1/security", tags=["Security"])
 app.include_router(scopes.router, prefix="/api/v1/scopes", tags=["Authorized Scopes"])
-app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
 app.include_router(api_keys_v2.router, prefix="/api/v1/api-keys/v2", tags=["API Keys v2"])
 app.include_router(security_center.router, prefix="/api/v1/security-center", tags=["Security Center"])
 app.include_router(passkeys.router, prefix="/api/v1/passkeys", tags=["Passkeys"])

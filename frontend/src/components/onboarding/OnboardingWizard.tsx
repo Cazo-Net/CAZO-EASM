@@ -19,7 +19,6 @@ interface OnboardingWizardProps {
 
 const steps: Step[] = [
   { id: "welcome", title: "Welcome to CAZO", description: "Let's get your attack surface monitoring set up." },
-  { id: "plan", title: "Choose a Plan", description: "Start with a free trial or pick a plan that fits your team." },
   { id: "scope", title: "Add Your First Scope", description: "Tell us what to monitor — a domain, IP, or CIDR range." },
   { id: "security", title: "Secure Your Account", description: "Enable MFA and review your security settings." },
   { id: "done", title: "You're All Set", description: "Your workspace is ready. Start your first scan!" },
@@ -27,7 +26,6 @@ const steps: Step[] = [
 
 export function OnboardingWizard({ onComplete, onSkip }: OnboardingWizardProps) {
   const [currentStep, setCurrentStep] = React.useState(0);
-  const [selectedPlan, setSelectedPlan] = React.useState<string>("free_trial");
   const [scope, setScope] = React.useState("");
 
   const step = steps[currentStep];
@@ -80,34 +78,6 @@ export function OnboardingWizard({ onComplete, onSkip }: OnboardingWizardProps) 
             <h2 className="text-2xl font-bold text-foreground mb-2">{step.title}</h2>
             <p className="text-muted-foreground">{step.description}</p>
           </div>
-
-          {step.id === "plan" && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-              {["free_trial", "starter", "professional"].map((plan) => (
-                <button
-                  key={plan}
-                  onClick={() => setSelectedPlan(plan)}
-                  className={cn(
-                    "p-4 rounded-lg border text-left transition-all",
-                    selectedPlan === plan
-                      ? "border-brand bg-brand/5 ring-2 ring-brand/20"
-                      : "border-border hover:border-brand/50"
-                  )}
-                >
-                  <p className="font-semibold text-foreground capitalize">
-                    {plan.replace("_", " ")}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {plan === "free_trial"
-                      ? "14-day trial"
-                      : plan === "starter"
-                      ? "$49/mo"
-                      : "$199/mo"}
-                  </p>
-                </button>
-              ))}
-            </div>
-          )}
 
           {step.id === "scope" && (
             <div className="mb-6">

@@ -19,7 +19,6 @@ const roles = [
   { value: "viewer", label: "Viewer" },
   { value: "analyst", label: "Analyst" },
   { value: "security_manager", label: "Security Manager" },
-  { value: "billing_admin", label: "Billing Admin" },
   { value: "admin", label: "Admin" },
 ];
 

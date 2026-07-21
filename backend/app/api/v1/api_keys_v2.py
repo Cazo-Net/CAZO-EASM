@@ -27,7 +27,6 @@ from app.schemas.api_key_v2 import (
     ApiKeyListResponse,
 )
 from app.core.security import generate_api_key, hash_api_key
-from app.core.feature_gate import require_usage
 
 logger = logging.getLogger(__name__)
 
@@ -75,19 +74,6 @@ async def create_api_key(
         ApiKey.user_id == current_user.id,
         ApiKey.is_active == True,
     ).count()
-
-    sub_service = None
-    if current_user.organization_id:
-        from app.services.subscription_service import SubscriptionService
-        sub_service = SubscriptionService(db)
-        result = sub_service.check_usage_limit_for_org(
-            current_user.organization_id, "api_keys"
-        )
-        if not result["allowed"]:
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"API key limit reached ({result['limit']}). Upgrade your plan.",
-            )
 
     raw_key = generate_api_key()
     key_hash = hash_api_key(raw_key)
