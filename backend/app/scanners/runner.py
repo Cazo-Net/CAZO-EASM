@@ -14,6 +14,7 @@ from app.scanners.zone_transfer import ZoneTransferScanner
 from app.scanners.cve_correlation import CVECorrelationScanner
 from app.scanners.relationships import RelationshipsScanner
 from app.risk_scorer import calculate_risk
+from app.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -171,7 +172,12 @@ class ScanRunner:
 
             subdomains = {domain}
             from app.config import settings
-            ports_list = list(range(1, 10001)) if port_mode == "full" else settings.SCAN_QUICK_PORTS
+            # Full scans are driven by the chosen port scanner's own range:
+            #  - nmap (preferred) uses its top-N default (config.NMAP_TOP_PORTS)
+            #  - python fallback uses its TOP_1000_PORTS
+            # A custom port range supplied via scan options overrides both.
+            custom_ports = options.get("ports")
+            ports_list = custom_ports if custom_ports else None
 
             async def _run_source(name, scanner):
                 try:

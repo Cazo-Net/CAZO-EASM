@@ -141,7 +141,10 @@ class NmapPortScanner(BaseScanner):
         elif ports:
             port_arg = ports
         elif scan_type == "full":
-            port_arg = "1-10000"
+            # Full scan = nmap's top-N most-common ports. This is fast and
+            # matches what a plain `nmap <host>` finds (the user's reference),
+            # instead of grinding through all 65535 ports.
+            port_arg = f"--top-ports {self.top_ports}"
         else:
             port_arg = f"--top-ports {self.top_ports}"
 
