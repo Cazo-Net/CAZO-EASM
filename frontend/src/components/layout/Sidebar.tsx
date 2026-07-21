@@ -18,13 +18,9 @@ import {
   Search,
   Waypoints,
   ShieldCheck,
-  Sparkles,
-  Bot,
-  BookOpen,
-  Lightbulb,
+  Ghost,
   Zap,
   ChevronsUpDown,
-  Plus,
   Building,
   History,
   BarChart3,
@@ -59,7 +55,10 @@ const navSections = [
     label: "DISCOVERY",
     items: [
       { href: "/scans", label: "Scans", icon: ScanSearch },
+      { href: "/search", label: "Search", icon: Search },
+      { href: "/intel", label: "Intelligence", icon: Zap },
       { href: "/assets", label: "Assets", icon: Globe },
+      { href: "/shadow-assets", label: "Shadow Assets", icon: Ghost },
       { href: "/vulnerabilities", label: "Vulnerabilities", icon: Bug },
       { href: "/dns", label: "DNS Records", icon: Network },
       { href: "/whois", label: "WHOIS", icon: Search },
@@ -67,16 +66,6 @@ const navSections = [
       { href: "/scopes", label: "Authorized Scopes", icon: ShieldCheck },
       { href: "/change-feed", label: "Change Feed", icon: History },
       { href: "/assets/360", label: "Asset 360°", icon: Boxes },
-    ],
-  },
-  {
-    label: "AI INTELLIGENCE",
-    items: [
-      { href: "/ai", label: "AI Dashboard", icon: Sparkles },
-      { href: "/ai/copilot", label: "AI Copilot", icon: Bot },
-      { href: "/ai/knowledge", label: "Knowledge Center", icon: BookOpen },
-      { href: "/ai/recommendations", label: "Recommendations", icon: Lightbulb },
-      { href: "/ai/settings", label: "AI Settings", icon: Settings },
     ],
   },
   {
@@ -141,16 +130,16 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
         {/* Workspace / Brand Header */}
         <div className="flex h-14 items-center gap-3 border-b border-border/50 px-4 shrink-0">
           <Link href="/dashboard" className="flex items-center gap-3 min-w-0">
-            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#09090B] border border-border/50 overflow-hidden">
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-void border border-border/50 overflow-hidden shadow-glow-sm">
               <img src="/icon.ico" alt="" className="h-6 w-6 object-contain" />
-              <div className="absolute inset-0 rounded-xl bg-gradient-to-br gradient-brand opacity-20 blur-md" />
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-phosphor/20 to-cyan-signal/10 blur-md" />
             </div>
             {!collapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="text-sm font-bold tracking-tight gradient-text truncate">
+                <span className="text-sm font-bold tracking-tight gradient-text truncate font-display">
                   CAZO EASM
                 </span>
-                <span className="text-[10px] text-muted-foreground/60 truncate">
+                <span className="text-[10px] text-muted-foreground/60 truncate font-mono">
                   Enterprise
                 </span>
               </div>
@@ -164,7 +153,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
             <Link href="/scan/new">
               <Button
                 size="sm"
-                className="w-full justify-start gap-2 h-9 gradient-brand text-white shadow-elevation-1 text-xs font-medium"
+                className="w-full justify-start gap-2 h-9 gradient-brand text-void shadow-glow-sm text-xs font-semibold font-mono"
               >
                 <Zap className="h-3.5 w-3.5" />
                 Quick Scan
@@ -180,7 +169,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                 <Link href="/scan/new">
                   <Button
                     size="icon"
-                    className="h-9 w-9 gradient-brand text-white shadow-elevation-1"
+                    className="h-9 w-9 gradient-brand text-void shadow-glow-sm"
                     aria-label="Quick Scan"
                   >
                     <Zap className="h-4 w-4" />
@@ -199,7 +188,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
           {navSections.map((section) => (
             <div key={section.label} className="mb-4">
               {!collapsed && (
-                <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/40 font-mono">
                   {section.label}
                 </p>
               )}
@@ -213,19 +202,19 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                       className={cn(
                         "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                         active
-                          ? "bg-brand/10 text-brand"
+                          ? "bg-phosphor/8 text-phosphor shadow-glow-sm"
                           : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                       )}
                       aria-current={active ? "page" : undefined}
                     >
                       {active && (
-                        <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b gradient-brand" />
+                        <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-phosphor to-cyan-signal" />
                       )}
                       <item.icon
                         className={cn(
                           "h-4 w-4 shrink-0 transition-colors duration-200",
                           active
-                            ? "text-brand"
+                            ? "text-phosphor"
                             : "text-muted-foreground group-hover:text-foreground"
                         )}
                       />
@@ -261,19 +250,19 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                 className={cn(
                   "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                   active
-                    ? "bg-brand/10 text-brand"
+                    ? "bg-phosphor/8 text-phosphor shadow-glow-sm"
                     : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                 )}
                 aria-current={active ? "page" : undefined}
               >
                 {active && (
-                  <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b gradient-brand" />
+                  <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-phosphor to-cyan-signal" />
                 )}
                 <Settings
                   className={cn(
                     "h-4 w-4 shrink-0 transition-colors duration-200",
                     active
-                      ? "text-brand"
+                      ? "text-phosphor"
                       : "text-muted-foreground group-hover:text-foreground"
                   )}
                 />
@@ -304,12 +293,12 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                   className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-muted/40 mb-1"
                   aria-label="Organization menu"
                 >
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cyan-500/10">
-                    <Building className="h-3.5 w-3.5 text-cyan-500" />
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cyan-signal/10">
+                    <Building className="h-3.5 w-3.5 text-cyan-signal" />
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <p className="text-xs font-medium truncate">Organization</p>
-                    <p className="text-[10px] text-muted-foreground/60 truncate">
+                    <p className="text-[10px] text-muted-foreground/60 truncate font-mono">
                       {user.organization_id.slice(0, 12)}...
                     </p>
                   </div>
@@ -333,7 +322,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
               <TooltipTrigger asChild>
                 <div className="flex justify-center">
                   <Avatar className="h-8 w-8 ring-2 ring-border ring-offset-2 ring-offset-card cursor-pointer">
-                    <AvatarFallback className="bg-gradient-to-br from-brand/20 to-brand-2/20 text-xs font-semibold text-brand">
+                    <AvatarFallback className="bg-phosphor/10 text-xs font-semibold text-phosphor font-mono">
                       {getInitials()}
                     </AvatarFallback>
                   </Avatar>
@@ -349,7 +338,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
           ) : (
             <div className="flex items-center gap-2.5 px-2 py-1.5">
               <Avatar className="h-8 w-8 ring-2 ring-border ring-offset-2 ring-offset-card shrink-0">
-                <AvatarFallback className="bg-gradient-to-br from-brand/20 to-brand-2/20 text-xs font-semibold text-brand">
+                <AvatarFallback className="bg-phosphor/10 text-xs font-semibold text-phosphor font-mono">
                   {getInitials()}
                 </AvatarFallback>
               </Avatar>

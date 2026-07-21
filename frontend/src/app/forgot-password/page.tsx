@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Shield, Loader2, CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
-import { forgotPassword } from "@/lib/api";
+import { forgotPassword, getErrorMessage } from "@/lib/api";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -20,14 +20,14 @@ export default function ForgotPasswordPage() {
       await forgotPassword(email);
       setSent(true);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Failed to send reset email");
+      setError(getErrorMessage(err, "Failed to send reset email"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#09090B] px-4">
+    <div className="flex h-full items-center justify-center bg-[#09090B] px-4 overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -35,9 +35,9 @@ export default function ForgotPasswordPage() {
       >
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-4">
-            <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl" />
+            <div className="absolute inset-0 rounded-full bg-brand/20 blur-2xl" />
             <div className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-border/50 bg-card/80">
-              <Shield className="h-6 w-6 text-primary" />
+              <Shield className="h-6 w-6 text-brand" />
             </div>
           </div>
           <h1 className="text-2xl font-bold">Reset Password</h1>
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
               </p>
               <Link
                 href="/login"
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-brand/90"
               >
                 Back to Login
               </Link>
@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="h-9 w-full rounded-lg border border-border/50 bg-muted/30 px-3 text-sm outline-none focus:border-primary/50"
+                  className="h-9 w-full rounded-lg border border-border/50 bg-muted/30 px-3 text-sm outline-none focus:border-brand/50"
                   placeholder="you@example.com"
                 />
               </div>
@@ -88,7 +88,7 @@ export default function ForgotPasswordPage() {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Remember your password?{" "}
-          <Link href="/login" className="font-medium text-primary hover:text-primary/80">
+          <Link href="/login" className="font-medium text-brand hover:text-brand/80">
             Sign in
           </Link>
         </p>
@@ -100,7 +100,7 @@ export default function ForgotPasswordPage() {
 function Button({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
-      className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      className="flex items-center justify-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       {...props}
     >
       {children}

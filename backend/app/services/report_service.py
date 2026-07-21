@@ -58,7 +58,7 @@ class ReportService:
         
         report_data = {
             "report": {
-                "type": "AttackSec Scan Report",
+                "type": "CAZO EASM Scan Report",
                 "generated_at": datetime.now(timezone.utc).isoformat(),
                 "format": "json",
             },
@@ -125,7 +125,7 @@ class ReportService:
             writer = csv.writer(f)
             
             # Summary
-            writer.writerow(["AttackSec Scan Report"])
+            writer.writerow(["CAZO EASM Scan Report"])
             writer.writerow(["Generated", datetime.now(timezone.utc).isoformat()])
             writer.writerow(["Domain", data["scan"].domain])
             writer.writerow([])
@@ -183,7 +183,7 @@ class ReportService:
         
         # Title
         title_style = ParagraphStyle('CustomTitle', parent=styles['Title'], fontSize=24, spaceAfter=20, textColor=colors.HexColor('#2563EB'))
-        elements.append(Paragraph("AttackSec Scan Report", title_style))
+        elements.append(Paragraph("CAZO EASM Scan Report", title_style))
         elements.append(Spacer(1, 12))
         
         # Scan info

@@ -4,7 +4,15 @@ import { usePathname } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastProvider } from "@/components/Toast";
 
-const PUBLIC_ROUTES = ["/", "/login", "/register", "/forgot-password", "/auth/verify-email", "/auth/reset-password"];
+const PUBLIC_ROUTES = [
+  "/",
+  "/home",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/auth/verify-email",
+  "/auth/reset-password",
+];
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -12,7 +20,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastProvider>
-      {isPublic ? <>{children}</> : <AppShell>{children}</AppShell>}
+      {isPublic ? (
+        <>{children}</>
+      ) : (
+        <AppShell>{children}</AppShell>
+      )}
     </ToastProvider>
   );
 }

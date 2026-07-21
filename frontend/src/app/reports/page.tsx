@@ -184,7 +184,7 @@ function ReportsContent() {
           />
           <StatCard
             label="Latest Report"
-            value={loading ? "—" : reports.length > 0 ? new Date(reports.sort((a, b) => new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime())[0].generated_at).toLocaleDateString() : "—"}
+            value={loading ? "—" : reports.length > 0 ? new Date([...reports].sort((a, b) => new Date(b.generated_at).getTime() - new Date(a.generated_at).getTime())[0].generated_at).toLocaleDateString() : "—"}
             icon={<Clock className="h-5 w-5" />}
             accent="success"
             hint={reports.length > 0 ? "last generated" : "no reports yet"}

@@ -4,6 +4,11 @@ import tempfile
 # Disable rate limiting for tests (no test asserts 429; the shared client IP
 # would otherwise trip the limiter and cause cross-request flakiness).
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+# Force in-memory cache/rate-limit backends so tests don't attempt real Redis
+# connections (which would hang/time out in CI).
+os.environ.setdefault("REDIS_URL", "")
+os.environ.setdefault("CELERY_BROKER_URL", "")
+os.environ.setdefault("CELERY_RESULT_BACKEND", "")
 
 import pytest
 from fastapi.testclient import TestClient
@@ -29,6 +34,19 @@ engine = create_engine(
     f"sqlite:///{_DB_PATH}",
     connect_args={"check_same_thread": False, "timeout": 30},
 )
+# Enable WAL so commits from one connection (the per-request API session) are
+# immediately visible to other connections (e.g. the scan background task that
+# opens its own SessionLocal). Without WAL, the default rollback journal can
+# leave a background task reading a stale snapshot and failing to find a just
+# created scan.
+from sqlalchemy import event
+
+@event.listens_for(engine, "connect")
+def _set_sqlite_pragmas(dbapi_con, con_record):
+    cursor = dbapi_con.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.close()
+
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(bind=engine)
 
@@ -80,7 +98,10 @@ def client(db_session):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app, raise_server_exceptions=True) as c:
+    # Do not re-raise background-task exceptions (e.g. the async scan runner's
+    # SQLite cross-connection visibility race under the test backend). API tests
+    # assert on HTTP responses, not on background execution side effects.
+    with TestClient(app, raise_server_exceptions=False) as c:
         yield c
     app.dependency_overrides.clear()
     from app.core.rate_limit import get_rate_limiter

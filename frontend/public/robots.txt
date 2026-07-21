@@ -1,4 +1,4 @@
-# AttackSec - External Attack Surface Management Platform
+# CAZO EASM - External Attack Surface Management Platform
 User-agent: *
 Allow: /
 Disallow: /dashboard
@@ -7,4 +7,4 @@ Disallow: /api
 Disallow: /login
 Disallow: /register
 
-Sitemap: https://attacksec.io/sitemap.xml
+Sitemap: https://CAZO EASM.io/sitemap.xml

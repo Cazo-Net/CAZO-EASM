@@ -9,7 +9,7 @@ class User(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=True)
     full_name = Column(String(255))
     role = Column(String(20), default="member")
     organization_id = Column(String(36), ForeignKey("organizations.id"))
@@ -21,6 +21,9 @@ class User(Base):
         "weekly_reports": False,
         "scan_complete_alerts": True,
     })
+
+    # Google OAuth (nullable for password-only users)
+    google_id = Column(String(255), unique=True, nullable=True, index=True)
 
     # Brute-force protection
     failed_login_attempts = Column(Integer, default=0)
@@ -37,6 +40,17 @@ class User(Base):
     # 2FA / TOTP
     totp_enabled = Column(Boolean, default=False)
     totp_secret = Column(String(255), nullable=True)
+
+    # Password expiry
+    password_changed_at = Column(DateTime(timezone=True), nullable=True)
+    password_expires_at = Column(DateTime(timezone=True), nullable=True)
+
+    # MFA enforcement
+    mfa_enforced = Column(Boolean, default=False)
+
+    # Token invalidation (incremented on logout / password change to revoke
+    # all existing refresh tokens)
+    token_version = Column(Integer, default=0, nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True))

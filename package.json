@@ -1,6 +1,6 @@
 {
   "name": "easm-platform",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "External Attack Surface Management Platform",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
@@ -14,6 +14,7 @@
     "deploy": "./scripts/deploy.sh"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "typescript": "^7.0.2"
   }
 }

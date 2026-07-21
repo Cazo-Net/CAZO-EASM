@@ -19,6 +19,12 @@ import {
   MinusCircle,
   Pencil,
   Circle,
+  Server,
+  Cpu,
+  Lock,
+  ShieldCheck,
+  Globe2,
+  TerminalSquare,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
@@ -28,8 +34,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAsset360 } from "@/lib/api-asset360";
+import { getAsset360, getHostIntelligence } from "@/lib/api-asset360";
 import type { Asset360Response } from "@/types/asset360";
+import type { HostIntelligence } from "@/types/asset360";
 
 function formatDate(value: string | null): string {
   if (!value) return "—";
@@ -70,6 +77,7 @@ export default function Asset360Page() {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState("");
   const [data, setData] = useState<Asset360Response | null>(null);
+  const [host, setHost] = useState<HostIntelligence | null>(null);
   const [tab, setTab] = useState("overview");
 
   const load = useCallback(async () => {
@@ -80,6 +88,11 @@ export default function Asset360Page() {
     try {
       const res = await getAsset360(assetId);
       setData(res);
+      try {
+        setHost(await getHostIntelligence(assetId));
+      } catch {
+        setHost(null);
+      }
     } catch (e) {
       const status = (e as { response?: { status?: number } })?.response?.status;
       if (status === 404) {
@@ -214,6 +227,9 @@ export default function Asset360Page() {
                 {changes.length}
               </Badge>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="host" className="gap-1.5">
+            <Globe2 className="h-3.5 w-3.5" /> Host
           </TabsTrigger>
         </TabsList>
 
@@ -385,6 +401,246 @@ export default function Asset360Page() {
               </div>
             )}
           </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="host">
+          {!host ? (
+            <EmptyState
+              icon={<Globe2 className="h-8 w-8" />}
+              title="No host intelligence"
+              description="Host-level data is only available for host or IP assets."
+            />
+          ) : (
+            <div className="space-y-4">
+              {/* Shodan-style header strip */}
+              <div className="grid gap-4 md:grid-cols-4">
+                <SectionCard title="Network" icon={<Network className="h-4 w-4" />}>
+                  <dl className="space-y-2.5 text-sm">
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-muted-foreground">ASN</dt>
+                      <dd className="font-mono text-xs">{host.asn || "—"}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-muted-foreground">ISP</dt>
+                      <dd className="text-xs">{host.isp || "—"}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <dt className="text-muted-foreground">Organization</dt>
+                      <dd className="truncate text-xs">{host.org || "—"}</dd>
+                    </div>
+                  </dl>
+                </SectionCard>
+
+                <SectionCard title="IP Addresses" icon={<Server className="h-4 w-4" />}>
+                  {host.ip_addresses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No IPs resolved.</p>
+                  ) : (
+                    <ul className="space-y-1.5 font-mono text-xs">
+                      {host.ip_addresses.map((ip) => (
+                        <li
+                          key={ip}
+                          className="flex items-center gap-2 rounded-md bg-muted/20 px-2 py-1"
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                          {ip}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </SectionCard>
+
+                <SectionCard title="Open Ports" icon={<Server className="h-4 w-4" />}>
+                  <p className="text-3xl font-bold tabular-nums font-mono">
+                    {host.ports.filter((p) => p.state === "open").length}
+                    <span className="ml-1 text-sm font-normal text-muted-foreground">
+                      / {host.ports.length}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">exposed services</p>
+                </SectionCard>
+
+                <SectionCard title="Exposure" icon={<ShieldCheck className="h-4 w-4" />}>
+                  <p className="text-3xl font-bold tabular-nums font-mono">
+                    {host.vulnerabilities.length}
+                    <span className="ml-1 text-sm font-normal text-muted-foreground">
+                      vulns
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {host.technologies.length} technologies detected
+                  </p>
+                </SectionCard>
+              </div>
+
+              {/* Open ports + banners */}
+              <SectionCard
+                title="Open Ports & Banners"
+                description="Services observed on this host"
+                icon={<TerminalSquare className="h-4 w-4" />}
+              >
+                {host.ports.length === 0 ? (
+                  <EmptyState
+                    icon={<Server className="h-8 w-8" />}
+                    title="No ports recorded"
+                  />
+                ) : (
+                  <div className="divide-y divide-border/40">
+                    {host.ports.map((p, i) => (
+                      <div
+                        key={i}
+                        className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 md:flex-row md:items-start md:gap-4"
+                      >
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="inline-flex items-center justify-center rounded-lg bg-brand-2/10 px-2.5 py-1 font-mono text-base font-bold text-brand-2">
+                            {p.port}
+                          </span>
+                          <Badge
+                            variant={p.state === "open" ? "success" : "warning"}
+                            className="text-xs"
+                          >
+                            {p.state || "unknown"}
+                          </Badge>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium">
+                            {p.service || "Unknown Service"}
+                            {p.version ? (
+                              <span className="ml-1 font-mono text-xs text-muted-foreground">
+                                {p.version}
+                              </span>
+                            ) : null}
+                          </p>
+                          {p.banner ? (
+                            <pre className="mt-1.5 overflow-x-auto rounded-md border border-border/40 bg-surface-2/60 p-2 font-mono text-[11px] text-muted-foreground">
+                              {p.banner}
+                            </pre>
+                          ) : (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              No banner captured.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </SectionCard>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Technologies */}
+                <SectionCard
+                  title="Web Technologies"
+                  description="Detected on this host"
+                  icon={<Cpu className="h-4 w-4" />}
+                >
+                  {host.technologies.length === 0 ? (
+                    <EmptyState
+                      icon={<Cpu className="h-8 w-8" />}
+                      title="No technologies"
+                    />
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {host.technologies.map((t, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-surface-2/50 px-2.5 py-1 text-xs"
+                        >
+                          <span className="font-medium">{t.name}</span>
+                          {t.version ? (
+                            <span className="font-mono text-muted-foreground">
+                              {t.version}
+                            </span>
+                          ) : null}
+                          {t.confidence > 0 ? (
+                            <span className="text-[10px] text-muted-foreground">
+                              {t.confidence}%
+                            </span>
+                          ) : null}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+
+                {/* Certificates */}
+                <SectionCard
+                  title="SSL Certificates"
+                  description="TLS certificates observed"
+                  icon={<Lock className="h-4 w-4" />}
+                >
+                  {host.certificates.length === 0 ? (
+                    <EmptyState
+                      icon={<Lock className="h-8 w-8" />}
+                      title="No certificates"
+                    />
+                  ) : (
+                    <div className="space-y-3">
+                      {host.certificates.map((c, i) => (
+                        <div
+                          key={i}
+                          className="rounded-lg border border-border/40 bg-muted/20 p-3"
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="truncate font-mono text-xs">
+                              {c.subject || "—"}
+                            </p>
+                            {c.grade ? (
+                              <Badge variant="outline" className="text-xs">
+                                {c.grade}
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {c.issuer || "Unknown issuer"}
+                            {c.protocol ? ` · ${c.protocol}` : ""}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+              </div>
+
+              {/* Vulnerabilities */}
+              {host.vulnerabilities.length > 0 && (
+                <SectionCard
+                  title="Vulnerabilities"
+                  description="Known issues on this host"
+                  icon={<ShieldAlert className="h-4 w-4" />}
+                >
+                  <div className="space-y-2">
+                    {host.vulnerabilities.map((v) => (
+                      <div
+                        key={v.id}
+                        className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 p-3"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{v.name}</p>
+                          {v.host ? (
+                            <p className="truncate font-mono text-xs text-muted-foreground">
+                              {v.host}
+                            </p>
+                          ) : null}
+                        </div>
+                        {v.severity ? (
+                          <Badge
+                            variant={
+                              v.severity.toLowerCase() === "critical"
+                                ? "destructive"
+                                : "warning"
+                            }
+                            className="text-xs capitalize"
+                          >
+                            {v.severity}
+                          </Badge>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </SectionCard>
+              )}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

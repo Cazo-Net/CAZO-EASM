@@ -65,6 +65,49 @@ def get_risk_for_asset(db: Session, asset_type: str, asset_id: str) -> str:
     return "informational"
 
 
+def _assert_canvas_owned(db: Session, canvas_id: str, user_id: str):
+    canvas = db.query(Canvas).filter(Canvas.id == canvas_id, Canvas.user_id == user_id).first()
+    if not canvas:
+        raise HTTPException(status_code=404, detail="Canvas not found")
+    return canvas
+
+
+def _assert_node_owned(db: Session, node_id: str, canvas_id: str, user_id: str):
+    node = (
+        db.query(CanvasNode)
+        .join(Canvas, CanvasNode.canvas_id == Canvas.id)
+        .filter(CanvasNode.id == node_id, CanvasNode.canvas_id == canvas_id, Canvas.user_id == user_id)
+        .first()
+    )
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    return node
+
+
+def _assert_edge_owned(db: Session, edge_id: str, canvas_id: str, user_id: str):
+    edge = (
+        db.query(CanvasEdge)
+        .join(Canvas, CanvasEdge.canvas_id == Canvas.id)
+        .filter(CanvasEdge.id == edge_id, CanvasEdge.canvas_id == canvas_id, Canvas.user_id == user_id)
+        .first()
+    )
+    if not edge:
+        raise HTTPException(status_code=404, detail="Edge not found")
+    return edge
+
+
+def _assert_scan_belongs_to_org(db: Session, scan_id: str, current_user: User):
+    scan = db.query(Scan).filter(Scan.id == scan_id).first()
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    org_id = current_user.organization_id
+    if org_id:
+        if getattr(scan, "organization_id", None) != org_id:
+            raise HTTPException(status_code=404, detail="Scan not found")
+    elif getattr(scan, "created_by", None) != current_user.id:
+        raise HTTPException(status_code=404, detail="Scan not found")
+
+
 # ==================== CANVASES ====================
 
 @router.post("", response_model=CanvasResponse)
@@ -262,11 +305,7 @@ def bulk_add_nodes(canvas_id: str, data: CanvasBulkNodeCreate,
 def update_node(canvas_id: str, node_id: str, data: CanvasNodeUpdate,
                 db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
-    node = db.query(CanvasNode).filter(
-        CanvasNode.id == node_id, CanvasNode.canvas_id == canvas_id
-    ).first()
-    if not node:
-        raise HTTPException(status_code=404, detail="Node not found")
+    node = _assert_node_owned(db, node_id, canvas_id, current_user.id)
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(node, field, value)
     db.commit()
@@ -277,11 +316,7 @@ def update_node(canvas_id: str, node_id: str, data: CanvasNodeUpdate,
 @router.delete("/{canvas_id}/nodes/{node_id}")
 def delete_node(canvas_id: str, node_id: str, db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
-    node = db.query(CanvasNode).filter(
-        CanvasNode.id == node_id, CanvasNode.canvas_id == canvas_id
-    ).first()
-    if not node:
-        raise HTTPException(status_code=404, detail="Node not found")
+    node = _assert_node_owned(db, node_id, canvas_id, current_user.id)
     db.query(CanvasEdge).filter(
         (CanvasEdge.source_node_id == node_id) | (CanvasEdge.target_node_id == node_id),
         CanvasEdge.canvas_id == canvas_id,
@@ -319,11 +354,7 @@ def add_edge(canvas_id: str, data: CanvasEdgeCreate, db: Session = Depends(get_d
 @router.delete("/{canvas_id}/edges/{edge_id}")
 def delete_edge(canvas_id: str, edge_id: str, db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
-    edge = db.query(CanvasEdge).filter(
-        CanvasEdge.id == edge_id, CanvasEdge.canvas_id == canvas_id
-    ).first()
-    if not edge:
-        raise HTTPException(status_code=404, detail="Edge not found")
+    edge = _assert_edge_owned(db, edge_id, canvas_id, current_user.id)
     db.delete(edge)
     db.commit()
     return {"ok": True}
@@ -339,8 +370,7 @@ def preview_scan_assets(
 ):
     """Return all assets from a scan grouped by type for the table import UI."""
     scan = db.query(Scan).filter(Scan.id == scan_id).first()
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
+    _assert_scan_belongs_to_org(db, scan_id, current_user)
 
     assets: dict[str, list[ScanAssetPreview]] = {
         "subdomains": [], "ports": [], "ssl_certificates": [],
@@ -420,8 +450,7 @@ def import_scan_to_canvas(canvas_id: str, data: CanvasImportRequest,
         raise HTTPException(status_code=404, detail="Canvas not found")
 
     scan = db.query(Scan).filter(Scan.id == data.scan_id).first()
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
+    _assert_scan_belongs_to_org(db, data.scan_id, current_user)
 
     selected_ids = set(data.asset_ids) if data.asset_ids else None
     selected_types = set(data.asset_types) if data.asset_types else None

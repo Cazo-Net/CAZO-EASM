@@ -38,11 +38,13 @@ def get_db():
 def init_db():
     """Initialize database tables.
 
-    In production, schema is managed by Alembic migrations (run on deploy),
-    so we skip create_all to avoid drift. In dev/SQLite we bootstrap tables.
-    """
-    from app.config import is_production
+    Creates all tables defined on the declarative Base. ``create_all`` is
+    idempotent: it only creates tables that do not already exist, so it is
+    safe to run in every environment (dev, prod, and alongside Alembic).
 
-    if is_production():
-        return
+    Importing the models package ensures every mapped table is registered on
+    ``Base.metadata`` before ``create_all`` runs, so this works both as a
+    standalone bootstrap and when called from application startup.
+    """
+    from app import models  # noqa: F401  (registers all tables on Base.metadata)
     Base.metadata.create_all(bind=engine)

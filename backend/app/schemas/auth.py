@@ -40,7 +40,6 @@ class UserResponse(UserBase):
     is_active: bool
     email_verified: bool = False
     totp_enabled: bool = False
-    verification_token: Optional[str] = None
     created_at: datetime
     last_login: Optional[datetime] = None
 

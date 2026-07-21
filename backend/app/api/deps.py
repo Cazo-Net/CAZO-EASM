@@ -36,6 +36,14 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found or inactive"
         )
+
+    # Invalidate tokens issued before a logout / password change
+    token_tv = payload.get("tv")
+    if token_tv is not None and token_tv != (user.token_version or 0):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session invalidated. Please log in again.",
+        )
     
     return user
 

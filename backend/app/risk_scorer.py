@@ -1,5 +1,5 @@
 """
-Rule-based risk scoring engine for AttackSec platform.
+Rule-based risk scoring engine for CAZO EASM platform.
 
 Converts scan findings into a deterministic 0-100 risk score.
 No AI, no external API calls — pure Python logic.

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { Suspense } from "react";
 import {
   ArrowLeft,
   RefreshCw,
@@ -58,6 +59,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageHeader } from "@/components/common/PageHeader";
 import type {
   ScanDetail,
   Subdomain,
@@ -141,7 +143,7 @@ function ScanDetailContent() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-brand" />
           <p className="text-sm text-muted-foreground">Loading scan results...</p>
         </div>
       </div>
@@ -199,71 +201,61 @@ function ScanDetailContent() {
 
   const getGradeColor = (grade: string | null) => {
     if (!grade) return "text-muted-foreground bg-muted/50";
-    if (grade.startsWith("A")) return "text-emerald-500 bg-emerald-500/10";
-    if (grade === "B") return "text-amber-500 bg-amber-500/10";
-    return "text-red-500 bg-red-500/10";
+    if (grade.startsWith("A")) return "text-success bg-success/10";
+    if (grade === "B") return "text-warning bg-warning/10";
+    return "text-destructive bg-destructive/10";
   };
 
   const getServiceColor = (service: string | null) => {
     if (!service) return "text-muted-foreground";
     const s = service.toLowerCase();
-    if (s.includes("http")) return "text-emerald-500";
-    if (s.includes("ssl") || s.includes("tls") || s.includes("https")) return "text-blue-500";
-    if (s.includes("ssh")) return "text-amber-500";
-    if (s.includes("dns")) return "text-purple-500";
-    if (s.includes("smtp") || s.includes("mail")) return "text-cyan-500";
-    if (s.includes("ftp")) return "text-orange-500";
+    if (s.includes("http")) return "text-success";
+    if (s.includes("ssl") || s.includes("tls") || s.includes("https")) return "text-info";
+    if (s.includes("ssh")) return "text-warning";
+    if (s.includes("dns")) return "text-accent-2";
+    if (s.includes("smtp") || s.includes("mail")) return "text-brand-2";
+    if (s.includes("ftp")) return "text-warning";
     return "text-muted-foreground";
   };
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="mx-auto max-w-7xl px-6 py-4">
-          <div className="flex items-center gap-4">
-            <Link href="/scans">
-              <Button variant="ghost" size="icon" className="rounded-xl">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                  <Globe className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2.5">
-                    <h1 className="text-xl font-bold tracking-tight truncate">
-                      {scan.domain}
-                    </h1>
-                    <Badge
-                      variant={
-                        scan.status === "completed"
-                          ? "success"
-                          : scan.status === "running"
-                            ? "info"
-                            : scan.status === "failed"
-                              ? "destructive"
-                              : "secondary"
-                      }
-                      className="capitalize shrink-0"
-                    >
-                      {scan.status}
-                    </Badge>
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full shrink-0">
-                      <Shield className="h-3 w-3" />
-                      {scan.scan_type}
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {new Date(scan.created_at).toLocaleString()}
-                    {scan.completed_at && ` \u00b7 Completed in ${Math.round((new Date(scan.completed_at).getTime() - new Date(scan.created_at).getTime()) / 60000)}min`}
-                  </p>
-                </div>
-              </div>
-            </div>
+    <div className="page-container-lg">
+      <div className="py-6 space-y-6">
+        <PageHeader
+          title={scan.domain}
+          description={
+            <>
+              {new Date(scan.created_at).toLocaleString()}
+              {scan.completed_at && ` · Completed in ${Math.round((new Date(scan.completed_at).getTime() - new Date(scan.created_at).getTime()) / 60000)}min`}
+            </>
+          }
+          icon={<Globe className="h-5 w-5" />}
+          breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Scans", href: "/scans" }, { label: scan.domain }]}
+          actions={
             <div className="flex items-center gap-2">
+              <Badge
+                variant={
+                  scan.status === "completed"
+                    ? "success"
+                    : scan.status === "running"
+                      ? "info"
+                      : scan.status === "failed"
+                        ? "destructive"
+                        : "secondary"
+                }
+                className="capitalize"
+              >
+                {scan.status}
+              </Badge>
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground bg-surface-2 px-2 py-1 rounded-full">
+                <Shield className="h-3 w-3" />
+                {scan.scan_type}
+              </div>
+              <Link href="/scans">
+                <Button variant="ghost" size="icon" className="rounded-xl">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
               <Button
                 variant="outline"
                 size="sm"
@@ -301,11 +293,10 @@ function ScanDetailContent() {
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
-          </div>
-        </div>
-      </div>
+          }
+        />
 
-      <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
+      <div className="space-y-6">
         {/* Running Progress */}
         {isRunning && (
           <motion.div
@@ -315,8 +306,8 @@ function ScanDetailContent() {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                  <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                  <Loader2 className="h-5 w-5 text-brand animate-spin" />
                 </div>
                 <div>
                   <p className="font-semibold">Scan in Progress</p>
@@ -334,19 +325,19 @@ function ScanDetailContent() {
             <Progress
               value={scan.progress}
               className="h-3 mb-6"
-              indicatorClassName="bg-gradient-to-r from-primary via-cyan-400 to-primary"
+              indicatorClassName="bg-gradient-to-r gradient-brand"
             />
 
             <div className="space-y-2">
               {modules.map((mod) => (
                 <div key={mod.name} className="flex items-center gap-3">
                   {mod.status === "completed" ? (
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20">
-                      <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-success/20">
+                      <CheckCircle className="h-3.5 w-3.5 text-success" />
                     </div>
                   ) : mod.status === "running" ? (
-                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/20">
-                      <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand/20">
+                      <Loader2 className="h-3.5 w-3.5 text-brand animate-spin" />
                     </div>
                   ) : (
                     <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted">
@@ -359,17 +350,17 @@ function ScanDetailContent() {
                       mod.status === "completed"
                         ? "text-foreground"
                         : mod.status === "running"
-                          ? "text-primary font-medium"
+                          ? "text-brand font-medium"
                           : "text-muted-foreground"
                     )}
                   >
                     {mod.name}
                   </span>
                   {mod.status === "completed" && (
-                    <span className="text-[10px] text-emerald-500 ml-auto">Done</span>
+                    <span className="text-[10px] text-success ml-auto">Done</span>
                   )}
                   {mod.status === "running" && (
-                    <span className="text-[10px] text-primary ml-auto">In progress</span>
+                    <span className="text-[10px] text-brand ml-auto">In progress</span>
                   )}
                 </div>
               ))}
@@ -410,18 +401,18 @@ function ScanDetailContent() {
                     style={{
                       stroke:
                         scan.risk_score <= 25
-                          ? "rgb(16, 185, 129)"
+                          ? "hsl(var(--success))"
                           : scan.risk_score <= 50
-                            ? "rgb(245, 158, 11)"
+                            ? "hsl(var(--warning))"
                             : scan.risk_score <= 75
-                              ? "rgb(249, 115, 22)"
-                              : "rgb(239, 68, 68)",
+                              ? "hsl(25 90% 55%)"
+                              : "hsl(var(--destructive))",
                     }}
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-4xl font-bold">{scan.risk_score}</span>
-                  <span className="text-xs text-muted-foreground">/ 100</span>
+                  <span className="text-4xl font-bold font-mono tabular-nums">{scan.risk_score}</span>
+                  <span className="text-xs text-muted-foreground font-mono">/ 100</span>
                 </div>
               </div>
 
@@ -445,7 +436,7 @@ function ScanDetailContent() {
                         <stat.icon className="h-4 w-4 text-muted-foreground" />
                       </div>
                       <div>
-                        <p className="text-lg font-bold">{stat.value}</p>
+                        <p className="text-lg font-bold font-mono tabular-nums">{stat.value}</p>
                         <p className="text-[10px] text-muted-foreground">{stat.label}</p>
                       </div>
                     </div>
@@ -456,30 +447,71 @@ function ScanDetailContent() {
           </motion.div>
         )}
 
+        {/* Scanner Status Panel */}
+        {isCompleted && scan.scanner_status && Object.keys(scan.scanner_status).length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass rounded-2xl p-5"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <Cpu className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">Scanner Health</h3>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {Object.entries(scan.scanner_status).map(([scanner, status]) => {
+                const statusLower = (status as string).toLowerCase();
+                const color =
+                  statusLower.startsWith("ok")
+                    ? "text-success bg-success/10 border-success/20"
+                    : statusLower.startsWith("skipped") || statusLower.startsWith("not installed") || statusLower.startsWith("no_records") || statusLower.startsWith("removed")
+                      ? "text-muted-foreground bg-muted/30 border-border/30"
+                      : statusLower.startsWith("partial") || statusLower.startsWith("blocked") || statusLower.startsWith("rate") || statusLower.startsWith("limited") || statusLower.startsWith("resolution_failed")
+                        ? "text-warning bg-warning/10 border-warning/20"
+                        : statusLower.startsWith("failed") || statusLower.startsWith("error")
+                          ? "text-destructive bg-destructive/10 border-destructive/20"
+                          : "text-muted-foreground bg-muted/30 border-border/30";
+                return (
+                  <div
+                    key={scanner}
+                    className={cn(
+                      "flex items-center justify-between rounded-lg border px-3 py-2 text-xs",
+                      color
+                    )}
+                  >
+                    <span className="font-medium font-mono truncate mr-2">{scanner}</span>
+                    <span className="truncate text-right shrink-0">{status as string}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
         {/* Tabs */}
         <Tabs defaultValue="subdomains">
           <TabsList className="glass rounded-xl p-1 h-auto w-full justify-start gap-1 flex-wrap">
-            <TabsTrigger value="subdomains" className="gap-1.5 rounded-lg px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+            <TabsTrigger value="subdomains" className="gap-1.5 rounded-lg px-4 py-2 data-[state=active]:bg-brand/10 data-[state=active]:text-brand">
               <Globe className="h-3.5 w-3.5" />
               Subdomains
               <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{subdomains.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="ports" className="gap-1.5 rounded-lg px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+            <TabsTrigger value="ports" className="gap-1.5 rounded-lg px-4 py-2 data-[state=active]:bg-brand/10 data-[state=active]:text-brand">
               <Server className="h-3.5 w-3.5" />
               Ports
               <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{ports.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="ssl" className="gap-1.5 rounded-lg px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+            <TabsTrigger value="ssl" className="gap-1.5 rounded-lg px-4 py-2 data-[state=active]:bg-brand/10 data-[state=active]:text-brand">
               <Lock className="h-3.5 w-3.5" />
               SSL
               <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{sslCerts.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="technologies" className="gap-1.5 rounded-lg px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+            <TabsTrigger value="technologies" className="gap-1.5 rounded-lg px-4 py-2 data-[state=active]:bg-brand/10 data-[state=active]:text-brand">
               <Cpu className="h-3.5 w-3.5" />
               Technologies
               <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{technologies.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="vulnerabilities" className="gap-1.5 rounded-lg px-4 py-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+            <TabsTrigger value="vulnerabilities" className="gap-1.5 rounded-lg px-4 py-2 data-[state=active]:bg-brand/10 data-[state=active]:text-brand">
               <Bug className="h-3.5 w-3.5" />
               Vulnerabilities
               <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{vulnerabilities.length}</Badge>
@@ -498,7 +530,7 @@ function ScanDetailContent() {
                       placeholder="Search subdomains..."
                       value={subdomainSearch}
                       onChange={(e) => setSubdomainSearch(e.target.value)}
-                      className="h-8 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-xs focus:border-primary/30 focus:outline-none w-52"
+                      className="h-8 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-xs focus:border-brand/30 focus:outline-none w-52"
                     />
                   </div>
                   <Button variant="outline" size="sm" className="gap-1 text-xs rounded-lg">
@@ -565,7 +597,7 @@ function ScanDetailContent() {
                       placeholder="Search ports, services..."
                       value={portSearch}
                       onChange={(e) => setPortSearch(e.target.value)}
-                      className="h-8 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-xs focus:border-primary/30 focus:outline-none w-52"
+                      className="h-8 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-xs focus:border-brand/30 focus:outline-none w-52"
                     />
                   </div>
                   <Button
@@ -684,7 +716,7 @@ function ScanDetailContent() {
                         key={cert.id}
                         className={cn(
                           "rounded-xl border p-4 transition-all hover-glow",
-                          isExpiringSoon ? "border-amber-500/30" : "border-border/30"
+                          isExpiringSoon ? "border-warning/30" : "border-border/30"
                         )}
                       >
                         <div className="flex items-start justify-between mb-2">
@@ -705,7 +737,7 @@ function ScanDetailContent() {
                             <span className="bg-muted/50 px-2 py-0.5 rounded">{cert.protocol}</span>
                           )}
                           {cert.not_after && (
-                            <span className={cn(isExpiringSoon && "text-amber-500 font-medium")}>
+                            <span className={cn(isExpiringSoon && "text-warning font-medium")}>
                               Expires: {new Date(cert.not_after).toLocaleDateString()}
                             </span>
                           )}
@@ -730,13 +762,13 @@ function ScanDetailContent() {
                       placeholder="Search technologies..."
                       value={techSearch}
                       onChange={(e) => setTechSearch(e.target.value)}
-                      className="h-8 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-xs focus:border-primary/30 focus:outline-none w-52"
+                      className="h-8 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-xs focus:border-brand/30 focus:outline-none w-52"
                     />
                   </div>
                   <select
                     value={techFilter}
                     onChange={(e) => setTechFilter(e.target.value)}
-                    className="h-8 px-3 rounded-lg bg-muted/50 border border-border/30 text-xs focus:border-primary/30 focus:outline-none appearance-none cursor-pointer"
+                    className="h-8 px-3 rounded-lg bg-muted/50 border border-border/30 text-xs focus:border-brand/30 focus:outline-none appearance-none cursor-pointer"
                   >
                     <option value="all">All categories</option>
                     {techCategories.map((cat) => (
@@ -797,7 +829,7 @@ function ScanDetailContent() {
                         <div className="flex items-center gap-2">
                           <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-primary/60 rounded-full"
+                              className="h-full bg-brand/60 rounded-full"
                               style={{ width: `${tech.confidence}%` }}
                             />
                           </div>
@@ -862,8 +894,8 @@ function ScanDetailContent() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <Badge
-                              variant={vuln.severity === "critical" ? "destructive" : vuln.severity === "high" ? "destructive" : vuln.severity === "medium" ? "default" : "secondary"}
-                              className="text-[10px] px-1.5 py-0 shrink-0"
+                              variant={vuln.severity === "critical" ? "destructive" : vuln.severity === "high" ? "warning" : vuln.severity === "medium" ? "default" : "secondary"}
+                              className={cn("text-[10px] px-1.5 py-0 shrink-0", vuln.severity === "critical" && "shadow-[0_0_8px_hsl(var(--destructive)/0.3)]")}
                             >
                               {vuln.severity?.toUpperCase()}
                             </Badge>
@@ -881,7 +913,7 @@ function ScanDetailContent() {
                             href={Array.isArray(vuln.reference) ? vuln.reference[0] : vuln.reference}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-primary hover:text-primary/80 shrink-0"
+                            className="text-brand hover:text-brand/80 shrink-0"
                           >
                             <ExternalLink className="h-4 w-4" />
                           </a>
@@ -926,6 +958,7 @@ function ScanDetailContent() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
@@ -933,7 +966,13 @@ function ScanDetailContent() {
 export default function ScanDetailPage() {
   return (
     <ProtectedRoute>
-      <ScanDetailContent />
+      <Suspense fallback={
+        <div className="flex h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }>
+        <ScanDetailContent />
+      </Suspense>
     </ProtectedRoute>
   );
 }

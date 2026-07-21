@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { listVulnerabilities, getVulnerabilitySummary, listScans } from "@/lib/api";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -57,35 +58,35 @@ function getSeverityConfig(severity: string) {
   switch (severity) {
     case "critical":
       return {
-        color: "text-red-500",
-        bg: "bg-red-500/10",
+        color: "text-severity-critical",
+        bg: "bg-severity-critical/10",
         badge: "destructive" as const,
-        border: "border-red-500/20",
-        glow: "shadow-red-500/10",
+        border: "border-severity-critical/20",
+        glow: "shadow-severity-critical/10",
       };
     case "high":
       return {
-        color: "text-orange-500",
-        bg: "bg-orange-500/10",
+        color: "text-severity-high",
+        bg: "bg-severity-high/10",
         badge: "warning" as const,
-        border: "border-orange-500/20",
-        glow: "shadow-orange-500/10",
+        border: "border-severity-high/20",
+        glow: "shadow-severity-high/10",
       };
     case "medium":
       return {
-        color: "text-amber-500",
-        bg: "bg-amber-500/10",
+        color: "text-severity-medium",
+        bg: "bg-severity-medium/10",
         badge: "warning" as const,
-        border: "border-amber-500/20",
-        glow: "shadow-amber-500/10",
+        border: "border-severity-medium/20",
+        glow: "shadow-severity-medium/10",
       };
     case "low":
       return {
-        color: "text-emerald-500",
-        bg: "bg-emerald-500/10",
+        color: "text-severity-low",
+        bg: "bg-severity-low/10",
         badge: "success" as const,
-        border: "border-emerald-500/20",
-        glow: "shadow-emerald-500/10",
+        border: "border-severity-low/20",
+        glow: "shadow-severity-low/10",
       };
     default:
       return {
@@ -180,35 +181,40 @@ function VulnContent() {
       value: summary.total,
       icon: Bug,
       color: "text-foreground",
-      bg: "bg-muted/50",
+      bg: "bg-surface-2",
+      border: "",
     },
     {
       label: "Critical",
       value: summary.critical,
       icon: AlertTriangle,
-      color: "text-red-500",
-      bg: "bg-red-500/10",
+      color: "text-severity-critical",
+      bg: "bg-severity-critical/10",
+      border: "border-l-severity-critical",
     },
     {
       label: "High",
       value: summary.high,
       icon: AlertTriangle,
-      color: "text-orange-500",
-      bg: "bg-orange-500/10",
+      color: "text-severity-high",
+      bg: "bg-severity-high/10",
+      border: "border-l-severity-high",
     },
     {
       label: "Medium",
       value: summary.medium,
       icon: Shield,
-      color: "text-amber-500",
-      bg: "bg-amber-500/10",
+      color: "text-severity-medium",
+      bg: "bg-severity-medium/10",
+      border: "border-l-severity-medium",
     },
     {
       label: "Low",
       value: summary.low,
       icon: Shield,
-      color: "text-emerald-500",
-      bg: "bg-emerald-500/10",
+      color: "text-severity-low",
+      bg: "bg-severity-low/10",
+      border: "border-l-severity-low",
     },
   ];
 
@@ -244,28 +250,14 @@ function VulnContent() {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="mx-auto max-w-7xl px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                <Shield className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">
-                  Vulnerabilities
-                </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Security vulnerabilities discovered across your attack surface
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
+    <div className="page-container-lg">
+      <div className="py-6 space-y-6">
+        <PageHeader
+          title="Vulnerabilities"
+          description="Security vulnerabilities discovered across your attack surface"
+          icon={<Shield className="h-5 w-5" />}
+          breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Vulnerabilities" }]}
+        />
         {loading ? (
           <>
             <div className="grid grid-cols-5 gap-4">
@@ -288,12 +280,8 @@ function VulnContent() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.1 }}
                     className={cn(
-                      "glass rounded-xl p-4 hover-glow",
-                      stat.label !== "Total" && "border-l-2",
-                      stat.label === "Critical" && "border-l-red-500",
-                      stat.label === "High" && "border-l-orange-500",
-                      stat.label === "Medium" && "border-l-amber-500",
-                      stat.label === "Low" && "border-l-emerald-500"
+                      "glass rounded-xl p-4 hover-glow border-l-2",
+                      stat.border
                     )}
                   >
                     <div className="flex items-center justify-between">
@@ -301,7 +289,7 @@ function VulnContent() {
                         <p className="text-xs text-muted-foreground">
                           {stat.label}
                         </p>
-                        <p className={cn("text-2xl font-bold mt-0.5", stat.color)}>
+                        <p className={cn("text-2xl font-bold mt-0.5 font-mono tabular-nums", stat.color)}>
                           {stat.value}
                         </p>
                       </div>
@@ -325,7 +313,7 @@ function VulnContent() {
                 <select
                   value={scanFilter}
                   onChange={(e) => setScanFilter(e.target.value)}
-                  className="h-9 px-3 rounded-lg bg-muted/50 border border-border/30 text-sm focus:border-primary/30 focus:outline-none appearance-none cursor-pointer"
+                  className="h-9 px-3 rounded-lg bg-muted/50 border border-border/30 text-sm focus:border-brand/40 focus:outline-none appearance-none cursor-pointer"
                 >
                   <option value="">All scans</option>
                   {scanOptions.map((s) => (
@@ -339,7 +327,7 @@ function VulnContent() {
                     className={cn(
                       "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
                       severityFilter === f.value
-                        ? "bg-primary/10 text-primary"
+                        ? "bg-brand/10 text-brand"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                     )}
                   >
@@ -347,9 +335,9 @@ function VulnContent() {
                     {f.count > 0 && (
                       <span
                         className={cn(
-                          "text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
+                          "text-[10px] px-1.5 py-0.5 rounded-full font-semibold font-mono tabular-nums",
                           severityFilter === f.value
-                            ? "bg-primary/20"
+                            ? "bg-brand/20"
                             : "bg-muted"
                         )}
                       >
@@ -366,7 +354,7 @@ function VulnContent() {
                   placeholder="Search by name, host, or template..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 pl-9 pr-8 rounded-lg bg-muted/50 border-border/30 text-sm focus:border-primary/30 focus:outline-none transition-colors w-64"
+                  className="h-9 pl-9 pr-8 rounded-lg bg-muted/50 border-border/30 text-sm focus:border-brand/40 focus:outline-none transition-colors w-64"
                 />
                 {searchQuery && (
                   <button
@@ -387,7 +375,7 @@ function VulnContent() {
                 className="flex flex-col items-center justify-center py-20 text-center"
               >
                 <div className="relative mb-6">
-                  <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
+                  <div className="absolute inset-0 bg-brand/10 rounded-full blur-xl" />
                   <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-muted/50 border border-border/30">
                     <Bug className="h-10 w-10 text-muted-foreground" />
                   </div>
@@ -495,7 +483,7 @@ function VulnContent() {
                               </span>
                             </TableCell>
                             <TableCell>
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-xs text-muted-foreground font-mono">
                                 {vuln.vuln_type || "—"}
                               </span>
                             </TableCell>
@@ -505,7 +493,7 @@ function VulnContent() {
                               </span>
                             </TableCell>
                             <TableCell>
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-xs text-muted-foreground font-mono">
                                 {formatDate(vuln.found_at)}
                               </span>
                             </TableCell>
@@ -545,7 +533,7 @@ function VulnContent() {
                                               target="_blank"
                                               rel="noopener noreferrer"
                                               onClick={(e) => e.stopPropagation()}
-                                              className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 bg-primary/5 hover:bg-primary/10 px-2.5 py-1 rounded-lg transition-colors"
+                                              className="inline-flex items-center gap-1.5 text-xs text-brand hover:text-brand/80 bg-brand/5 hover:bg-brand/10 px-2.5 py-1 rounded-lg transition-colors"
                                             >
                                               <ExternalLink className="h-3 w-3" />
                                               {(() => {

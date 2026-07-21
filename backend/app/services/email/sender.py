@@ -24,8 +24,8 @@ class EmailMessage:
     subject: str
     html_body: str
     text_body: str = ""
-    from_name: str = "AttackSec"
-    from_email: str = "noreply@attacksec.io"
+    from_name: str = "CAZO"
+    from_email: str = "noreply@cazo.io"
     retries: int = 0
     max_retries: int = 3
 
@@ -38,7 +38,7 @@ class EmailProvider(ABC):
 
 class SMTPProvider(EmailProvider):
     def __init__(self, host: str, port: int, username: str, password: str,
-                 use_tls: bool = True, from_email: str = "noreply@attacksec.io"):
+                 use_tls: bool = True, from_email: str = "noreply@cazo.io"):
         self.host = host
         self.port = port
         self.username = username
@@ -52,8 +52,8 @@ class SMTPProvider(EmailProvider):
             msg["Subject"] = message.subject
             msg["From"] = f"{message.from_name} <{message.from_email or self.from_email}>"
             msg["To"] = message.to
-            msg["X-Mailer"] = "AttackSec"
-            msg["List-Unsubscribe"] = f"<mailto:unsubscribe@attacksec.io?subject=unsubscribe>"
+            msg["X-Mailer"] = "CAZO"
+            msg["List-Unsubscribe"] = f"<mailto:unsubscribe@cazo.io?subject=unsubscribe>"
 
             if message.text_body:
                 msg.attach(MIMEText(message.text_body, "plain"))
@@ -72,7 +72,7 @@ class SMTPProvider(EmailProvider):
 
 
 class ResendProvider(EmailProvider):
-    def __init__(self, api_key: str, from_email: str = "noreply@attacksec.io"):
+    def __init__(self, api_key: str, from_email: str = "noreply@cazo.io"):
         self.api_key = api_key
         self.from_email = from_email
 
@@ -115,7 +115,7 @@ class EmailService:
         self._worker: Optional[threading.Thread] = None
 
     def send(self, to: str, subject: str, html_body: str, text_body: str = "",
-             from_name: str = "AttackSec", from_email: str = "noreply@attacksec.io") -> bool:
+             from_name: str = "CAZO", from_email: str = "noreply@cazo.io") -> bool:
         """Send email immediately (synchronous)."""
         msg = EmailMessage(
             to=to, subject=subject, html_body=html_body,
@@ -124,7 +124,7 @@ class EmailService:
         return self.provider.send(msg)
 
     def send_async(self, to: str, subject: str, html_body: str, text_body: str = "",
-                   from_name: str = "AttackSec", from_email: str = "noreply@attacksec.io") -> None:
+                   from_name: str = "CAZO", from_email: str = "noreply@cazo.io") -> None:
         """Queue email for async sending with retry."""
         msg = EmailMessage(
             to=to, subject=subject, html_body=html_body,
@@ -181,12 +181,12 @@ def get_email_service() -> EmailService:
             port=getattr(settings, "SMTP_PORT", 587),
             username=getattr(settings, "SMTP_USERNAME", ""),
             password=getattr(settings, "SMTP_PASSWORD", ""),
-            from_email=getattr(settings, "EMAIL_FROM", "noreply@attacksec.io"),
+            from_email=getattr(settings, "EMAIL_FROM", "noreply@cazo.io"),
         )
     elif provider_name == "resend":
         provider = ResendProvider(
             api_key=getattr(settings, "RESEND_API_KEY", ""),
-            from_email=getattr(settings, "EMAIL_FROM", "noreply@attacksec.io"),
+            from_email=getattr(settings, "EMAIL_FROM", "noreply@cazo.io"),
         )
     else:
         provider = LogProvider()

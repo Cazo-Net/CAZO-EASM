@@ -1,5 +1,6 @@
 """Team invitation endpoints."""
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session as DBSession
 from typing import List, Optional
@@ -12,19 +13,35 @@ from app.models.user import User
 from app.models.organization import Organization
 from app.models.auth_models import Invitation
 from app.api.deps import get_current_user
+from app.core.permissions import require_permission, Permission
 from app.config import frontend_url
+from app.core.permissions import SYSTEM_ROLES
 from app.services.audit import log_auth_event
 from app.services.email import get_email_service
 from app.services.email import templates
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 INVITATION_EXPIRY_DAYS = 7
 
+# Roles that may be granted via invitation. "owner" is excluded: ownership is
+# only transferable through the dedicated ownership-transfer flow, never by
+# invitation, to prevent privilege escalation.
+INVITABLE_ROLES = [r for r in SYSTEM_ROLES.keys() if r != "owner"]
+
 
 class InvitationCreate(BaseModel):
     email: EmailStr
     role: str = "member"
+
+    def model_post_init(self, __context) -> None:
+        if self.role not in INVITABLE_ROLES:
+            raise ValueError(
+                f"Invalid or non-invitable role: {self.role}. "
+                f"Allowed roles: {', '.join(INVITABLE_ROLES)}"
+            )
 
 
 class InvitationResponse(BaseModel):
@@ -42,7 +59,7 @@ async def create_invitation(
     data: InvitationCreate,
     request: Request,
     db: DBSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.INVITE_USERS)),
 ):
     """Invite a user to the organization."""
     if not current_user.organization_id:
@@ -133,6 +150,13 @@ async def accept_invitation(
         raise HTTPException(status_code=400, detail="Invitation expired")
 
     current_user.organization_id = invitation.organization_id
+    # Defense in depth: never grant owner via invitation (ownership is only
+    # transferable through the dedicated transfer flow).
+    if invitation.role == "owner":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid invitation role",
+        )
     current_user.role = invitation.role
     invitation.status = "accepted"
     invitation.accepted_at = datetime.now(timezone.utc)
@@ -157,7 +181,7 @@ async def accept_invitation(
 async def revoke_invitation(
     invitation_id: str,
     db: DBSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.REMOVE_USERS)),
 ):
     """Revoke a pending invitation."""
     invitation = db.query(Invitation).filter(

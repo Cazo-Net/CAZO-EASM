@@ -102,10 +102,16 @@ def add_tag_to_asset(asset_type: str, asset_id: str, data: AssetTagCreate,
 @router.get("/{asset_type}/{asset_id}/tags", response_model=List[TagResponse])
 def get_asset_tags(asset_type: str, asset_id: str, db: Session = Depends(get_db),
                    current_user: User = Depends(get_current_user)):
-    asset_tags = db.query(AssetTag).filter(
-        AssetTag.asset_type == asset_type,
-        AssetTag.asset_id == asset_id
-    ).all()
+    asset_tags = (
+        db.query(AssetTag)
+        .join(Tag, AssetTag.tag_id == Tag.id)
+        .filter(
+            AssetTag.asset_type == asset_type,
+            AssetTag.asset_id == asset_id,
+            Tag.user_id == current_user.id,
+        )
+        .all()
+    )
     tag_ids = [at.tag_id for at in asset_tags]
     return db.query(Tag).filter(Tag.id.in_(tag_ids)).all()
 
@@ -114,6 +120,9 @@ def get_asset_tags(asset_type: str, asset_id: str, db: Session = Depends(get_db)
 def remove_tag_from_asset(asset_type: str, asset_id: str, tag_id: str,
                           db: Session = Depends(get_db),
                           current_user: User = Depends(get_current_user)):
+    tag = db.query(Tag).filter(Tag.id == tag_id, Tag.user_id == current_user.id).first()
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
     asset_tag = db.query(AssetTag).filter(
         AssetTag.tag_id == tag_id,
         AssetTag.asset_type == asset_type,
@@ -138,7 +147,7 @@ def list_audit_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(AuditLog)
+    query = db.query(AuditLog).filter(AuditLog.user_id == current_user.id)
     if action:
         query = query.filter(AuditLog.action == action)
     if entity_type:

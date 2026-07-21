@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import api from "@/lib/api";
+import { listShadowAssets } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/StatusBadge";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { PageHeader } from "@/components/common/PageHeader";
+import { StatCard } from "@/components/common/StatCard";
 import type {
   Subdomain,
   Port,
@@ -48,11 +51,11 @@ interface UnifiedRow {
 }
 
 function getGradeColor(grade: string | null): string {
-  if (!grade) return "bg-zinc-500/10 text-zinc-400";
-  if (grade.startsWith("A+")) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/30";
-  if (grade.startsWith("A")) return "bg-blue-500/10 text-blue-400 border-blue-500/30";
-  if (grade === "B") return "bg-amber-500/10 text-amber-400 border-amber-500/30";
-  return "bg-red-500/10 text-red-400 border-red-500/30";
+  if (!grade) return "bg-muted/50 text-muted-foreground";
+  if (grade.startsWith("A+")) return "bg-success/10 text-success border-success/30";
+  if (grade.startsWith("A")) return "bg-info/10 text-info border-info/30";
+  if (grade === "B") return "bg-warning/10 text-warning border-warning/30";
+  return "bg-destructive/10 text-destructive border-destructive/30";
 }
 
 function getDaysUntil(dateStr: string | null): number | null {
@@ -72,6 +75,7 @@ function AssetsContent() {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [shadowHosts, setShadowHosts] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchAssets = async () => {
@@ -93,6 +97,19 @@ function AssetsContent() {
       }
     };
     fetchAssets();
+  }, []);
+
+  // Cross-reference shadow-asset candidates (by hostname) for inline badges.
+  useEffect(() => {
+    const fetchShadows = async () => {
+      try {
+        const data = await listShadowAssets();
+        setShadowHosts(new Set(data.shadows.map((s) => s.value)));
+      } catch {
+        /* non-fatal: badge simply won't show */
+      }
+    };
+    fetchShadows();
   }, []);
 
   const query = searchQuery.toLowerCase();
@@ -216,23 +233,21 @@ function AssetsContent() {
   };
 
   return (
-    <div className="min-h-screen">
-      <div className="border-b border-border/50 bg-card/30 backdrop-blur-xl sticky top-0 z-10">
-        <div className="mx-auto max-w-7xl px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Assets</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                All discovered subdomains, ports, certificates, and technologies.
-              </p>
-            </div>
-            <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-1">
+    <div className="page-container-lg">
+      <div className="py-6">
+        <PageHeader
+          title="Assets"
+          description="All discovered subdomains, ports, certificates, and technologies."
+          icon={<Globe className="h-5 w-5" />}
+          breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Assets" }]}
+          actions={
+            <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-surface-2/50 p-1">
               <button
                 onClick={() => setViewMode("grid")}
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md transition-all",
                   viewMode === "grid"
-                    ? "bg-primary text-primary-foreground shadow"
+                    ? "bg-card text-foreground shadow"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -243,25 +258,58 @@ function AssetsContent() {
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md transition-all",
                   viewMode === "table"
-                    ? "bg-primary text-primary-foreground shadow"
+                    ? "bg-card text-foreground shadow"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <TableIcon className="h-4 w-4" />
               </button>
             </div>
-          </div>
-        </div>
-      </div>
+          }
+        />
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
+        {/* Summary Stats */}
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Subdomains"
+            value={loading ? "—" : filteredSubdomains.length}
+            icon={<Globe className="h-5 w-5" />}
+            accent="brand"
+            hint={`${subdomains.filter(s => s.is_alive).length} alive`}
+          />
+          <StatCard
+            label="Open Ports"
+            value={loading ? "—" : filteredPorts.length}
+            icon={<Server className="h-5 w-5" />}
+            accent="info"
+            hint={`${ports.filter(p => p.state === "open").length} open`}
+          />
+          <StatCard
+            label="SSL Certificates"
+            value={loading ? "—" : filteredSsl.length}
+            icon={<Lock className="h-5 w-5" />}
+            accent="success"
+            hint={`${sslCerts.filter(c => {
+              const days = c.not_after ? Math.ceil((new Date(c.not_after).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
+              return days !== null && days <= 30 && days >= 0;
+            }).length} expiring soon`}
+          />
+          <StatCard
+            label="Technologies"
+            value={loading ? "—" : filteredTech.length}
+            icon={<Cpu className="h-5 w-5" />}
+            accent="violet"
+            hint={`${new Set(technologies.map(t => t.category)).size} categories`}
+          />
+        </div>
+
         <div className="mb-6 relative">
           <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search assets by hostname, service, or technology..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-11 pl-11 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-primary/20"
+            className="h-11 pl-11 bg-surface-2/50 border-border/60 focus:border-brand/40 focus:ring-brand/20"
           />
         </div>
 
@@ -292,18 +340,18 @@ function AssetsContent() {
                 className={cn(
                   "flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-all",
                   activeFilter === filter
-                    ? "border-primary/50 bg-primary/10 text-primary shadow-sm"
-                    : "border-border/50 bg-muted/30 text-muted-foreground hover:border-border hover:text-foreground"
+                    ? "border-brand/50 bg-brand/10 text-brand shadow-sm"
+                    : "border-border/50 bg-surface-2/50 text-muted-foreground hover:border-border hover:text-foreground"
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
                 {labels[filter]}
                 <span
                   className={cn(
-                    "rounded-md px-1.5 py-0.5 text-xs font-semibold",
-                    activeFilter === filter
-                      ? "bg-primary/20 text-primary"
-                      : "bg-muted text-muted-foreground"
+                    "rounded-md px-1.5 py-0.5 text-xs font-semibold font-mono tabular-nums",
+                     activeFilter === filter
+                       ? "bg-brand/20 text-brand"
+                       : "bg-muted text-muted-foreground"
                   )}
                 >
                   {count}
@@ -319,6 +367,7 @@ function AssetsContent() {
               key="loading"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              transition={{ type: "tween" }}
               exit={{ opacity: 0 }}
               className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
             >
@@ -334,11 +383,12 @@ function AssetsContent() {
               key="empty"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "tween" }}
               exit={{ opacity: 0, y: -20 }}
               className="flex flex-col items-center justify-center py-24 text-center"
             >
               <div className="relative mb-6">
-                <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl" />
+                <div className="absolute inset-0 rounded-full bg-brand/20 blur-2xl" />
                 <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-border/50 bg-card/80">
                   <Globe className="h-10 w-10 text-muted-foreground" />
                 </div>
@@ -352,7 +402,7 @@ function AssetsContent() {
               </p>
               <a
                 href="/scan/new"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 transition-all"
+                className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-void shadow-elevation-2 transition-all"
               >
                 <Globe className="h-4 w-4" />
                 Start a Scan
@@ -363,17 +413,18 @@ function AssetsContent() {
               key="grid"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              transition={{ type: "tween" }}
               exit={{ opacity: 0 }}
               className="space-y-8"
             >
               {showSubdomains && filteredSubdomains.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-4">
-                    <Globe className="h-4 w-4 text-primary" />
-                    <h2 className="text-sm font-semibold text-foreground">
-                      Subdomains
-                    </h2>
-                    <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">
+                <Globe className="h-4 w-4 text-brand" />
+                <h2 className="text-sm font-semibold font-display text-foreground">
+                  Subdomains
+                </h2>
+                <span className="rounded-md bg-brand/10 px-1.5 py-0.5 text-xs font-semibold text-brand">
                       {filteredSubdomains.length}
                     </span>
                   </div>
@@ -383,7 +434,8 @@ function AssetsContent() {
                         key={sub.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="group relative rounded-xl border border-border/50 bg-card/60 p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5"
+              transition={{ type: "tween" }}
+                          className="group relative rounded-xl border border-border/50 bg-card/60 p-5 transition-all duration-300 hover:border-brand/30 hover:shadow-lg hover:shadow-brand/5 hover:-translate-y-0.5"
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -391,11 +443,31 @@ function AssetsContent() {
                             <span className="font-mono text-sm font-semibold text-foreground truncate">
                               {sub.hostname}
                             </span>
+                            {shadowHosts.has(sub.hostname) && (
+                              <Badge
+                                variant="warning"
+                                className="text-[10px] px-1.5 py-0 py-0.5"
+                                title="Flagged as possible shadow asset — shares infrastructure with confirmed inventory"
+                              >
+                                Shadow?
+                              </Badge>
+                            )}
+                            {sub.first_seen && (() => {
+                              const days = Math.floor((Date.now() - new Date(sub.first_seen).getTime()) / 86400000);
+                              if (days <= 7) {
+                                return (
+                                  <Badge variant="info" className="text-[10px] px-1.5 py-0.5" title={`First seen ${new Date(sub.first_seen).toLocaleDateString()}`}>
+                                    New · {days === 0 ? "today" : `${days}d ago`}
+                                  </Badge>
+                                );
+                              }
+                              return null;
+                            })()}
                           </div>
                           <span
                             className={cn(
                               "h-2 w-2 rounded-full flex-shrink-0 mt-1.5",
-                              sub.is_alive ? "bg-emerald-400 shadow-sm shadow-emerald-400/50" : "bg-zinc-500"
+                              sub.is_alive ? "bg-success shadow-sm shadow-success/50" : "bg-muted-foreground"
                             )}
                           />
                         </div>
@@ -412,7 +484,7 @@ function AssetsContent() {
                             </Badge>
                             {(sub as any).status && <StatusBadge status={(sub as any).status} />}
                           </div>
-                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground font-mono">
                             <Calendar className="h-3 w-3" />
                             {new Date(sub.discovered_at).toLocaleDateString()}
                           </span>
@@ -426,11 +498,11 @@ function AssetsContent() {
               {showPorts && filteredPorts.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-4">
-                    <Server className="h-4 w-4 text-cyan-400" />
-                    <h2 className="text-sm font-semibold text-foreground">
+                    <Server className="h-4 w-4 text-brand-2" />
+                    <h2 className="text-sm font-semibold font-display text-foreground">
                       Open Ports
                     </h2>
-                    <span className="rounded-md bg-cyan-400/10 px-1.5 py-0.5 text-xs font-semibold text-cyan-400">
+                    <span className="rounded-md bg-brand-2/10 px-1.5 py-0.5 text-xs font-semibold text-brand-2">
                       {filteredPorts.length}
                     </span>
                   </div>
@@ -440,12 +512,13 @@ function AssetsContent() {
                         key={port.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="group relative rounded-xl border border-border/50 bg-card/60 p-5 transition-all duration-300 hover:border-cyan-400/30 hover:shadow-lg hover:shadow-cyan-400/5 hover:-translate-y-0.5"
+              transition={{ type: "tween" }}
+                        className="group relative rounded-xl border border-border/50 bg-card/60 p-5 transition-all duration-300 hover:border-brand-2/30 hover:shadow-lg hover:shadow-brand-2/5 hover:-translate-y-0.5"
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <FavoriteButton assetType="port" assetId={port.id} />
-                            <span className="inline-flex items-center justify-center rounded-lg bg-cyan-400/10 px-2.5 py-1 font-mono text-lg font-bold text-cyan-400">
+                            <span className="inline-flex items-center justify-center rounded-lg bg-brand-2/10 px-2.5 py-1 font-mono text-lg font-bold text-brand-2">
                               {port.port_number}
                             </span>
                           </div>
@@ -453,8 +526,8 @@ function AssetsContent() {
                             className={cn(
                               "h-2 w-2 rounded-full flex-shrink-0 mt-1.5",
                               port.state === "open"
-                                ? "bg-emerald-400 shadow-sm shadow-emerald-400/50"
-                                : "bg-amber-400"
+                                ? "bg-success shadow-sm shadow-success/50"
+                                : "bg-warning"
                             )}
                           />
                         </div>
@@ -490,11 +563,11 @@ function AssetsContent() {
               {showSsl && filteredSsl.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-4">
-                    <Lock className="h-4 w-4 text-emerald-400" />
-                    <h2 className="text-sm font-semibold text-foreground">
+                    <Lock className="h-4 w-4 text-success" />
+                    <h2 className="text-sm font-semibold font-display text-foreground">
                       SSL Certificates
                     </h2>
-                    <span className="rounded-md bg-emerald-400/10 px-1.5 py-0.5 text-xs font-semibold text-emerald-400">
+                    <span className="rounded-md bg-success/10 px-1.5 py-0.5 text-xs font-semibold text-success">
                       {filteredSsl.length}
                     </span>
                   </div>
@@ -509,13 +582,14 @@ function AssetsContent() {
                           key={cert.id}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
+              transition={{ type: "tween" }}
                           className={cn(
                             "group relative rounded-xl border bg-card/60 p-5 transition-all duration-300 hover:-translate-y-0.5",
                             isExpired
-                              ? "border-red-500/30 hover:shadow-lg hover:shadow-red-500/5"
+                              ? "border-destructive/30 hover:shadow-lg hover:shadow-destructive/5"
                               : isExpiring
-                                ? "border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5"
-                                : "border-border/50 hover:border-emerald-400/30 hover:shadow-lg hover:shadow-emerald-400/5"
+                                ? "border-warning/30 hover:shadow-lg hover:shadow-warning/5"
+                                : "border-border/50 hover:border-success/30 hover:shadow-lg hover:shadow-success/5"
                           )}
                         >
                           <div className="flex items-start justify-between mb-3">
@@ -555,7 +629,7 @@ function AssetsContent() {
                                 </Badge>
                               )}
                             </div>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground font-mono">
                               {cert.not_after
                                 ? new Date(
                                     cert.not_after
@@ -580,10 +654,10 @@ function AssetsContent() {
                                   className={cn(
                                     "h-full rounded-full transition-all",
                                     isExpired
-                                      ? "bg-red-500"
+                                      ? "bg-destructive"
                                       : isExpiring
-                                        ? "bg-amber-500"
-                                        : "bg-emerald-500"
+                                        ? "bg-warning"
+                                        : "bg-success"
                                   )}
                                   style={{
                                     width: `${
@@ -606,11 +680,11 @@ function AssetsContent() {
               {showTech && filteredTech.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-4">
-                    <Cpu className="h-4 w-4 text-violet-400" />
-                    <h2 className="text-sm font-semibold text-foreground">
+                    <Cpu className="h-4 w-4 text-accent-2" />
+                    <h2 className="text-sm font-semibold font-display text-foreground">
                       Technologies
                     </h2>
-                    <span className="rounded-md bg-violet-400/10 px-1.5 py-0.5 text-xs font-semibold text-violet-400">
+                    <span className="rounded-md bg-accent-2/10 px-1.5 py-0.5 text-xs font-semibold text-accent-2">
                       {filteredTech.length}
                     </span>
                   </div>
@@ -620,7 +694,8 @@ function AssetsContent() {
                         key={tech.id}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="group relative rounded-xl border border-border/50 bg-card/60 p-5 transition-all duration-300 hover:border-violet-400/30 hover:shadow-lg hover:shadow-violet-400/5 hover:-translate-y-0.5"
+              transition={{ type: "tween" }}
+                        className="group relative rounded-xl border border-border/50 bg-card/60 p-5 transition-all duration-300 hover:border-accent-2/30 hover:shadow-lg hover:shadow-accent-2/5 hover:-translate-y-0.5"
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -650,7 +725,7 @@ function AssetsContent() {
                           </div>
                           <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-400 transition-all"
+                              className="h-full rounded-full bg-gradient-to-r from-accent-2 to-brand-2 transition-all"
                               style={{
                                 width: `${Math.round(tech.confidence * 100)}%`,
                               }}
@@ -668,6 +743,7 @@ function AssetsContent() {
               key="table"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
+              transition={{ type: "tween" }}
               exit={{ opacity: 0 }}
               className="rounded-xl border border-border/50 bg-card/60 overflow-hidden"
             >
@@ -703,10 +779,10 @@ function AssetsContent() {
                         tech: Cpu,
                       };
                       const typeColors = {
-                        subdomain: "text-primary",
-                        port: "text-cyan-400",
-                        ssl: "text-emerald-400",
-                        tech: "text-violet-400",
+                        subdomain: "text-brand",
+                        port: "text-brand-2",
+                        ssl: "text-success",
+                        tech: "text-accent-2",
                       };
                       const TypeIcon = typeIcons[row.type];
                       return (
@@ -744,7 +820,7 @@ function AssetsContent() {
                             </Badge>
                           </td>
                           <td className="px-4 py-3">
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-xs text-muted-foreground font-mono">
                               {new Date(row.date).toLocaleDateString()}
                             </span>
                           </td>

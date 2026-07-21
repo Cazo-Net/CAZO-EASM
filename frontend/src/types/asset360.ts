@@ -63,3 +63,44 @@ export interface Asset360ListItem {
   first_seen: string | null;
   last_seen: string | null;
 }
+
+export interface HostIntelligence {
+  asset_id: string;
+  asset_type?: string | null;
+  asn: string | null;
+  isp: string | null;
+  org: string | null;
+  ip_addresses: string[];
+  ports: {
+    port: string | number;
+    state: string | null;
+    service: string | null;
+    version: string | null;
+    banner: string | null;
+    hostname: string | null;
+  }[];
+  technologies: {
+    name: string;
+    category: string;
+    version: string | null;
+    confidence: number;
+    hostname: string | null;
+  }[];
+  certificates: {
+    issuer: string | null;
+    subject: string | null;
+    grade: string | null;
+    protocol: string | null;
+    cipher_suite: string | null;
+    not_after: string | null;
+    hostname: string | null;
+  }[];
+  vulnerabilities: {
+    id: string;
+    name: string;
+    severity: string | null;
+    host: string | null;
+    matched_at: string | null;
+    status: string | null;
+  }[];
+}

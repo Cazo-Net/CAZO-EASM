@@ -29,9 +29,22 @@ class AdminUserResponse(BaseModel):
 
 
 def require_admin(current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
+    if current_user.role not in ("admin", "superuser"):
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
+
+
+def _assert_same_org(target_user: User, admin: User):
+    """Ensure the target user belongs to the same organization as the admin.
+
+    Superusers bypass this check (platform-level admin).
+    """
+    if admin.role == "superuser":
+        return
+    if not admin.organization_id:
+        raise HTTPException(status_code=403, detail="You must belong to an organization")
+    if target_user.organization_id != admin.organization_id:
+        raise HTTPException(status_code=404, detail="User not found")
 
 
 @router.get("/users", response_model=List[AdminUserResponse])
@@ -44,6 +57,8 @@ async def list_users(
 ):
     """List all users (admin only)."""
     q = db.query(User)
+    if admin.role != "superuser" and admin.organization_id:
+        q = q.filter(User.organization_id == admin.organization_id)
     if search:
         q = q.filter(
             (User.email.ilike(f"%{search}%")) | (User.full_name.ilike(f"%{search}%"))
@@ -71,6 +86,7 @@ async def disable_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _assert_same_org(user, admin)
     user.is_active = False
     db.query(UserSession).filter(UserSession.user_id == user_id).update({"is_active": False})
     db.commit()
@@ -87,6 +103,7 @@ async def enable_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _assert_same_org(user, admin)
     user.is_active = True
     user.failed_login_attempts = 0
     user.locked_until = None
@@ -104,6 +121,7 @@ async def unlock_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _assert_same_org(user, admin)
     user.failed_login_attempts = 0
     user.locked_until = None
     db.commit()
@@ -120,6 +138,7 @@ async def force_password_reset(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _assert_same_org(user, admin)
     from secrets import token_urlsafe
     from datetime import datetime, timezone, timedelta
     user.reset_token = token_urlsafe(32)
@@ -135,6 +154,10 @@ async def revoke_user_sessions(
     admin: User = Depends(require_admin),
 ):
     """Revoke all sessions for a user (admin only)."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    _assert_same_org(user, admin)
     db.query(UserSession).filter(UserSession.user_id == user_id).update({"is_active": False})
     db.commit()
     return {"message": "All sessions revoked"}

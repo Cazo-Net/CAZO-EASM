@@ -20,6 +20,7 @@ import { listScans, compareScans } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageHeader } from "@/components/common/PageHeader";
 
 interface ScanItem {
   id: string;
@@ -102,18 +103,14 @@ function ComparePageContent() {
     : [];
 
   return (
-    <div className="min-h-screen">
-      <div className="mx-auto max-w-7xl px-6 py-8 space-y-8">
-        {/* Header */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-            <GitCompare className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Compare Scans</h1>
-            <p className="text-sm text-muted-foreground">Diff two completed scans to see changes</p>
-          </div>
-        </motion.div>
+    <div className="page-container-lg">
+      <div className="py-6 space-y-6">
+        <PageHeader
+          title="Compare Scans"
+          description="Diff two completed scans to see changes"
+          icon={<GitCompare className="h-5 w-5" />}
+          breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Compare Scans" }]}
+        />
 
         {/* Selectors */}
         <div className="grid gap-4 md:grid-cols-2">
@@ -126,7 +123,7 @@ function ComparePageContent() {
                 placeholder="Search scans..."
                 value={searchA}
                 onChange={(e) => setSearchA(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-sm focus:border-primary/30 focus:outline-none"
+                className="w-full h-9 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-sm focus:border-brand/40 focus:outline-none"
               />
             </div>
             <div className="max-h-48 overflow-y-auto space-y-1 scrollbar-thin">
@@ -143,11 +140,11 @@ function ComparePageContent() {
                     onClick={() => setSelectedA(s.id)}
                     className={`w-full text-left p-3 rounded-lg border transition-all text-sm ${
                       selectedA === s.id
-                        ? "border-primary/50 bg-primary/10"
+                        ? "border-primary/50 bg-brand/10"
                         : "border-border/30 hover:bg-muted/50"
                     }`}
                   >
-                    <p className="font-medium">{s.domain}</p>
+                    <p className="font-medium font-mono">{s.domain}</p>
                     <p className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</p>
                   </button>
                 ))
@@ -164,7 +161,7 @@ function ComparePageContent() {
                 placeholder="Search scans..."
                 value={searchB}
                 onChange={(e) => setSearchB(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-sm focus:border-primary/30 focus:outline-none"
+                className="w-full h-9 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-sm focus:border-brand/40 focus:outline-none"
               />
             </div>
             <div className="max-h-48 overflow-y-auto space-y-1 scrollbar-thin">
@@ -181,11 +178,11 @@ function ComparePageContent() {
                     onClick={() => setSelectedB(s.id)}
                     className={`w-full text-left p-3 rounded-lg border transition-all text-sm ${
                       selectedB === s.id
-                        ? "border-primary/50 bg-primary/10"
+                        ? "border-primary/50 bg-brand/10"
                         : "border-border/30 hover:bg-muted/50"
                     }`}
                   >
-                    <p className="font-medium">{s.domain}</p>
+                    <p className="font-medium font-mono">{s.domain}</p>
                     <p className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleDateString()}</p>
                   </button>
                 ))
@@ -199,7 +196,7 @@ function ComparePageContent() {
           <Button
             onClick={handleCompare}
             disabled={!selectedA || !selectedB || selectedA === selectedB || loading}
-            className="bg-gradient-to-r from-primary to-cyan-500 hover:from-primary/90 hover:to-cyan-500/90 text-primary-foreground shadow shadow-primary/20 px-8"
+            className="bg-gradient-to-r from-primary to-cyan-signal hover:from-primary/90 hover:to-cyan-signal/90 text-brand-foreground shadow shadow-primary/20 px-8"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -220,9 +217,9 @@ function ComparePageContent() {
         {result && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{result.scan_a.domain}</span>
+              <span className="font-medium font-mono text-foreground">{result.scan_a.domain}</span>
               <ArrowRight className="h-4 w-4" />
-              <span className="font-medium text-foreground">{result.scan_b.domain}</span>
+              <span className="font-medium font-mono text-foreground">{result.scan_b.domain}</span>
             </div>
 
             {diffSections.map((section) => {
@@ -232,7 +229,7 @@ function ComparePageContent() {
                 <div key={section.label} className="glass rounded-xl overflow-hidden">
                   <div className="flex items-center justify-between p-4 border-b border-border/30">
                     <div className="flex items-center gap-2">
-                      <SectionIcon className="h-4 w-4 text-primary" />
+                      <SectionIcon className="h-4 w-4 text-brand" />
                       <h3 className="font-semibold text-sm">{section.label}</h3>
                     </div>
                     <Badge variant={totalChanges > 0 ? "default" : "secondary"} className="text-xs">
@@ -246,15 +243,15 @@ function ComparePageContent() {
                   <div className="divide-y divide-border/20">
                     {section.added.map((item: any, i: number) => (
                       <div key={`add-${i}`} className="flex items-center gap-3 px-4 py-2 text-sm">
-                        <Plus className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
-                        <span className="text-emerald-400 font-medium">+ </span>
+                        <Plus className="h-3.5 w-3.5 text-success shrink-0" />
+                        <span className="text-success font-medium">+ </span>
                         <span className="truncate">{Array.isArray(item) ? item.join(" → ") : String(item)}</span>
                       </div>
                     ))}
                     {section.removed.map((item: any, i: number) => (
                       <div key={`rem-${i}`} className="flex items-center gap-3 px-4 py-2 text-sm">
-                        <Minus className="h-3.5 w-3.5 text-red-400 shrink-0" />
-                        <span className="text-red-400 font-medium">- </span>
+                        <Minus className="h-3.5 w-3.5 text-destructive shrink-0" />
+                        <span className="text-destructive font-medium">- </span>
                         <span className="truncate">{Array.isArray(item) ? item.join(" → ") : String(item)}</span>
                       </div>
                     ))}

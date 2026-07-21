@@ -11,9 +11,18 @@ class ScanTypeEnum(str, Enum):
     CUSTOM = "custom"
 
 
+class ScanOptions(BaseModel):
+    scan_size: str = "large"
+    max_subdomains: int = 0
+    port_mode: str = "full"
+    include_nuclei: bool = True
+    subdomain_tools: List[str] = ["default", "subfinder", "amass"]
+
+
 class ScanCreate(BaseModel):
     domain: str
     scan_type: ScanTypeEnum = ScanTypeEnum.FULL
+    scan_options: Optional[ScanOptions] = None
     project_id: Optional[str] = None
 
     @field_validator("domain")
@@ -30,6 +39,7 @@ class ScanResponse(BaseModel):
     status: str
     progress: int
     scan_type: str
+    scan_options: Optional[Dict[str, Any]] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     created_at: datetime
@@ -48,6 +58,7 @@ class ScanDetail(ScanResponse):
     low_count: int = 0
     risk_score: Optional[int] = None
     error_message: Optional[str] = None
+    scanner_status: Optional[Dict[str, str]] = None
 
 
 class SubdomainResponse(BaseModel):

@@ -32,19 +32,25 @@ class TestBruteForceProtection:
 
 
 class TestEmailVerification:
-    def test_register_sends_verification_token(self, client):
+    def test_register_sends_verification_token(self, client, db_session):
         resp = client.post("/api/v1/auth/register", json={
             "email": "verify@test.com", "password": "VerifyPass1!", "full_name": "Verify User",
         })
         assert resp.status_code == 200
         assert resp.json()["email_verified"] is False
-        assert resp.json()["verification_token"] is not None
+        # verification_token is no longer returned in the response (security fix)
+        from app.models.user import User
+        user = db_session.query(User).filter(User.email == "verify@test.com").first()
+        assert user is not None
+        assert user.verification_token is not None
 
-    def test_verify_email_success(self, client):
-        reg = client.post("/api/v1/auth/register", json={
+    def test_verify_email_success(self, client, db_session):
+        client.post("/api/v1/auth/register", json={
             "email": "v2@test.com", "password": "V2Pass1!", "full_name": "V2 User",
         })
-        token = reg.json()["verification_token"]
+        from app.models.user import User
+        user = db_session.query(User).filter(User.email == "v2@test.com").first()
+        token = user.verification_token
         resp = client.post("/api/v1/auth/verify-email", json={"token": token})
         assert resp.status_code == 200
 
@@ -165,20 +171,33 @@ class TestInvitations:
     def _create_org(self, client, auth_headers):
         client.post("/api/v1/organizations", json={"name": "Test Org"}, headers=auth_headers)
 
-    def test_create_invitation(self, client, auth_headers):
-        self._create_org(client, auth_headers)
+    def _admin_headers(self, client, db_session):
+        """Create an admin user with INVITE_USERS permission."""
+        from app.models.user import User
+        from app.core.security import get_password_hash, create_access_token
+        admin = User(email="invadmin@test.com", hashed_password=get_password_hash("Admin1!"), role="admin")
+        db_session.add(admin)
+        db_session.commit()
+        db_session.refresh(admin)
+        token = create_access_token(data={"sub": admin.id, "role": admin.role})
+        return {"Authorization": f"Bearer {token}"}
+
+    def test_create_invitation(self, client, db_session):
+        headers = self._admin_headers(client, db_session)
+        client.post("/api/v1/organizations", json={"name": "Test Org"}, headers=headers)
         resp = client.post("/api/v1/invitations", json={
             "email": "invite@test.com", "role": "member"
-        }, headers=auth_headers)
+        }, headers=headers)
         assert resp.status_code == 200
         assert resp.json()["email"] == "invite@test.com"
 
-    def test_list_invitations(self, client, auth_headers):
-        self._create_org(client, auth_headers)
+    def test_list_invitations(self, client, db_session):
+        headers = self._admin_headers(client, db_session)
+        client.post("/api/v1/organizations", json={"name": "Test Org"}, headers=headers)
         client.post("/api/v1/invitations", json={
             "email": "list@test.com", "role": "member"
-        }, headers=auth_headers)
-        resp = client.get("/api/v1/invitations", headers=auth_headers)
+        }, headers=headers)
+        resp = client.get("/api/v1/invitations", headers=headers)
         assert resp.status_code == 200
         assert len(resp.json()) >= 1
 
@@ -186,7 +205,8 @@ class TestInvitations:
         from app.models.user import User
         from app.core.security import get_password_hash, create_access_token
 
-        user = User(email="noorg@test.com", hashed_password=get_password_hash("NoOrg1!"), role="member")
+        # Use admin role so RBAC passes; the 400 tests the org-check, not permission
+        user = User(email="noorg@test.com", hashed_password=get_password_hash("NoOrg1!"), role="admin")
         db_session.add(user)
         db_session.commit()
         db_session.refresh(user)
@@ -205,7 +225,8 @@ class TestAdminEndpoints:
         from app.models.user import User
         from app.core.security import get_password_hash, create_access_token
 
-        admin = User(email="admin@test.com", hashed_password=get_password_hash("Admin1!"), role="admin")
+        # Use superuser role to bypass org-scoping (test users have no org)
+        admin = User(email="admin@test.com", hashed_password=get_password_hash("Admin1!"), role="superuser")
         db_session.add(admin)
         db_session.commit()
         db_session.refresh(admin)

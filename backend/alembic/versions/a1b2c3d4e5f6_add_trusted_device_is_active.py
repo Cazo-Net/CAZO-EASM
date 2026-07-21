@@ -19,14 +19,28 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    with op.batch_alter_table("trusted_devices") as batch_op:
-        batch_op.add_column(
-            sa.Column("is_active", sa.Boolean(), nullable=True, server_default=sa.true())
-        )
-        batch_op.create_index("ix_trusted_devices_is_active", ["is_active"])
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = {c["name"] for c in inspector.get_columns("trusted_devices")}
+    indexes = {i["name"] for i in inspector.get_indexes("trusted_devices")}
+    if "is_active" not in columns:
+        with op.batch_alter_table("trusted_devices", reflect_inspector=inspector) as batch_op:
+            batch_op.add_column(
+                sa.Column("is_active", sa.Boolean(), nullable=True, server_default=sa.true())
+            )
+    if "ix_trusted_devices_is_active" not in indexes:
+        with op.batch_alter_table("trusted_devices", reflect_inspector=inspector) as batch_op:
+            batch_op.create_index("ix_trusted_devices_is_active", ["is_active"])
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("trusted_devices") as batch_op:
-        batch_op.drop_index("ix_trusted_devices_is_active")
-        batch_op.drop_column("is_active")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    indexes = {i["name"] for i in inspector.get_indexes("trusted_devices")}
+    columns = {c["name"] for c in inspector.get_columns("trusted_devices")}
+    if "ix_trusted_devices_is_active" in indexes:
+        with op.batch_alter_table("trusted_devices", reflect_inspector=inspector) as batch_op:
+            batch_op.drop_index("ix_trusted_devices_is_active")
+    if "is_active" in columns:
+        with op.batch_alter_table("trusted_devices", reflect_inspector=inspector) as batch_op:
+            batch_op.drop_column("is_active")

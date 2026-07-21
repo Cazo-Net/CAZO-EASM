@@ -1,4 +1,4 @@
-# Deployment Guide (EASM / AttackSec)
+# Deployment Guide (EASM / CAZO EASM)
 
 This guide covers deploying the platform to a real domain using Docker Compose
 (the production stack in `docker-compose.yml` + `docker-compose.prod.yml`).

@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { listWhoisRecords } from "@/lib/api";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -54,20 +55,20 @@ function getStatusConfig(status: "active" | "expiring" | "expired") {
         label: "Active",
         variant: "success" as const,
         className:
-          "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+          "bg-success/10 text-success border-success/30",
       };
     case "expiring":
       return {
         label: "Expiring Soon",
         variant: "warning" as const,
         className:
-          "bg-amber-500/10 text-amber-400 border-amber-500/30",
+          "bg-warning/10 text-warning border-warning/30",
       };
     case "expired":
       return {
         label: "Expired",
         variant: "destructive" as const,
-        className: "bg-red-500/10 text-red-400 border-red-500/30",
+        className: "bg-destructive/10 text-destructive border-destructive/30",
       };
   }
 }
@@ -115,33 +116,21 @@ function WhoisContent() {
   );
 
   return (
-    <div className="min-h-screen">
-      <div className="border-b border-border/50 bg-card/30 backdrop-blur-xl sticky top-0 z-10">
-        <div className="mx-auto max-w-7xl px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-cyan-400/20 border border-primary/20">
-                  <Globe className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold tracking-tight">
-                    WHOIS Records
-                  </h1>
-                  <p className="text-sm text-muted-foreground">
-                    Domain registration and ownership information discovered
-                    across all scans.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-1">
+    <div className="page-container-lg">
+      <div className="py-6 space-y-6">
+        <PageHeader
+          title="WHOIS Records"
+          description="Domain registration and ownership information discovered across all scans."
+          icon={<Globe className="h-5 w-5" />}
+          breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "WHOIS Records" }]}
+          actions={
+            <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-surface-2/50 p-1">
               <button
                 onClick={() => setViewMode("cards")}
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md transition-all",
                   viewMode === "cards"
-                    ? "bg-primary text-primary-foreground shadow"
+                    ? "bg-card text-foreground shadow"
                     : "text-muted-foreground hover:text-foreground"
                 )}
                 aria-label="Card view"
@@ -164,7 +153,7 @@ function WhoisContent() {
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md transition-all",
                   viewMode === "table"
-                    ? "bg-primary text-primary-foreground shadow"
+                    ? "bg-card text-foreground shadow"
                     : "text-muted-foreground hover:text-foreground"
                 )}
                 aria-label="Table view"
@@ -180,11 +169,10 @@ function WhoisContent() {
                 </svg>
               </button>
             </div>
-          </div>
-        </div>
-      </div>
+          }
+        />
 
-      <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
+        <div className="mt-6 space-y-6">
         <div className="grid grid-cols-4 gap-4">
           {[
             {
@@ -197,19 +185,19 @@ function WhoisContent() {
               label: "Active",
               value: stats.active,
               icon: Globe,
-              color: "text-emerald-500",
+              color: "text-success",
             },
             {
               label: "Expiring Soon",
               value: stats.expiring,
               icon: Calendar,
-              color: "text-amber-500",
+              color: "text-warning",
             },
             {
               label: "Expired",
               value: stats.expired,
               icon: Calendar,
-              color: "text-red-500",
+              color: "text-destructive",
             },
           ].map((stat, i) => (
             <motion.div
@@ -223,7 +211,7 @@ function WhoisContent() {
                 <div>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                   <p
-                    className={cn("text-2xl font-bold mt-0.5", stat.color)}
+                    className={cn("text-2xl font-bold mt-0.5 font-mono tabular-nums", stat.color)}
                   >
                     {stat.value}
                   </p>
@@ -247,7 +235,7 @@ function WhoisContent() {
             placeholder="Search by domain, registrar, registrant name, or organization..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-11 pl-11 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-primary/20"
+            className="h-11 pl-11 bg-muted/30 border-border/50 focus:border-brand/50 focus:ring-brand/20"
           />
         </div>
 
@@ -273,7 +261,7 @@ function WhoisContent() {
               className="flex flex-col items-center justify-center py-24 text-center"
             >
               <div className="relative mb-6">
-                <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl" />
+                <div className="absolute inset-0 rounded-full bg-brand/20 blur-2xl" />
                 <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-border/50 bg-card/80">
                   <Globe className="h-10 w-10 text-muted-foreground" />
                 </div>
@@ -291,7 +279,7 @@ function WhoisContent() {
               {!searchQuery && (
                 <a
                   href="/scan/new"
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 transition-all"
+                  className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-void shadow-glow-sm hover:bg-primary/90 transition-all"
                 >
                   <Globe className="h-4 w-4" />
                   Start a Scan
@@ -321,19 +309,19 @@ function WhoisContent() {
                     className={cn(
                       "group relative rounded-xl border bg-card/60 p-5 transition-all duration-300 hover:-translate-y-0.5",
                       status === "expired"
-                        ? "border-red-500/30 hover:shadow-lg hover:shadow-red-500/5"
+                        ? "border-destructive/30 hover:shadow-lg hover:shadow-destructive/5"
                         : status === "expiring"
-                          ? "border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5"
-                          : "border-border/50 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
+                          ? "border-warning/30 hover:shadow-lg hover:shadow-warning/5"
+                          : "border-border/50 hover:border-brand/30 hover:shadow-lg hover:shadow-brand/5"
                     )}
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
-                          <Globe className="h-5 w-5 text-primary" />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10 border border-brand/20">
+                          <Globe className="h-5 w-5 text-brand" />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                          <h3 className="font-semibold text-foreground truncate group-hover:text-brand transition-colors">
                             {record.domain}
                           </h3>
                           {record.registrar && (
@@ -374,9 +362,9 @@ function WhoisContent() {
                             className={cn(
                               "font-medium",
                               status === "expired"
-                                ? "text-red-400"
+                                ? "text-destructive"
                                 : status === "expiring"
-                                  ? "text-amber-400"
+                                  ? "text-warning"
                                   : "text-foreground"
                             )}
                           >
@@ -393,15 +381,15 @@ function WhoisContent() {
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <span className="ml-5.5 text-xs">
                             {daysLeft < 0 ? (
-                              <span className="text-red-400 font-medium">
+                              <span className="text-destructive font-medium">
                                 Expired {Math.abs(daysLeft)}d ago
                               </span>
                             ) : daysLeft <= 30 ? (
-                              <span className="text-amber-400 font-medium">
+                              <span className="text-warning font-medium">
                                 {daysLeft}d remaining
                               </span>
                             ) : (
-                              <span className="text-emerald-400 font-medium">
+                              <span className="text-success font-medium">
                                 {daysLeft}d remaining
                               </span>
                             )}
@@ -535,7 +523,7 @@ function WhoisContent() {
                       >
                         <TableCell>
                           <div className="flex items-center gap-2.5">
-                            <Globe className="h-4 w-4 text-primary shrink-0" />
+                            <Globe className="h-4 w-4 text-brand shrink-0" />
                             <span className="font-medium font-mono text-sm">
                               {record.domain}
                             </span>
@@ -547,7 +535,7 @@ function WhoisContent() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground font-mono">
                             {record.creation_date
                               ? format(
                                   new Date(record.creation_date),
@@ -559,11 +547,11 @@ function WhoisContent() {
                         <TableCell>
                           <span
                             className={cn(
-                              "text-xs",
+                              "text-xs font-mono",
                               status === "expired"
-                                ? "text-red-400"
+                                ? "text-destructive"
                                 : status === "expiring"
-                                  ? "text-amber-400"
+                                  ? "text-warning"
                                   : "text-muted-foreground"
                             )}
                           >
@@ -621,7 +609,7 @@ function WhoisContent() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-xs text-muted-foreground font-mono">
                             {format(
                               new Date(record.scanned_at),
                               "MMM d, yyyy"
@@ -636,6 +624,7 @@ function WhoisContent() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
       </div>
     </div>
   );

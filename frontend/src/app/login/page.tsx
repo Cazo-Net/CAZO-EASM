@@ -9,6 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/api";
+import { GoogleButton } from "@/components/auth/GoogleButton";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -28,18 +30,18 @@ export default function LoginPage() {
       await login(email, password, rememberMe);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Invalid email or password");
+      setError(getErrorMessage(err, "Invalid email or password"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-[#09090B] px-4 overflow-hidden">
+    <div className="relative h-full flex items-center justify-center bg-[#09090B] px-4 overflow-y-auto">
       {/* Background effects */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(37,99,235,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
-        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-primary/5 blur-[128px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,212,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
+        <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-brand/5 blur-[128px]" />
         <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-cyan-400/5 blur-[128px]" />
       </div>
 
@@ -52,13 +54,13 @@ export default function LoginPage() {
         {/* Brand */}
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-5">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary to-cyan-400 opacity-60 blur-lg" />
+            <div className="absolute inset-0 rounded-2xl gradient-brand opacity-60 blur-lg" />
             <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-[#09090B] border border-border/50 shadow-xl overflow-hidden">
-              <img src="/icon.ico" alt="AttackSec" className="h-11 w-11 object-contain" />
+              <img src="/icon.ico" alt="CAZO EASM" className="h-11 w-11 object-contain" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            AttackSec
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">
+            CAZO EASM
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             Sign in to your account
@@ -91,7 +93,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="email"
-                  className="h-11 pl-10 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-primary/20"
+                  className="h-11 pl-10 bg-muted/30 border-border/50 focus:border-brand/50 focus:ring-brand/20"
                 />
               </div>
             </div>
@@ -109,7 +111,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  className="h-11 pl-10 pr-10 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-primary/20"
+                  className="h-11 pl-10 pr-10 bg-muted/30 border-border/50 focus:border-brand/50 focus:ring-brand/20"
                 />
                 <button
                   type="button"
@@ -131,7 +133,7 @@ export default function LoginPage() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-border bg-muted/30 text-primary focus:ring-primary/30"
+                  className="h-4 w-4 rounded border-border bg-muted/30 text-brand focus:ring-brand/30"
                 />
                 <span className="text-sm text-muted-foreground">
                   Remember me
@@ -141,7 +143,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="w-full h-11 bg-gradient-to-r from-primary to-cyan-500 hover:from-primary/90 hover:to-cyan-500/90 text-primary-foreground font-medium shadow-lg shadow-primary/25 transition-all"
+              className="w-full h-11 gradient-brand hover:opacity-90 text-primary-foreground font-medium shadow-lg shadow-brand/25 transition-all"
               disabled={loading}
             >
               {loading ? (
@@ -151,13 +153,15 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          <GoogleButton />
         </div>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
           <Link
             href="/register"
-            className="font-medium text-primary hover:text-primary/80 transition-colors"
+            className="font-medium text-brand hover:text-brand/80 transition-colors"
           >
             Register
           </Link>

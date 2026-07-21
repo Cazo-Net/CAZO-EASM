@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean, Integer
+from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean, Integer, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -19,6 +19,7 @@ class SSLCertificate(Base):
     grade = Column(String(10))
     protocol = Column(String(50))
     cipher_suite = Column(String(255))
+    san = Column(JSON, default=list)
     status = Column(String(20), default="active")
     scanned_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -40,11 +40,11 @@ function relativeTime(value: string | null): string {
 function changeIcon(type: string) {
   switch (type) {
     case "added":
-      return <PlusCircle className="h-4 w-4 text-emerald-500" />;
+      return <PlusCircle className="h-4 w-4 text-success" />;
     case "removed":
       return <MinusCircle className="h-4 w-4 text-destructive" />;
     case "modified":
-      return <Pencil className="h-4 w-4 text-amber-500" />;
+      return <Pencil className="h-4 w-4 text-warning" />;
     default:
       return <Circle className="h-4 w-4 text-muted-foreground" />;
   }
@@ -197,7 +197,7 @@ export default function ChangeFeedPage() {
                     {item.entity_key}
                   </p>
                 </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
+                <span className="shrink-0 font-mono text-xs text-muted-foreground">
                   {relativeTime(item.detected_at)}
                 </span>
               </div>

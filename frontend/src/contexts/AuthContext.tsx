@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import api, { login as apiLogin, register as apiRegister, logout as apiLogout, getToken } from "@/lib/api";
+import api, { login as apiLogin, register as apiRegister, logout as apiLogout, getToken, loginWithGoogle as apiLoginWithGoogle } from "@/lib/api";
 import type { User } from "@/types";
 
 interface AuthContextType {
@@ -17,6 +17,7 @@ interface AuthContextType {
   token: string | null;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (email: string, password: string, fullName?: string) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
   loading: boolean;
@@ -107,6 +108,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await login(email, password);
   };
 
+  const loginWithGoogle = async (credential: string) => {
+    const data = await apiLoginWithGoogle(credential);
+    setToken(data.access_token);
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
+    await fetchUser();
+  };
+
   const logout = () => {
     apiLogout();
     setToken(null);
@@ -121,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         login,
         register,
+        loginWithGoogle,
         logout,
         isAuthenticated: !!user,
         loading,

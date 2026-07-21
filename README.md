@@ -1,9 +1,18 @@
-# EASM Platform
+# CAZO EASM
 
-External Attack Surface Management Platform for authorized security assessments.
+External Attack Surface Management (EASM) platform for authorized security
+assessments. Discovery is gated by an authorized-scope registry, built on a
+pluggable scanner architecture with a normalized asset inventory, scoring, and
+change tracking.
 
 ## Features
 
+- **Authorized-Scope Registry** - Register domains, wildcards, IPs, and CIDRs you are cleared to test; out-of-scope targets are blocked from discovery
+- **Pluggable Discovery** - Subdomain, DNS, WHOIS, SSL, port, technology, and Nuclei scanners registered via a discovery registry
+- **Asset Inventory** - Normalized assets and relationships (e.g. `subdomain_of`) derived from scans
+- **Health & Exposure Scoring** - Per-asset health and exposure scores
+- **Change Timeline** - Detects new/removed subdomains, ports, certificates, and technologies between scans
+- **Audit Logging** - Privileged actions are recorded for accountability
 - **Subdomain Discovery** - Using subfinder
 - **DNS Analysis** - Using dnspython
 - **SSL/TLS Analysis** - Certificate validation and grading
@@ -13,7 +22,7 @@ External Attack Surface Management Platform for authorized security assessments.
 - **Risk Scoring** - Automated risk assessment
 - **Multi-tenant** - Organization and workspace support
 - **REST API** - Full API access with authentication
-- **Web Dashboard** - Modern Next.js frontend
+- **Web Dashboard** - Modern Next.js frontend with command palette (`Cmd/Ctrl + K`)
 
 ## Tech Stack
 
@@ -113,6 +122,23 @@ npm run dev
 - `GET /api/v1/assets/ports` - List ports
 - `GET /api/v1/assets/ssl` - List SSL certificates
 - `GET /api/v1/assets/technologies` - List technologies
+- `GET /api/v1/assets/inventory` - Asset inventory + relationships
+- `GET /api/v1/assets/inventory/graph` - Asset graph
+- `GET /api/v1/assets/scores` - Asset health/exposure scores
+- `POST /api/v1/assets/scores/recompute` - Recompute scores
+- `GET /api/v1/assets/timeline` - Change timeline
+
+### Authorized Scopes
+- `GET /api/v1/scopes` - List authorized scopes
+- `POST /api/v1/scopes` - Add authorized scope
+- `DELETE /api/v1/scopes/{id}` - Remove authorized scope
+- `POST /api/v1/scopes/check` - Check if a target is authorized
+
+### Discovery
+- `GET /api/v1/scans/discovery/plugins` - List discovery plugins
+
+### Audit
+- `GET /api/v1/audit/events` - List audit events
 
 ### Reports
 - `POST /api/v1/reports/` - Generate report

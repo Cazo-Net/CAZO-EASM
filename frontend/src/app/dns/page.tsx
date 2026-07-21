@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { listDNSRecords } from "@/lib/api";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageHeader } from "@/components/common/PageHeader";
 import {
   Card,
   CardContent,
@@ -46,14 +47,14 @@ type DNSRecord = {
 type RecordTypeFilter = "all" | "A" | "AAAA" | "MX" | "NS" | "TXT" | "CNAME" | "SOA" | "SRV";
 
 const RECORD_TYPE_COLORS: Record<string, { badge: string; dot: string; bg: string }> = {
-  A:     { badge: "bg-blue-500/10 text-blue-400 border-blue-500/30",    dot: "bg-blue-400",    bg: "hover:border-blue-400/30 hover:shadow-blue-400/5" },
-  AAAA:  { badge: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",   dot: "bg-cyan-400",    bg: "hover:border-cyan-400/30 hover:shadow-cyan-400/5" },
-  MX:    { badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30", dot: "bg-emerald-400", bg: "hover:border-emerald-400/30 hover:shadow-emerald-400/5" },
-  NS:    { badge: "bg-amber-500/10 text-amber-400 border-amber-500/30", dot: "bg-amber-400",   bg: "hover:border-amber-400/30 hover:shadow-amber-400/5" },
-  TXT:   { badge: "bg-purple-500/10 text-purple-400 border-purple-500/30", dot: "bg-purple-400", bg: "hover:border-purple-400/30 hover:shadow-purple-400/5" },
-  CNAME: { badge: "bg-pink-500/10 text-pink-400 border-pink-500/30",   dot: "bg-pink-400",    bg: "hover:border-pink-400/30 hover:shadow-pink-400/5" },
-  SOA:   { badge: "bg-red-500/10 text-red-400 border-red-500/30",      dot: "bg-red-400",     bg: "hover:border-red-400/30 hover:shadow-red-400/5" },
-  SRV:   { badge: "bg-orange-500/10 text-orange-400 border-orange-500/30", dot: "bg-orange-400", bg: "hover:border-orange-400/30 hover:shadow-orange-400/5" },
+  A:     { badge: "bg-brand/10 text-brand border-brand/30",    dot: "bg-brand",    bg: "hover:border-brand/30 hover:shadow-brand/5" },
+  AAAA:  { badge: "bg-brand-2/10 text-brand-2 border-brand-2/30",   dot: "bg-brand-2",    bg: "hover:border-brand-2/30 hover:shadow-brand-2/5" },
+  MX:    { badge: "bg-success/10 text-success border-success/30", dot: "bg-success", bg: "hover:border-success/30 hover:shadow-success/5" },
+  NS:    { badge: "bg-warning/10 text-warning border-warning/30", dot: "bg-warning",   bg: "hover:border-warning/30 hover:shadow-warning/5" },
+  TXT:   { badge: "bg-accent-2/10 text-accent-2 border-accent-2/30", dot: "bg-accent-2", bg: "hover:border-accent-2/30 hover:shadow-accent-2/5" },
+  CNAME: { badge: "bg-info/10 text-info border-info/30",   dot: "bg-info",    bg: "hover:border-info/30 hover:shadow-info/5" },
+  SOA:   { badge: "bg-destructive/10 text-destructive border-destructive/30",      dot: "bg-destructive",     bg: "hover:border-destructive/30 hover:shadow-destructive/5" },
+  SRV:   { badge: "bg-severity-high/10 text-severity-high border-severity-high/30", dot: "bg-severity-high", bg: "hover:border-severity-high/30 hover:shadow-severity-high/5" },
 };
 
 const RECORD_TYPES: RecordTypeFilter[] = ["all", "A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA", "SRV"];
@@ -75,7 +76,7 @@ function CopyButton({ text }: { text: string }) {
       onClick={handleCopy}
     >
       {copied ? (
-        <Check className="h-3 w-3 text-emerald-400" />
+        <Check className="h-3 w-3 text-success" />
       ) : (
         <Copy className="h-3 w-3" />
       )}
@@ -144,30 +145,19 @@ function DNSContent() {
   );
 
   return (
-    <div className="min-h-screen">
-      <div className="border-b border-border/50 bg-card/30 backdrop-blur-xl sticky top-0 z-10">
-        <div className="mx-auto max-w-7xl px-6 py-5">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-xl bg-primary/20 blur-lg" />
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/10">
-                <Network className="h-5 w-5 text-primary" />
-              </div>
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">DNS Records</h1>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                All discovered DNS records across your attack surface.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="page-container-lg">
+      <div className="py-6">
+        <PageHeader
+          title="DNS Records"
+          description="All discovered DNS records across your attack surface."
+          icon={<Network className="h-5 w-5" />}
+          breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "DNS Records" }]}
+        />
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
+        <div className="mt-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+            <Loader2 className="h-8 w-8 animate-spin text-brand mb-4" />
             <p className="text-sm text-muted-foreground">
               Loading DNS records...
             </p>
@@ -175,7 +165,7 @@ function DNSContent() {
         ) : records.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="relative mb-6">
-              <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl" />
+              <div className="absolute inset-0 rounded-full bg-brand/20 blur-2xl" />
               <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-border/50 bg-card/80">
                 <Network className="h-10 w-10 text-muted-foreground" />
               </div>
@@ -189,7 +179,7 @@ function DNSContent() {
             </p>
             <a
               href="/scan/new"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 transition-all"
+              className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-void shadow-glow-sm hover:bg-primary/90 transition-all"
             >
               <Globe className="h-4 w-4" />
               Start a Scan
@@ -198,15 +188,15 @@ function DNSContent() {
         ) : (
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-              <Card className="border-border/50 bg-card/60 backdrop-blur">
+              <Card className="border-border/50 bg-card/60 backdrop-blur glass">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Total Records
                   </CardTitle>
-                  <Network className="h-4 w-4 text-primary" />
+                  <Network className="h-4 w-4 text-brand" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-2xl font-bold font-mono tabular-nums">
                     {records.length}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -223,7 +213,7 @@ function DNSContent() {
                 return (
                   <Card
                     key={type}
-                    className="border-border/50 bg-card/60 backdrop-blur"
+                    className="border-border/50 bg-card/60 backdrop-blur glass"
                   >
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -237,7 +227,7 @@ function DNSContent() {
                       />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{count}</div>
+                      <div className="text-2xl font-bold font-mono tabular-nums">{count}</div>
                       <p className="text-xs text-muted-foreground mt-1">
                         {records.length > 0
                           ? `${Math.round((count / records.length) * 100)}% of total`
@@ -256,7 +246,7 @@ function DNSContent() {
                     key={type}
                     value={type}
                     className={cn(
-                      "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                      "data-[state=active]:bg-primary data-[state=active]:text-brand-foreground px-3 py-1.5 text-xs font-medium rounded-md transition-all",
                       type !== "all" &&
                         RECORD_TYPE_COLORS[type] &&
                         `data-[state=active]:shadow-sm`
@@ -279,7 +269,7 @@ function DNSContent() {
                 placeholder="Search by hostname or value..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-11 pl-11 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-primary/20"
+                className="h-11 pl-11 bg-muted/30 border-border/50 focus:border-brand/50 focus:ring-brand/20"
               />
             </div>
 
@@ -315,11 +305,11 @@ function DNSContent() {
                   {groupedByHostname.map(([hostname, hostRecords]) => (
                     <div key={hostname} className="mb-6">
                       <div className="flex items-center gap-2 mb-3">
-                        <Globe className="h-4 w-4 text-primary" />
+                        <Globe className="h-4 w-4 text-brand" />
                         <h3 className="text-sm font-semibold font-mono text-foreground">
                           {hostname}
                         </h3>
-                        <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                        <span className="rounded-md bg-brand/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand">
                           {hostRecords.length}
                         </span>
                       </div>
@@ -393,6 +383,7 @@ function DNSContent() {
             </AnimatePresence>
           </>
         )}
+      </div>
       </div>
     </div>
   );

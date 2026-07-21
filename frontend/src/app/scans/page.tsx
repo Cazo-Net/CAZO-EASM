@@ -10,6 +10,7 @@ import {
   Table as TableIcon,
   Trash2,
   ArrowRight,
+  ScanSearch,
   Globe,
   Shield,
   Zap,
@@ -44,6 +45,9 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PageHeader } from "@/components/common/PageHeader";
+import { StatCard } from "@/components/common/StatCard";
+import { StatusDot } from "@/components/common/StatusDot";
 
 type ViewMode = "grid" | "table";
 type StatusFilter = "all" | "running" | "completed" | "failed" | "pending";
@@ -51,13 +55,13 @@ type StatusFilter = "all" | "running" | "completed" | "failed" | "pending";
 function getStatusConfig(status: Scan["status"]) {
   switch (status) {
     case "completed":
-      return { icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-500/10", badge: "success" as const };
+      return { icon: CheckCircle, color: "text-success", bg: "bg-success/10", badge: "success" as const, tone: "success" as const };
     case "running":
-      return { icon: Loader2, color: "text-blue-500", bg: "bg-blue-500/10", badge: "info" as const };
+      return { icon: Loader2, color: "text-brand", bg: "bg-brand/10", badge: "info" as const, tone: "active" as const };
     case "failed":
-      return { icon: XCircle, color: "text-red-500", bg: "bg-red-500/10", badge: "destructive" as const };
+      return { icon: XCircle, color: "text-destructive", bg: "bg-destructive/10", badge: "destructive" as const, tone: "danger" as const };
     default:
-      return { icon: Clock, color: "text-muted-foreground", bg: "bg-muted", badge: "secondary" as const };
+      return { icon: Clock, color: "text-muted-foreground", bg: "bg-muted", badge: "secondary" as const, tone: "muted" as const };
   }
 }
 
@@ -138,56 +142,30 @@ function ScansContent() {
   ];
 
   return (
-    <div className="min-h-screen">
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="mx-auto max-w-7xl px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Scans</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Manage your attack surface scans
-              </p>
-            </div>
+    <div className="page-container-lg">
+      <div className="py-6 space-y-6">
+        <PageHeader
+          title="Scans"
+          description="Manage your attack surface scans"
+          icon={<ScanSearch className="h-5 w-5" />}
+          breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Scans" }]}
+          actions={
             <Link href="/scan/new">
-              <Button className="gap-2 bg-gradient-to-r from-primary to-cyan-500 hover:from-primary/90 hover:to-cyan-500/90 text-white shadow-lg shadow-primary/25 px-5">
+              <Button className="gap-2 gradient-brand text-void shadow-elevation-2 px-5">
                 <Plus className="h-4 w-4" />
                 New Scan
               </Button>
             </Link>
-          </div>
-        </div>
-      </div>
+          }
+        />
 
-      <div className="mx-auto max-w-7xl px-6 py-8 space-y-6">
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4">
-          {[
-            { label: "Total Scans", value: stats.total, icon: Activity, color: "text-foreground" },
-            { label: "Running", value: stats.running, icon: Loader2, color: "text-blue-500", spin: true },
-            { label: "Completed", value: stats.completed, icon: CheckCircle, color: "text-emerald-500" },
-            { label: "Failed", value: stats.failed, icon: XCircle, color: "text-red-500" },
-          ].map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="glass rounded-xl p-4 hover-glow"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                  <p className={cn("text-2xl font-bold mt-0.5", stat.color)}>
-                    {stat.value}
-                  </p>
-                </div>
-                <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg bg-muted/50", stat.color)}>
-                  <stat.icon className={cn("h-5 w-5", stat.spin && "animate-spin")} />
-                </div>
-              </div>
-            </motion.div>
-          ))}
-          </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatCard label="Total Scans" value={stats.total} icon={<Activity className="h-5 w-5" />} accent="brand" />
+          <StatCard label="Running" value={stats.running} icon={<Loader2 className="h-5 w-5" />} accent="info" hint={stats.running > 0 ? "in progress" : "idle"} />
+          <StatCard label="Completed" value={stats.completed} icon={<CheckCircle className="h-5 w-5" />} accent="success" />
+          <StatCard label="Failed" value={stats.failed} icon={<XCircle className="h-5 w-5" />} accent="danger" hint={stats.failed > 0 ? "needs attention" : "all clear"} />
+        </div>
 
         {error && (
           <div className="text-sm text-destructive bg-destructive/10 rounded-lg px-4 py-2 text-center">
@@ -205,15 +183,15 @@ function ScansContent() {
                 className={cn(
                   "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
                   statusFilter === f.value
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    ? "bg-brand/10 text-brand"
+                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2/60"
                 )}
               >
                 {f.label}
                 {f.count > 0 && (
                   <span className={cn(
-                    "text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
-                    statusFilter === f.value ? "bg-primary/20" : "bg-muted"
+                    "text-[10px] px-1.5 py-0.5 rounded-full font-semibold font-mono tabular-nums",
+                    statusFilter === f.value ? "bg-brand/20" : "bg-muted"
                   )}>
                     {f.count}
                   </span>
@@ -229,7 +207,7 @@ function ScansContent() {
                 placeholder="Search scans..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 pl-9 pr-8 rounded-lg bg-muted/50 border border-border/30 text-sm focus:border-primary/30 focus:outline-none transition-colors w-56"
+                className="h-9 pl-9 pr-8 rounded-lg bg-surface-2/50 border border-border/60 text-sm focus:border-brand/40 focus:outline-none transition-colors w-56"
               />
               {searchQuery && (
                 <button
@@ -241,12 +219,12 @@ function ScansContent() {
               )}
             </div>
 
-            <div className="flex items-center rounded-lg border border-border/30 bg-muted/30 p-0.5">
+            <div className="flex items-center rounded-lg border border-border/60 bg-surface-2/50 p-0.5">
               <button
                 onClick={() => setViewMode("grid")}
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md transition-all",
-                  viewMode === "grid" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  viewMode === "grid" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <LayoutGrid className="h-4 w-4" />
@@ -255,7 +233,7 @@ function ScansContent() {
                 onClick={() => setViewMode("table")}
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md transition-all",
-                  viewMode === "table" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  viewMode === "table" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <TableIcon className="h-4 w-4" />
@@ -278,8 +256,8 @@ function ScansContent() {
             className="flex flex-col items-center justify-center py-20 text-center"
           >
             <div className="relative mb-6">
-              <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-muted/50 border border-border/30">
+              <div className="absolute inset-0 bg-brand/10 rounded-full blur-xl" />
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-surface-2/60 border border-border/30">
                 <Globe className="h-10 w-10 text-muted-foreground" />
               </div>
             </div>
@@ -293,7 +271,7 @@ function ScansContent() {
             </p>
             {!searchQuery && statusFilter === "all" && (
               <Link href="/scan/new">
-                <Button className="gap-2 bg-gradient-to-r from-primary to-cyan-500 text-white">
+                <Button className="gap-2 gradient-brand text-void">
                   <Plus className="h-4 w-4" />
                   Start First Scan
                 </Button>
@@ -323,7 +301,7 @@ function ScansContent() {
                               <Icon className={cn("h-5 w-5", config.color, scan.status === "running" && "animate-spin")} />
                             </div>
                             <div className="min-w-0">
-                              <p className="font-semibold truncate group-hover:text-primary transition-colors">
+                              <p className="font-semibold truncate group-hover:text-primary transition-colors font-mono">
                                 {scan.domain}
                               </p>
                               <p className="text-xs text-muted-foreground">
@@ -358,7 +336,7 @@ function ScansContent() {
                             <Progress
                               value={scan.progress}
                               className="h-1.5"
-                              indicatorClassName="bg-gradient-to-r from-primary to-cyan-400"
+                              indicatorClassName="bg-gradient-to-r from-brand to-[hsl(var(--brand-2))]"
                             />
                             <p className="text-[10px] text-muted-foreground text-right">
                               {scan.progress}%
@@ -403,11 +381,11 @@ function ScansContent() {
                         <TableCell>
                           <div className="flex items-center gap-2.5">
                             <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span className="font-medium">{scan.domain}</span>
+                            <span className="font-medium font-mono">{scan.domain}</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
                             <ScanTypeIcon className="h-3.5 w-3.5" />
                             {scan.scan_type}
                           </div>
@@ -427,7 +405,7 @@ function ScansContent() {
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="text-xs text-muted-foreground font-mono">
                           {formatDate(scan.created_at)}
                         </TableCell>
                       </Link>

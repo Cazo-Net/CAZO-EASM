@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { ClientLayout } from "@/components/ClientLayout";
@@ -9,55 +9,63 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-display",
+});
+
 export const metadata: Metadata = {
   title: {
-    default: "AttackSec - External Attack Surface Management Platform",
-    template: "%s | AttackSec",
+    default: "CAZO - External Attack Surface Management",
+    template: "%s | CAZO",
   },
   description:
-    "Discover every subdomain, open port, certificate, and vulnerability across your entire external perimeter. Automated reconnaissance in 60 seconds. Enterprise-grade EASM platform.",
+    "CAZO maps your external attack surface — subdomains, open ports, certificates, services and misconfigurations — with the evidence behind every finding, including the shadow assets you forgot you own.",
   keywords: [
     "attack surface management",
     "EASM",
     "external attack surface",
+    "shadow assets",
     "subdomain discovery",
-    "vulnerability scanning",
-    "security monitoring",
-    "penetration testing",
-    "reconnaissance",
-    "cybersecurity",
     "asset discovery",
     "port scanning",
-    "SSL monitoring",
+    "certificate monitoring",
+    "security monitoring",
+    "cybersecurity",
   ],
-  authors: [{ name: "AttackSec" }],
-  creator: "AttackSec",
-  publisher: "AttackSec",
-  metadataBase: new URL("https://attacksec.io"),
+  authors: [{ name: "CAZO" }],
+  creator: "CAZO",
+  publisher: "CAZO",
+  metadataBase: new URL("https://cazo.io"),
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://attacksec.io",
-    siteName: "AttackSec",
-    title: "AttackSec - External Attack Surface Management Platform",
+    url: "https://cazo.io",
+    siteName: "CAZO",
+    title: "CAZO - External Attack Surface Management",
     description:
-      "Know what's exposed before attackers do. Discover every subdomain, open port, certificate, and vulnerability across your entire external perimeter.",
+      "You can't defend what you forgot you own. CAZO maps your external attack surface with the evidence behind every finding.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "AttackSec - External Attack Surface Management",
+        alt: "CAZO - External Attack Surface Management",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "AttackSec - External Attack Surface Management Platform",
+    title: "CAZO - External Attack Surface Management",
     description:
-      "Know what's exposed before attackers do. Automated reconnaissance in 60 seconds.",
+      "You can't defend what you forgot you own. Map your external attack surface with evidence behind every finding.",
     images: ["/og-image.png"],
-    creator: "@attacksec",
+    creator: "@cazo",
   },
   robots: {
     index: true,
@@ -88,33 +96,28 @@ export default function RootLayout({
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "AttackSec",
+    name: "CAZO",
     applicationCategory: "SecurityApplication",
     operatingSystem: "Web",
     description:
-      "External Attack Surface Management Platform. Discover every subdomain, open port, certificate, and vulnerability across your entire external perimeter.",
-    url: "https://attacksec.io",
+      "External Attack Surface Management. CAZO maps subdomains, open ports, certificates, services and misconfigurations across your external perimeter, with the evidence behind every finding.",
+    url: "https://cazo.io",
     offers: {
       "@type": "Offer",
       price: "0",
       priceCurrency: "USD",
     },
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "4.8",
-      ratingCount: "500",
-    },
   };
 
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable}`} style={{ height: "100%" }}>
       <head>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>
-      <body className="antialiased">
+      <body className="antialiased font-sans" style={{ height: "100%", overflow: "hidden" }}>
         <Providers>
           <ClientLayout>{children}</ClientLayout>
         </Providers>

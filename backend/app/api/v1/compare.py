@@ -22,13 +22,22 @@ async def compare_scans(
     current_user: User = Depends(get_current_user)
 ):
     """Compare two scans and show differences."""
-    # Validate both scans exist
+    # Validate both scans exist and are visible to the caller (org or creator).
     scan1 = db.query(Scan).filter(Scan.id == scan_a).first()
     scan2 = db.query(Scan).filter(Scan.id == scan_b).first()
 
-    if not scan1:
+    org_id = current_user.organization_id
+
+    def _visible(scan):
+        if not scan:
+            return False
+        if org_id:
+            return scan.organization_id == org_id
+        return scan.created_by == current_user.id
+
+    if not _visible(scan1):
         raise HTTPException(status_code=404, detail=f"Scan A not found: {scan_a}")
-    if not scan2:
+    if not _visible(scan2):
         raise HTTPException(status_code=404, detail=f"Scan B not found: {scan_b}")
 
     # Gather data for both scans

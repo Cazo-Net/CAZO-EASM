@@ -9,6 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/api";
+import { GoogleButton } from "@/components/auth/GoogleButton";
 
 function getPasswordStrength(password: string): {
   score: number;
@@ -22,10 +24,10 @@ function getPasswordStrength(password: string): {
   if (/[0-9]/.test(password)) score++;
   if (/[^A-Za-z0-9]/.test(password)) score++;
 
-  if (score <= 1) return { score, label: "Weak", color: "bg-red-500" };
-  if (score <= 2) return { score, label: "Fair", color: "bg-amber-500" };
-  if (score <= 3) return { score, label: "Good", color: "bg-blue-500" };
-  return { score, label: "Strong", color: "bg-emerald-500" };
+  if (score <= 1) return { score, label: "Weak", color: "bg-destructive" };
+  if (score <= 2) return { score, label: "Fair", color: "bg-warning" };
+  if (score <= 3) return { score, label: "Good", color: "bg-info" };
+  return { score, label: "Strong", color: "bg-success" };
 }
 
 export default function RegisterPage() {
@@ -61,20 +63,18 @@ export default function RegisterPage() {
       await register(email, password, fullName || undefined);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail || "Registration failed. Please try again."
-      );
+      setError(getErrorMessage(err, "Registration failed. Please try again."));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-[#09090B] px-4 overflow-hidden">
+    <div className="relative h-full flex items-center justify-center bg-[#09090B] px-4 overflow-y-auto">
       {/* Background effects */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(37,99,235,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(37,99,235,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
-        <div className="absolute top-1/3 right-1/4 h-96 w-96 rounded-full bg-primary/5 blur-[128px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,212,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
+        <div className="absolute top-1/3 right-1/4 h-96 w-96 rounded-full bg-brand/5 blur-[128px]" />
         <div className="absolute bottom-1/3 left-1/4 h-96 w-96 rounded-full bg-cyan-400/5 blur-[128px]" />
       </div>
 
@@ -87,13 +87,13 @@ export default function RegisterPage() {
         {/* Brand */}
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-5">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary to-cyan-400 opacity-60 blur-lg" />
+            <div className="absolute inset-0 rounded-2xl gradient-brand opacity-60 blur-lg" />
             <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-[#09090B] border border-border/50 shadow-xl overflow-hidden">
-              <img src="/icon.ico" alt="AttackSec" className="h-11 w-11 object-contain" />
+              <img src="/icon.ico" alt="CAZO EASM" className="h-11 w-11 object-contain" />
             </div>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            AttackSec
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">
+            CAZO EASM
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             Create your account
@@ -125,7 +125,7 @@ export default function RegisterPage() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   autoComplete="name"
-                  className="h-11 pl-10 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-primary/20"
+                  className="h-11 pl-10 bg-muted/30 border-border/50 focus:border-brand/50 focus:ring-brand/20"
                 />
               </div>
             </div>
@@ -143,7 +143,7 @@ export default function RegisterPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="email"
-                  className="h-11 pl-10 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-primary/20"
+                  className="h-11 pl-10 bg-muted/30 border-border/50 focus:border-brand/50 focus:ring-brand/20"
                 />
               </div>
             </div>
@@ -161,7 +161,7 @@ export default function RegisterPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="new-password"
-                  className="h-11 pl-10 pr-10 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-primary/20"
+                  className="h-11 pl-10 pr-10 bg-muted/30 border-border/50 focus:border-brand/50 focus:ring-brand/20"
                 />
                 <button
                   type="button"
@@ -185,12 +185,12 @@ export default function RegisterPage() {
                       className={cn(
                         "text-xs font-medium",
                         strength.score <= 1
-                          ? "text-red-400"
+                          ? "text-destructive"
                           : strength.score <= 2
-                            ? "text-amber-400"
+                            ? "text-warning"
                             : strength.score <= 3
-                              ? "text-blue-400"
-                              : "text-emerald-400"
+                              ? "text-info"
+                              : "text-success"
                       )}
                     >
                       {strength.label}
@@ -224,7 +224,7 @@ export default function RegisterPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   autoComplete="new-password"
-                  className="h-11 pl-10 pr-10 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-primary/20"
+                  className="h-11 pl-10 pr-10 bg-muted/30 border-border/50 focus:border-brand/50 focus:ring-brand/20"
                 />
                 <button
                   type="button"
@@ -256,7 +256,7 @@ export default function RegisterPage() {
 
             <Button
               type="submit"
-              className="w-full h-11 bg-gradient-to-r from-primary to-cyan-500 hover:from-primary/90 hover:to-cyan-500/90 text-primary-foreground font-medium shadow-lg shadow-primary/25 transition-all"
+              className="w-full h-11 gradient-brand hover:opacity-90 text-primary-foreground font-medium shadow-lg shadow-brand/25 transition-all"
               disabled={loading}
             >
               {loading ? (
@@ -266,13 +266,15 @@ export default function RegisterPage() {
               )}
             </Button>
           </form>
+
+          <GoogleButton mode="register" />
         </div>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link
             href="/login"
-            className="font-medium text-primary hover:text-primary/80 transition-colors"
+            className="font-medium text-brand hover:text-brand/80 transition-colors"
           >
             Sign in
           </Link>

@@ -1,0 +1,62 @@
+# Dockerfile.scan — Scan Engine Service
+# Includes all CLI binaries (subfinder, amass, nuclei, nmap) that the
+# main Vercel deployment cannot run.
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# System deps + nmap
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc libffi-dev nmap curl unzip ca-certificates libpq5 git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install subfinder and nuclei (ProjectDiscovery) from prebuilt release binaries
+ARG SUBFINDER_VERSION=2.6.6
+ARG NUCLEI_VERSION=3.3.7
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) pd_arch="amd64" ;; \
+      arm64) pd_arch="arm64" ;; \
+      *) pd_arch="amd64" ;; \
+    esac; \
+    curl -sSL -o /tmp/subfinder.zip "https://github.com/projectdiscovery/subfinder/releases/download/v${SUBFINDER_VERSION}/subfinder_${SUBFINDER_VERSION}_linux_${pd_arch}.zip"; \
+    unzip -o /tmp/subfinder.zip -d /usr/local/bin subfinder; \
+    curl -sSL -o /tmp/nuclei.zip "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI_VERSION}/nuclei_${NUCLEI_VERSION}_linux_${pd_arch}.zip"; \
+    unzip -o /tmp/nuclei.zip -d /usr/local/bin nuclei; \
+    chmod +x /usr/local/bin/subfinder /usr/local/bin/nuclei; \
+    rm -f /tmp/subfinder.zip /tmp/nuclei.zip
+
+# Install amass (OWASP) from prebuilt binary
+ARG AMASS_VERSION=3.23.3
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) amass_arch="amd64" ;; \
+      arm64) amass_arch="arm64" ;; \
+      *) amass_arch="amd64" ;; \
+    esac; \
+    curl -sSL -o /tmp/amass.zip "https://github.com/owasp-amass/amass/releases/download/v${AMASS_VERSION}/amass_linux_${amass_arch}.zip"; \
+    unzip -o /tmp/amass.zip -d /tmp/amass; \
+    find /tmp/amass -name "amass" -type f -exec cp {} /usr/local/bin/amass \; ; \
+    chmod +x /usr/local/bin/amass; \
+    rm -rf /tmp/amass /tmp/amass.zip
+
+# Copy backend code (scanners, models, services, config)
+COPY backend/requirements.txt /app/backend-requirements.txt
+RUN pip install --no-cache-dir -r /app/backend-requirements.txt
+
+COPY backend/ /app/backend/
+
+# Copy scan engine service code
+COPY scan-engine/ /app/scan-engine/
+
+# The scan engine imports from backend (scanners, models, services)
+ENV PYTHONPATH="/app/backend:/app/scan-engine"
+ENV BACKEND_DIR="/app/backend"
+
+EXPOSE 8000
+
+# Start the scan engine service
+CMD ["python", "-m", "uvicorn", "scan_engine.main:app", "--host", "0.0.0.0", "--port", "8000"]

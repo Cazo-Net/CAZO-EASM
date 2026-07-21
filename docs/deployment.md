@@ -107,8 +107,9 @@ docker-compose up -d
 # Run migrations
 docker-compose exec backend alembic upgrade head
 
-# Create admin user
-docker-compose exec backend python -m app.utils.create_admin
+# Create admin user (idempotent; prompts if flags/env not set)
+docker-compose exec backend python -m app.utils.create_admin \
+    --email admin@your-domain.com --password 'change-this-strong-password'
 ```
 
 ## Environment Variables

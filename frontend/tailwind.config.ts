@@ -50,19 +50,83 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        cyber: {
-          blue: "#2563EB",
-          cyan: "#00E5FF",
-          dark: "#09090B",
-          card: "#111827",
-          border: "#27272A",
+        brand: {
+          DEFAULT: "hsl(var(--brand))",
+          2: "hsl(var(--brand-2))",
         },
+        "accent-2": {
+          DEFAULT: "hsl(var(--accent-2))",
+          foreground: "hsl(var(--accent-2-foreground))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        surface: {
+          1: "hsl(var(--surface-1))",
+          2: "hsl(var(--surface-2))",
+          3: "hsl(var(--surface-3))",
+        },
+        severity: {
+          critical: "hsl(var(--sev-critical))",
+          high: "hsl(var(--sev-high))",
+          medium: "hsl(var(--sev-medium))",
+          low: "hsl(var(--sev-low))",
+          info: "hsl(var(--sev-info))",
+        },
+        chart: {
+          1: "hsl(var(--chart-1))",
+          2: "hsl(var(--chart-2))",
+          3: "hsl(var(--chart-3))",
+          4: "hsl(var(--chart-4))",
+          5: "hsl(var(--chart-5))",
+          6: "hsl(var(--chart-6))",
+          7: "hsl(var(--chart-7))",
+        },
+        /* Named hex colors for direct use */
+        void: "#0A0B0F",
+        obsidian: "#12131A",
+        graphite: "#1C1D2A",
+        slate: "#282A3A",
+        phosphor: "#00FF88",
+        "cyan-signal": "#00D4FF",
+        "neon-violet": "#8B5CF6",
+        "signal-red": "#FF3366",
+        amber: "#FFAA00",
+      },
+      fontFamily: {
+        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["var(--font-display)", "var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+      },
+      boxShadow: {
+        "elevation-1": "0 1px 2px 0 hsl(240 12% 3% / 0.3)",
+        "elevation-2": "0 4px 16px -4px hsl(240 12% 3% / 0.4)",
+        "elevation-3": "0 12px 40px -8px hsl(240 12% 3% / 0.55)",
+        /* Phosphor glow shadows */
+        "glow-sm": "0 0 12px -4px hsl(152 100% 50% / 0.15)",
+        "glow-md": "0 0 20px -6px hsl(152 100% 50% / 0.2)",
+        "glow-lg": "0 0 32px -8px hsl(152 100% 50% / 0.25)",
+        "glow-cyan-sm": "0 0 12px -4px hsl(190 100% 50% / 0.15)",
+        "glow-cyan-md": "0 0 20px -6px hsl(190 100% 50% / 0.2)",
+        "glow-danger-sm": "0 0 12px -4px hsl(345 80% 60% / 0.15)",
+        "glow-danger-md": "0 0 20px -6px hsl(345 80% 60% / 0.2)",
+        "glow-amber-sm": "0 0 12px -4px hsl(40 100% 50% / 0.15)",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
         xl: "18px",
+        "2xl": "22px",
       },
       keyframes: {
         "accordion-down": {
@@ -90,12 +154,40 @@ const config: Config = {
           "100%": { backgroundPosition: "200% 0" },
         },
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 0 0 rgba(37, 99, 235, 0)" },
-          "50%": { boxShadow: "0 0 20px 4px rgba(37, 99, 235, 0.3)" },
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(0, 255, 136, 0)" },
+          "50%": { boxShadow: "0 0 20px 4px rgba(0, 255, 136, 0.15)" },
         },
         "spin-slow": {
           from: { transform: "rotate(0deg)" },
           to: { transform: "rotate(360deg)" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { opacity: "0.5" },
+          "50%": { opacity: "1" },
+        },
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-50%)" },
+        },
+        "border-flow": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
+        "radar-sweep": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
+        },
+        "radar-ping": {
+          "0%": { transform: "scale(0.5)", opacity: "0.7" },
+          "100%": { transform: "scale(2.5)", opacity: "0" },
+        },
+        "count-reveal": {
+          from: { opacity: "0", transform: "translateY(6px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "ping-slow": {
+          "0%": { transform: "scale(1)", opacity: "0.7" },
+          "70%, 100%": { transform: "scale(1.8)", opacity: "0" },
         },
       },
       animation: {
@@ -107,6 +199,13 @@ const config: Config = {
         shimmer: "shimmer 2s linear infinite",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "spin-slow": "spin-slow 3s linear infinite",
+        "glow-pulse": "glow-pulse 2.4s ease-in-out infinite",
+        marquee: "marquee 30s linear infinite",
+        "border-flow": "border-flow 4s ease infinite",
+        "radar-sweep": "radar-sweep 2s linear infinite",
+        "radar-ping": "radar-ping 1.5s ease-out infinite",
+        "count-reveal": "count-reveal 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "ping-slow": "ping-slow 2.4s cubic-bezier(0, 0, 0.2, 1) infinite",
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",

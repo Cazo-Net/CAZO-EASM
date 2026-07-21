@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app.database import get_db
 from app.models.scan import Scan
 from app.models.report import Report
 from app.models.user import User
 from app.api.deps import get_current_user
+from app.core.permissions import require_permission, Permission
 from app.services.report_service import ReportService
 from datetime import datetime
 import os
@@ -14,18 +15,42 @@ import os
 router = APIRouter()
 
 
+def _assert_scan_belongs_to_org(db: Session, scan_id: str, current_user: User) -> None:
+    scan = db.query(Scan).filter(Scan.id == scan_id).first()
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    org_id = current_user.organization_id
+    if org_id:
+        if scan.organization_id != org_id:
+            raise HTTPException(status_code=404, detail="Scan not found")
+    elif scan.created_by != current_user.id:
+        raise HTTPException(status_code=404, detail="Scan not found")
+
+
+def _assert_report_access(db: Session, report: Optional[Report], current_user: User) -> None:
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    scan = db.query(Scan).filter(Scan.id == report.scan_id).first()
+    if not scan:
+        raise HTTPException(status_code=404, detail="Report not found")
+    org_id = current_user.organization_id
+    if org_id:
+        if scan.organization_id != org_id:
+            raise HTTPException(status_code=404, detail="Report not found")
+    elif scan.created_by != current_user.id:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+
 @router.post("")
 async def generate_report(
     scan_id: str,
     format: str = "json",
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_permission(Permission.GENERATE_REPORT))
 ):
     """Generate a report for a scan."""
+    _assert_scan_belongs_to_org(db, scan_id, current_user)
     scan = db.query(Scan).filter(Scan.id == scan_id).first()
-
-    if not scan:
-        raise HTTPException(status_code=404, detail="Scan not found")
 
     try:
         service = ReportService(db)
@@ -60,8 +85,18 @@ async def list_reports(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """List all reports."""
-    reports = db.query(Report).order_by(Report.generated_at.desc()).all()
+    """List reports for the caller's organization (or own scans when org-less)."""
+    if current_user.organization_id:
+        scope = Scan.organization_id == current_user.organization_id
+    else:
+        scope = Scan.created_by == current_user.id
+    reports = (
+        db.query(Report)
+        .join(Scan, Report.scan_id == Scan.id)
+        .filter(scope)
+        .order_by(Report.generated_at.desc())
+        .all()
+    )
 
     return [
         {
@@ -83,9 +118,7 @@ async def get_report(
 ):
     """Get report details."""
     report = db.query(Report).filter(Report.id == report_id).first()
-
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+    _assert_report_access(db, report, current_user)
 
     return {
         "id": report.id,
@@ -105,9 +138,7 @@ async def download_report(
 ):
     """Download a report file."""
     report = db.query(Report).filter(Report.id == report_id).first()
-
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+    _assert_report_access(db, report, current_user)
 
     if report.file_path and os.path.exists(report.file_path):
         media_types = {
@@ -117,7 +148,7 @@ async def download_report(
         }
         return FileResponse(
             path=report.file_path,
-            filename=f"attacksec-report.{report.format}",
+            filename=f"cazo-report.{report.format}",
             media_type=media_types.get(report.format, "application/octet-stream")
         )
 
@@ -128,13 +159,11 @@ async def download_report(
 async def delete_report(
     report_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_permission(Permission.EXPORT_REPORTS))
 ):
     """Delete a report."""
     report = db.query(Report).filter(Report.id == report_id).first()
-
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
+    _assert_report_access(db, report, current_user)
 
     if report.file_path and os.path.exists(report.file_path):
         try:

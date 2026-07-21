@@ -1,12 +1,18 @@
 import whois
 from typing import Any, Dict
 from app.scanners.base import BaseScanner
+from app.scanners.registry import register_scanner, ScannerCategory
 from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
 
 
+@register_scanner(
+    name="whois",
+    category=ScannerCategory.WHOIS,
+    description="WHOIS registration lookups via python-whois.",
+)
 class WhoisScanner(BaseScanner):
     """Scanner for WHOIS lookups using python-whois."""
     

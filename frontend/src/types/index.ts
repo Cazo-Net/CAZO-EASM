@@ -20,6 +20,7 @@ export interface Scan {
 
 export interface ScanDetail extends Scan {
   subdomains_count: number;
+  ports_count: number;
   vulnerabilities_count: number;
   critical_count: number;
   high_count: number;
@@ -27,6 +28,7 @@ export interface ScanDetail extends Scan {
   low_count: number;
   risk_score: number | null;
   error_message: string | null;
+  scanner_status: Record<string, string> | null;
 }
 
 export interface Subdomain {
@@ -36,6 +38,7 @@ export interface Subdomain {
   is_alive: boolean;
   scan_id: string;
   discovered_at: string;
+  first_seen: string | null;
 }
 
 export interface Port {
@@ -579,6 +582,5 @@ export interface Invitation {
 export * from "./asset360";
 export * from "./changefeed";
 export * from "./replay2";
-export * from "./ai2";
 export * from "./collab";
 export * from "./report";
