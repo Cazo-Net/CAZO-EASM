@@ -348,7 +348,7 @@ export interface NotificationPreferenceItem {
 
 export async function getNotificationPreferences(): Promise<NotificationPreferenceItem[]> {
   const { data } = await api.get("/notification-preferences");
-  return data;
+  return data?.preferences ?? data ?? [];
 }
 
 export async function updateNotificationPreference(
