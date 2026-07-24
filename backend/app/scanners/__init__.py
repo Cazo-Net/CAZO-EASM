@@ -26,6 +26,12 @@ from app.scanners.v2.monitoring import ContinuousMonitor
 from app.scanners.v2.ai_analyst import SecurityAnalyst
 from app.scanners.v2.runner import EnhancedScanRunner, enhanced_runner
 from app.scanners.v2_runner import V2ScanRunner
+from app.scanners.v2.dns_intel import DNSIntelligenceScanner
+from app.scanners.v2.nmap_intel import NmapIntelligenceScanner
+from app.scanners.v2.zone_transfer import ZoneTransferScanner
+from app.scanners.v2.whois_intel import WhoisIntelligenceScanner
+from app.scanners.v2.cve_intel import CVECorrelationScanner
+from app.scanners.v2.security_intel import SecurityFindingsScanner as SecurityFindingsV2
 
 
 def load_plugins() -> None:
@@ -75,4 +81,10 @@ __all__ = [
     "EnhancedScanRunner",
     "enhanced_runner",
     "V2ScanRunner",
+    "DNSIntelligenceScanner",
+    "NmapIntelligenceScanner",
+    "ZoneTransferScanner",
+    "WhoisIntelligenceScanner",
+    "CVECorrelationScanner",
+    "SecurityFindingsV2",
 ]

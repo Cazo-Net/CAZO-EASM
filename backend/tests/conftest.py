@@ -16,7 +16,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base, get_db
-from app.main import app
+from app.main import app  # noqa: F401 — FastAPI application instance
+
+# Ensure v2 scanner ORM models are registered with Base.metadata before create_all
+from app.models.v2_scanner import MonitorSchedule, ScanHistory, AssetLifecycle, NotificationTrigger  # noqa: F401
 
 # One dedicated on-disk SQLite database, opened without StaticPool so that the
 # app's per-request sessions and the test's db_session get their own connections

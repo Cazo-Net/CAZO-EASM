@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Dict, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class ScheduleConfig:
     created_by: int
     organization_id: Optional[int] = None
     project_id: Optional[int] = None
+    last_run: Optional[float] = field(default=None, repr=False)
 
 
 class ScanScheduler:
@@ -48,12 +50,18 @@ class ScanScheduler:
             logger.info("Removed schedule %s", schedule_id)
 
     def get_due_scans(self) -> List[ScheduleConfig]:
-        """Return schedules that are due for execution."""
+        """Return schedules that are due for execution based on interval_hours."""
+        now = time.time()
         due = []
         for config in self._schedules.values():
             if not config.enabled:
                 continue
-            due.append(config)
+            if config.last_run is None:
+                due.append(config)
+                continue
+            elapsed_hours = (now - config.last_run) / 3600
+            if elapsed_hours >= config.interval_hours:
+                due.append(config)
         return due
 
     async def start(self) -> None:
@@ -97,6 +105,7 @@ class ScanScheduler:
         from app.scanners.v2.runner import EnhancedScanRunner
 
         logger.info("Executing scheduled scan %s for %s", config.id, config.domain)
+        config.last_run = time.time()
 
         runner = EnhancedScanRunner()
         scan_config = {

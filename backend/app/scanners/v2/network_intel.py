@@ -77,7 +77,7 @@ class NetworkIntelligenceScanner(EnhancedBaseScanner):
         for host in hosts[:50]:
             try:
                 import dns.resolver
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 answers = await loop.run_in_executor(None, lambda h=host: dns.resolver.resolve(h, "A"))
                 for rdata in answers:
                     resolved_hosts.append((host, str(rdata)))

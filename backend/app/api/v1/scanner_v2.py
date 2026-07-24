@@ -209,7 +209,10 @@ async def run_scan_v2(
 async def scan_stream_v2(websocket: WebSocket):
     """Real-time v2 scan progress via WebSocket.
 
-    Connect with a JSON message containing the scan config:
+    Connect with a token query parameter for authentication:
+    ws://host/ws/scan/stream?token=<jwt>
+
+    Then send a JSON message containing the scan config:
     {"domain": "example.com", "scan_type": "full"}
 
     Receive progress messages:
@@ -218,6 +221,22 @@ async def scan_stream_v2(websocket: WebSocket):
     {"type": "complete", "result": {...}}
     {"type": "error", "message": "..."}
     """
+    # Authenticate via query parameter token
+    token = websocket.query_params.get("token", "")
+    if not token:
+        await websocket.accept()
+        await websocket.send_json({"type": "error", "message": "Authentication required: provide ?token=<jwt>"})
+        await websocket.close()
+        return
+
+    from app.core.security import decode_token
+    payload = decode_token(token)
+    if not payload:
+        await websocket.accept()
+        await websocket.send_json({"type": "error", "message": "Invalid or expired token"})
+        await websocket.close()
+        return
+
     await websocket.accept()
 
     try:
@@ -315,61 +334,77 @@ async def scan_stream_v2(websocket: WebSocket):
 
 # ── Monitoring endpoints ──
 
-_monitor_store: Dict[str, Dict[str, Any]] = {}
-
 
 @router.post("/monitor", response_model=MonitorResponse)
 async def create_monitor(
     request: MonitorCreateRequest,
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),
+    db: Session = Depends(get_db),
 ):
     """Create a continuous monitoring schedule for a domain."""
-    import uuid
+    from app.scanners.v2.monitoring import monitor as v2_monitor, MonitorScheduleData
 
-    monitor_id = str(uuid.uuid4())[:12]
-    now = datetime.now(timezone.utc)
-
-    schedule = {
-        "id": monitor_id,
-        "domain": request.domain,
-        "interval_hours": request.interval_hours,
-        "scan_type": request.scan_type,
-        "enabled": request.enabled,
-        "created_at": now.isoformat(),
-        "last_run": None,
-        "next_run": now.isoformat(),
-        "created_by": current_user.id,
-    }
-
-    _monitor_store[monitor_id] = schedule
-
-    return MonitorResponse(**{k: v for k, v in schedule.items() if k != "created_by"})
+    schedule_data = MonitorScheduleData(
+        interval_hours=request.interval_hours,
+        enabled=request.enabled,
+    )
+    result = v2_monitor.add_target(
+        db,
+        domain=request.domain,
+        user_id=current_user.id,
+        organization_id=getattr(current_user, "organization_id", None),
+        schedule=schedule_data,
+    )
+    db.commit()
+    return MonitorResponse(
+        id=result["id"],
+        domain=result["domain"],
+        interval_hours=result["interval_hours"],
+        scan_type=request.scan_type,
+        enabled=request.enabled,
+        created_at=datetime.now(timezone.utc).isoformat(),
+        last_run=None,
+        next_run=None,
+    )
 
 
 @router.get("/monitor", response_model=List[MonitorResponse])
 async def list_monitors(
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),
+    db: Session = Depends(get_db),
 ):
-    """List all monitoring schedules."""
-    user_schedules = [
-        s for s in _monitor_store.values()
-        if s.get("created_by") == current_user.id
+    """List all monitoring schedules for the current user's org."""
+    from app.scanners.v2.monitoring import monitor as v2_monitor
+
+    rows = v2_monitor.list_targets(db, organization_id=getattr(current_user, "organization_id", None))
+    return [
+        MonitorResponse(
+            id=r["id"],
+            domain=r["domain"],
+            interval_hours=r["interval_hours"],
+            scan_type=r["scan_type"],
+            enabled=r["enabled"],
+            created_at=r["created_at"] or datetime.now(timezone.utc).isoformat(),
+            last_run=r["last_run_at"],
+            next_run=r["next_run_at"],
+        )
+        for r in rows
     ]
-    return [MonitorResponse(**{k: v for k, v in s.items() if k != "created_by"}) for s in user_schedules]
 
 
 @router.delete("/monitor/{monitor_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_monitor(
     monitor_id: str,
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),
+    db: Session = Depends(get_db),
 ):
     """Delete a monitoring schedule."""
-    schedule = _monitor_store.get(monitor_id)
-    if not schedule:
+    from app.scanners.v2.monitoring import monitor as v2_monitor
+
+    removed = v2_monitor.remove_target(db, monitor_id)
+    if not removed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Monitor not found")
-    if schedule.get("created_by") != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    del _monitor_store[monitor_id]
+    db.commit()
 
 
 # ── AI Analyst endpoint ──
@@ -385,12 +420,18 @@ async def ai_analyze(
     analyst = SecurityAnalyst()
 
     scan_data = request.scan_data or {}
-    answer = await analyst.analyze(request.question, scan_data)
+    raw_answer = analyst.answer_question(request.question, scan_data)
+
+    # answer_question() may return a dict with "answer" key or a plain string
+    if isinstance(raw_answer, dict):
+        answer_text = raw_answer.get("answer", str(raw_answer))
+    else:
+        answer_text = str(raw_answer)
 
     return AIAnalystResponse(
         domain=request.domain,
         question=request.question,
-        answer=answer,
+        answer=answer_text,
         generated_at=datetime.now(timezone.utc).isoformat(),
     )
 

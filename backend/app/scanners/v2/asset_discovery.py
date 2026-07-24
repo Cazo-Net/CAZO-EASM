@@ -56,29 +56,28 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
         source_counts: Dict[str, int] = {}
         errors: List[str] = []
 
-        # Run DNS brute-force + one external source concurrently
-        bruteforce_task = self._dns_bruteforce(target)
-        external_task = self._crtsh(target)
+        # Run DNS brute-force + all external sources concurrently
+        tasks = {
+            "dns_bruteforce": self._dns_bruteforce(target),
+            "crtsh": asyncio.wait_for(self._crtsh(target), timeout=10),
+            "rapiddns": asyncio.wait_for(self._rapiddns(target), timeout=10),
+            "urlscan": asyncio.wait_for(self._urlscan(target), timeout=12),
+            "hackertarget": asyncio.wait_for(self._hackertarget(target), timeout=10),
+        }
 
-        bruteforce_result, external_result = await asyncio.gather(
-            bruteforce_task,
-            asyncio.wait_for(external_task, timeout=8),
-            return_exceptions=True,
+        results = await asyncio.gather(
+            *tasks.values(), return_exceptions=True
         )
 
-        if isinstance(bruteforce_result, set):
-            new_count = len(bruteforce_result - all_subdomains)
-            all_subdomains.update(bruteforce_result)
-            source_counts["dns_bruteforce"] = new_count
-        elif isinstance(bruteforce_result, Exception):
-            errors.append(f"dns_bruteforce: {bruteforce_result}")
-
-        if isinstance(external_result, list):
-            new_count = len(set(external_result) - all_subdomains)
-            all_subdomains.update(external_result)
-            source_counts["crtsh"] = new_count
-        elif isinstance(external_result, Exception):
-            errors.append(f"crtsh: {external_result}")
+        for source_name, result in zip(tasks.keys(), results):
+            if isinstance(result, (set, list)):
+                items = set(result) if isinstance(result, set) else set(result)
+                new_count = len(items - all_subdomains)
+                all_subdomains.update(items)
+                source_counts[source_name] = new_count
+            elif isinstance(result, Exception):
+                errors.append(f"{source_name}: {result}")
+                logger.warning("Source %s failed for %s: %s", source_name, target, result)
 
         # DNS validation of discovered subdomains
         validated = await self._validate_subdomains(list(all_subdomains))
@@ -95,7 +94,7 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
                 "sources_used": list(source_counts.keys()),
             },
             errors=errors,
-            metadata={"sources_attempted": 4},
+            metadata={"sources_attempted": 5},
         )
 
     def validate_target(self, target: str) -> bool:
@@ -203,7 +202,7 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
                 hostname = f"{prefix}.{domain}"
                 try:
                     import dns.resolver
-                    loop = asyncio.get_event_loop()
+                    loop = asyncio.get_running_loop()
                     await loop.run_in_executor(
                         None, lambda: dns.resolver.resolve(hostname, "A")
                     )
@@ -230,7 +229,7 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
         async def _check(sub: str) -> Optional[str]:
             async with semaphore:
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = asyncio.get_running_loop()
                     await loop.run_in_executor(None, lambda: dns.resolver.resolve(sub, "A"))
                     return sub
                 except Exception:

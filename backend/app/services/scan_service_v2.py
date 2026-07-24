@@ -83,6 +83,39 @@ class ScanServiceV2:
 
             await self._store_results(db, scan, results)
 
+            # Record in scan_history
+            try:
+                from app.scanners.v2.monitoring import monitor as v2_monitor
+                scan_history_id = v2_monitor.record_scan_history(
+                    db,
+                    domain=scan.domain,
+                    scan_type=scan.scan_type or "full",
+                    status="completed",
+                    user_id=scan.created_by,
+                    organization_id=getattr(scan, "organization_id", None),
+                    results=results,
+                    duration_ms=(scan.completed_at - scan.started_at).total_seconds() * 1000
+                    if scan.completed_at and scan.started_at else 0,
+                )
+                # Track asset lifecycle
+                assets = []
+                for sub in results.get("subdomains", []):
+                    name = sub if isinstance(sub, str) else sub.get("name", "")
+                    if name:
+                        assets.append({"type": "subdomain", "value": name})
+                if assets:
+                    v2_monitor.update_asset_lifecycle(
+                        db, scan.domain, assets,
+                        scan_history_id=scan_history_id,
+                        organization_id=getattr(scan, "organization_id", None),
+                    )
+                    v2_monitor.mark_removed_assets(
+                        db, scan.domain,
+                        {a["value"] for a in assets},
+                    )
+            except Exception as e:
+                logger.warning("Failed to record scan_history: %s", e)
+
             scan.status = "completed"
             scan.progress = 100
             scan.completed_at = datetime.now(timezone.utc)
@@ -233,6 +266,19 @@ class ScanServiceV2:
         """Generate notifications for completed scan."""
         risk_score = results.get("risk_score", {})
         severity = risk_score.get("severity", "Low")
+
+        # Check notification triggers
+        try:
+            from app.scanners.v2.monitoring import monitor as v2_monitor
+            event_type = "high_risk_scan" if severity in ("High", "Critical") else "scan_completed"
+            triggered = v2_monitor.check_notification_triggers(
+                db, scan.domain, event_type,
+                organization_id=getattr(scan, "organization_id", None),
+            )
+            if triggered:
+                logger.info("Notification triggers fired for %s: %s", scan.domain, triggered)
+        except Exception as e:
+            logger.warning("Failed to check notification triggers: %s", e)
 
         if severity in ("High", "Critical"):
             try:

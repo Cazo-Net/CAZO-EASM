@@ -120,7 +120,7 @@ class SubdomainIntelligenceScanner(EnhancedBaseScanner):
         for name in test_names:
             fqdn = f"{name}.{domain}"
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 answers = await loop.run_in_executor(
                     None, lambda: dns.resolver.resolve(fqdn, "A")
                 )
@@ -145,7 +145,7 @@ class SubdomainIntelligenceScanner(EnhancedBaseScanner):
         """Check for subdomain takeover risks via dangling CNAME records."""
         async def _check_one(sub: str) -> Optional[Dict[str, Any]]:
             try:
-                loop = asyncio.get_event_loop()
+                loop = asyncio.get_running_loop()
                 answers = await loop.run_in_executor(
                     None, lambda: dns.resolver.resolve(sub, "CNAME")
                 )
@@ -231,7 +231,7 @@ class SubdomainIntelligenceScanner(EnhancedBaseScanner):
         async def _check(sub: str) -> Optional[str]:
             async with semaphore:
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = asyncio.get_running_loop()
                     await loop.run_in_executor(None, lambda: dns.resolver.resolve(sub, "A"))
                     return sub
                 except Exception:
@@ -249,7 +249,7 @@ class SubdomainIntelligenceScanner(EnhancedBaseScanner):
             records = {"A": [], "AAAA": [], "CNAME": []}
             for rtype in ["A", "AAAA", "CNAME"]:
                 try:
-                    loop = asyncio.get_event_loop()
+                    loop = asyncio.get_running_loop()
                     answers = await loop.run_in_executor(
                         None, lambda r=rtype: dns.resolver.resolve(sub, r)
                     )
