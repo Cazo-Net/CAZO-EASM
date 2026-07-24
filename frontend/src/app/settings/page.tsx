@@ -333,7 +333,7 @@ function SettingsContent() {
           <div className="flex items-center gap-3">
             <div className="relative">
               <Avatar className="h-10 w-10 border border-border/50">
-                <AvatarFallback className="bg-gradient-to-br from-[#00FF88] to-[#00D4FF] text-xs font-bold text-black">
+                <AvatarFallback className="bg-gradient-to-br from-[#10B981] to-[#06B6D4] text-xs font-bold text-black">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -384,7 +384,7 @@ function SettingsContent() {
                         className={cn(
                           "flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors text-left",
                           isActive
-                            ? "bg-[#00FF88]/10 text-[#00FF88] font-semibold"
+                            ? "bg-[#10B981]/10 text-[#10B981] font-semibold"
                             : item.danger
                               ? "text-red-400/80 hover:text-red-400 hover:bg-red-500/5"
                               : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -530,8 +530,8 @@ function SectionHeader({ icon: Icon, title, description, color = "brand" }: {
   icon: any; title: string; description: string; color?: string;
 }) {
   const colorMap: Record<string, string> = {
-    brand: "bg-[#00FF88]/10 text-[#00FF88]",
-    cyan: "bg-[#00D4FF]/10 text-[#00D4FF]",
+    brand: "bg-[#10B981]/10 text-[#10B981]",
+    cyan: "bg-[#06B6D4]/10 text-[#06B6D4]",
     violet: "bg-[#7A5CFF]/10 text-[#7A5CFF]",
     amber: "bg-amber-400/10 text-amber-400",
     red: "bg-red-500/10 text-red-400",
@@ -568,9 +568,9 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
         <div className="flex items-start gap-6">
           <div className="shrink-0">
             <div className="relative group">
-              <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-[#00FF88] to-[#00D4FF] opacity-20 blur-sm group-hover:opacity-40 transition-opacity" />
+              <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-[#10B981] to-[#06B6D4] opacity-20 blur-sm group-hover:opacity-40 transition-opacity" />
               <Avatar className="relative h-20 w-20 border-2 border-border/50">
-                <AvatarFallback className="bg-gradient-to-br from-[#00FF88] to-[#00D4FF] text-xl font-bold text-black">
+                <AvatarFallback className="bg-gradient-to-br from-[#10B981] to-[#06B6D4] text-xl font-bold text-black">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -610,7 +610,7 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
               <Input value={user?.email || ""} disabled
                 className="bg-muted/20 border-border/50 h-9 opacity-60 max-w-[320px]" />
               <button onClick={() => { setEditingEmail(true); setEmailValue(user?.email || ""); }}
-                className="text-xs text-[#00FF88] hover:text-[#00FF88]/80 transition-colors font-medium">
+                className="text-xs text-[#10B981] hover:text-[#10B981]/80 transition-colors font-medium">
                 Edit
               </button>
             </div>
@@ -640,7 +640,7 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
         {/* Save */}
         <div className="flex items-center gap-3">
           <Button onClick={onSaveProfile} disabled={saving}
-            className="bg-[#00FF88] hover:bg-[#00FF88]/90 text-black font-medium h-9 px-5">
+            className="bg-[#10B981] hover:bg-[#10B981]/90 text-black font-medium h-9 px-5">
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
             Save changes
           </Button>
@@ -726,7 +726,7 @@ function SecurityTab(props: any) {
               </div>
               {passwordError && <p className="text-xs text-red-400">{passwordError}</p>}
               <Button size="sm" onClick={handleChangePassword} disabled={changingPassword}
-                className="bg-[#00FF88] hover:bg-[#00FF88]/90 text-black h-8 text-xs font-medium">
+                className="bg-[#10B981] hover:bg-[#10B981]/90 text-black h-8 text-xs font-medium">
                 {changingPassword ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : null}
                 Update password
               </Button>
@@ -777,7 +777,7 @@ function SecurityTab(props: any) {
                 <Button size="sm" onClick={async () => {
                   try { await enable2FA(twoFACode); setUser({ ...user!, totp_enabled: true }); setTwoFASetup(null); setTwoFACode(""); setShowManual2FA(false); }
                   catch { alert("Invalid code"); }
-                }} className="bg-[#00FF88] hover:bg-[#00FF88]/90 text-black h-9 text-xs font-medium">Verify</Button>
+                }} className="bg-[#10B981] hover:bg-[#10B981]/90 text-black h-9 text-xs font-medium">Verify</Button>
               </div>
             </div>
           ) : (
@@ -1063,7 +1063,7 @@ function NotificationsTab({ notifications, setNotifications, savingPrefs, handle
                             onClick={() => togglePref(item.type, "in_app")}
                             className={cn(
                               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                              pref?.in_app_enabled ? "bg-[#00FF88]" : "bg-muted"
+                              pref?.in_app_enabled ? "bg-[#10B981]" : "bg-muted"
                             )}
                             role="switch"
                             aria-checked={pref?.in_app_enabled}
@@ -1080,7 +1080,7 @@ function NotificationsTab({ notifications, setNotifications, savingPrefs, handle
                             onClick={() => togglePref(item.type, "email")}
                             className={cn(
                               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                              pref?.email_enabled ? "bg-[#00FF88]" : "bg-muted"
+                              pref?.email_enabled ? "bg-[#10B981]" : "bg-muted"
                             )}
                             role="switch"
                             aria-checked={pref?.email_enabled}

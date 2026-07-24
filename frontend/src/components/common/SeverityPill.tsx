@@ -9,7 +9,7 @@ const severityMap: Record<Severity, { label: string; cls: string; dotCls: string
   critical: {
     label: "Critical",
     cls: "bg-signal-red/12 text-signal-red ring-signal-red/25 shadow-glow-danger-sm",
-    dotCls: "bg-signal-red shadow-[0_0_6px_2px_hsl(345_80%_60%/0.4)]",
+    dotCls: "bg-signal-red shadow-[0_0_6px_2px_hsl(var(--sev-critical)/0.4)]",
   },
   high: {
     label: "High",

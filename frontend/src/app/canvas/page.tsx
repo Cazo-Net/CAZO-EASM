@@ -71,31 +71,31 @@ const NODE_CATEGORIES = [
   {
     label: "Data",
     nodes: [
-      { type: "domain", icon: Globe, color: "#00FF88", label: "Domain", inputs: ["Flow"], outputs: ["Flow", "Data"] },
-      { type: "subdomain", icon: Server, color: "#00D4FF", label: "Subdomain", inputs: ["Flow"], outputs: ["Flow", "Data"] },
-      { type: "ip_address", icon: Circle, color: "#8B5CF6", label: "IP Address", inputs: ["Flow"], outputs: ["Flow", "Data"] },
+      { type: "domain", icon: Globe, color: "#10B981", label: "Domain", inputs: ["Flow"], outputs: ["Flow", "Data"] },
+      { type: "subdomain", icon: Server, color: "#06B6D4", label: "Subdomain", inputs: ["Flow"], outputs: ["Flow", "Data"] },
+      { type: "ip_address", icon: Circle, color: "#818CF8", label: "IP Address", inputs: ["Flow"], outputs: ["Flow", "Data"] },
     ],
   },
   {
     label: "Analysis",
     nodes: [
       { type: "port", icon: Server, color: "#EC4899", label: "Port Scan", inputs: ["Flow", "Target"], outputs: ["Flow", "Ports"] },
-      { type: "ssl_certificate", icon: LockIcon, color: "#00FF88", label: "SSL Check", inputs: ["Flow", "Target"], outputs: ["Flow", "Cert"] },
-      { type: "dns_record", icon: Network, color: "#FFAA00", label: "DNS Lookup", inputs: ["Flow", "Target"], outputs: ["Flow", "Records"] },
-      { type: "technology", icon: Cpu, color: "#8B5CF6", label: "Tech Detect", inputs: ["Flow", "Target"], outputs: ["Flow", "Tech"] },
+      { type: "ssl_certificate", icon: LockIcon, color: "#10B981", label: "SSL Check", inputs: ["Flow", "Target"], outputs: ["Flow", "Cert"] },
+      { type: "dns_record", icon: Network, color: "#F59E0B", label: "DNS Lookup", inputs: ["Flow", "Target"], outputs: ["Flow", "Records"] },
+      { type: "technology", icon: Cpu, color: "#818CF8", label: "Tech Detect", inputs: ["Flow", "Target"], outputs: ["Flow", "Tech"] },
     ],
   },
   {
     label: "Security",
     nodes: [
-      { type: "vulnerability", icon: Bug, color: "#FF3366", label: "Vuln Scan", inputs: ["Flow", "Target"], outputs: ["Flow", "Findings"] },
-      { type: "scan_network", icon: Network, color: "#00FF88", label: "Scan Network", inputs: ["Flow"], outputs: ["Flow", "Devices"] },
+      { type: "vulnerability", icon: Bug, color: "#FB7185", label: "Vuln Scan", inputs: ["Flow", "Target"], outputs: ["Flow", "Findings"] },
+      { type: "scan_network", icon: Network, color: "#10B981", label: "Scan Network", inputs: ["Flow"], outputs: ["Flow", "Devices"] },
     ],
   },
   {
     label: "Output",
     nodes: [
-      { type: "print", icon: FileText, color: "#00D4FF", label: "Print", inputs: ["Flow", "Message"], outputs: ["Flow"] },
+      { type: "print", icon: FileText, color: "#06B6D4", label: "Print", inputs: ["Flow", "Message"], outputs: ["Flow"] },
       { type: "note", icon: FileText, color: "#6B7280", label: "Note", inputs: [], outputs: [] },
     ],
   },
@@ -106,16 +106,16 @@ const NODE_CATEGORIES = [
 // ---------------------------------------------------------------------------
 
 const NODE_COLORS: Record<string, string> = {
-  domain: "#00FF88", subdomain: "#00D4FF", ip_address: "#8B5CF6",
-  port: "#EC4899", ssl_certificate: "#00FF88", dns_record: "#FFAA00",
-  technology: "#8B5CF6", vulnerability: "#FF3366", organization: "#6366F1",
-  email: "#EC4899", cloud_asset: "#00D4FF", web_application: "#3B82F6",
-  external_service: "#F97316", note: "#6B7280", print: "#00D4FF",
-  scan_network: "#00FF88",
+  domain: "#10B981", subdomain: "#06B6D4", ip_address: "#818CF8",
+  port: "#EC4899", ssl_certificate: "#10B981", dns_record: "#F59E0B",
+  technology: "#818CF8", vulnerability: "#FB7185", organization: "#6366F1",
+  email: "#EC4899", cloud_asset: "#06B6D4", web_application: "#3B82F6",
+  external_service: "#F97316", note: "#6B7280", print: "#06B6D4",
+  scan_network: "#10B981",
 };
 
 function PortNode({ data, selected }: { data: any; selected?: boolean }) {
-  const color = NODE_COLORS[data.asset_type || data.nodeType] || "#00FF88";
+  const color = NODE_COLORS[data.asset_type || data.nodeType] || "#10B981";
   const inputs: string[] = data.inputs || [];
   const outputs: string[] = data.outputs || [];
 
@@ -158,7 +158,7 @@ function PortNode({ data, selected }: { data: any; selected?: boolean }) {
       <div
         className="rounded-lg overflow-hidden"
         style={{
-          background: "#12131A",
+          background: "#0D1117",
           border: `1.5px solid ${selected ? color : color + "44"}`,
           boxShadow: selected ? `0 0 16px ${color}44` : `0 0 8px ${color}11`,
         }}
@@ -270,7 +270,7 @@ function CanvasContent() {
         label: e.label,
         type: "smoothstep",
         animated: e.animated,
-        style: { stroke: "#00FF8866", strokeWidth: 1.5 },
+        style: { stroke: "#10B98166", strokeWidth: 1.5 },
       }));
       setNodes(rfNodes);
       setEdges(rfEdges);
@@ -349,7 +349,7 @@ function CanvasContent() {
           label: "",
           edge_type: "default",
         });
-        setEdges((eds) => addEdge({ ...connection, id: edge.id, style: { stroke: "#00FF8866", strokeWidth: 1.5 }, type: "smoothstep" }, eds));
+        setEdges((eds) => addEdge({ ...connection, id: edge.id, style: { stroke: "#10B98166", strokeWidth: 1.5 }, type: "smoothstep" }, eds));
       } catch {}
     },
     [activeCanvas, setEdges]
@@ -423,7 +423,7 @@ function CanvasContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen" style={{ background: "#050608" }}>
-        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#00FF88" }} />
+        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#10B981" }} />
       </div>
     );
   }
@@ -431,21 +431,21 @@ function CanvasContent() {
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "#050608" }}>
       {/* ── Left sidebar: Node palette ── */}
-      <div className="w-56 border-r flex flex-col shrink-0" style={{ borderColor: "#1C1D2A", background: "#0A0B0F" }}>
+      <div className="w-56 border-r flex flex-col shrink-0" style={{ borderColor: "#161B26", background: "#0A0B0F" }}>
         {/* Header */}
-        <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: "#1C1D2A" }}>
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: "#00FF88" }}>
+        <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: "#161B26" }}>
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: "#10B981" }}>
             Node Editor
           </span>
           <span className="font-mono text-[9px] text-muted-foreground">*.gnt</span>
         </div>
 
         {/* Canvas list */}
-        <div className="px-3 py-2 border-b" style={{ borderColor: "#1C1D2A" }}>
+        <div className="px-3 py-2 border-b" style={{ borderColor: "#161B26" }}>
           <button
             onClick={handleCreateCanvas}
             className="flex items-center gap-1.5 w-full rounded px-2 py-1.5 text-[10px] font-mono transition-colors"
-            style={{ background: "#00FF8811", color: "#00FF88", border: "1px solid #00FF8833" }}
+            style={{ background: "#10B98111", color: "#10B981", border: "1px solid #10B98133" }}
           >
             <Plus className="h-3 w-3" /> NEW
           </button>
@@ -458,7 +458,7 @@ function CanvasContent() {
                   "flex items-center justify-between w-full rounded px-2 py-1 text-[10px] font-mono transition-colors",
                   activeCanvas?.id === c.id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
-                style={{ background: activeCanvas?.id === c.id ? "#1C1D2A" : "transparent" }}
+                style={{ background: activeCanvas?.id === c.id ? "#161B26" : "transparent" }}
               >
                 <span className="truncate">{c.name}</span>
                 <button
@@ -473,15 +473,15 @@ function CanvasContent() {
         </div>
 
         {/* Search */}
-        <div className="px-3 py-2 border-b" style={{ borderColor: "#1C1D2A" }}>
-          <div className="flex items-center gap-1.5 rounded px-2 py-1" style={{ background: "#12131A", border: "1px solid #1C1D2A" }}>
-            <Search className="h-3 w-3" style={{ color: "#00FF8866" }} />
+        <div className="px-3 py-2 border-b" style={{ borderColor: "#161B26" }}>
+          <div className="flex items-center gap-1.5 rounded px-2 py-1" style={{ background: "#0D1117", border: "1px solid #161B26" }}>
+            <Search className="h-3 w-3" style={{ color: "#10B98166" }} />
             <input
               value={paletteSearch}
               onChange={(e) => setPaletteSearch(e.target.value)}
               placeholder="print"
               className="flex-1 bg-transparent text-[10px] font-mono focus:outline-none"
-              style={{ color: "#00FF88" }}
+              style={{ color: "#10B981" }}
             />
           </div>
         </div>
@@ -514,7 +514,7 @@ function CanvasContent() {
         </div>
 
         {/* Stats */}
-        <div className="px-3 py-2 border-t font-mono text-[9px] text-muted-foreground" style={{ borderColor: "#1C1D2A" }}>
+        <div className="px-3 py-2 border-t font-mono text-[9px] text-muted-foreground" style={{ borderColor: "#161B26" }}>
           Nodes: {nodes.length} | Connections: {edges.length}
         </div>
       </div>
@@ -522,8 +522,8 @@ function CanvasContent() {
       {/* ── Main area ── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Toolbar */}
-        <div className="flex items-center gap-2 border-b px-4 py-1.5 shrink-0" style={{ borderColor: "#1C1D2A", background: "#0A0B0Fee" }}>
-          <button onClick={handleCreateCanvas} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-mono hover:bg-white/5" style={{ color: "#00FF88" }}>
+        <div className="flex items-center gap-2 border-b px-4 py-1.5 shrink-0" style={{ borderColor: "#161B26", background: "#0A0B0Fee" }}>
+          <button onClick={handleCreateCanvas} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-mono hover:bg-white/5" style={{ color: "#10B981" }}>
             <Plus className="h-3 w-3" /> NEW
           </button>
           <button onClick={() => activeCanvas && loadCanvas(activeCanvas.id)} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-mono hover:bg-white/5 text-muted-foreground">
@@ -563,24 +563,24 @@ function CanvasContent() {
               proOptions={{ hideAttribution: true }}
               className="bg-transparent"
             >
-              <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#1C1D2A44" />
+              <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#161B2644" />
               <Controls
                 showZoom
                 showFitView
                 showInteractive={false}
                 className="!rounded !border !bg-[#0A0B0Fdd] !backdrop-blur-xl"
-                style={{ borderColor: "#1C1D2A" }}
+                style={{ borderColor: "#161B26" }}
               />
             </ReactFlow>
           ) : (
             <div className="flex flex-col items-center justify-center h-full">
               <div className="text-center space-y-3">
-                <Network className="h-10 w-10 mx-auto" style={{ color: "#1C1D2A" }} />
+                <Network className="h-10 w-10 mx-auto" style={{ color: "#161B26" }} />
                 <p className="font-mono text-xs text-muted-foreground">No canvas selected</p>
                 <button
                   onClick={handleCreateCanvas}
                   className="font-mono text-[10px] px-3 py-1.5 rounded"
-                  style={{ background: "#00FF8811", color: "#00FF88", border: "1px solid #00FF8833" }}
+                  style={{ background: "#10B98111", color: "#10B981", border: "1px solid #10B98133" }}
                 >
                   CREATE CANVAS
                 </button>
@@ -591,9 +591,9 @@ function CanvasContent() {
 
         {/* Generated code panel (bottom) */}
         {activeCanvas && (
-          <div className="shrink-0 border-t" style={{ borderColor: "#1C1D2A", background: "#0A0B0F" }}>
-            <div className="flex items-center justify-between px-4 py-1.5 border-b" style={{ borderColor: "#1C1D2A" }}>
-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: "#00FF88" }}>
+          <div className="shrink-0 border-t" style={{ borderColor: "#161B26", background: "#0A0B0F" }}>
+            <div className="flex items-center justify-between px-4 py-1.5 border-b" style={{ borderColor: "#161B26" }}>
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: "#10B981" }}>
                 Generated Code
               </span>
               <button
@@ -603,7 +603,7 @@ function CanvasContent() {
                 copy
               </button>
             </div>
-            <pre className="px-4 py-2 text-[10px] font-mono overflow-x-auto max-h-28" style={{ color: "#00FF8888" }}>
+            <pre className="px-4 py-2 text-[10px] font-mono overflow-x-auto max-h-28" style={{ color: "#10B98188" }}>
               {generatedCode}
             </pre>
           </div>
@@ -618,10 +618,10 @@ function CanvasContent() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 240, opacity: 0 }}
             className="w-60 border-l flex flex-col shrink-0"
-            style={{ borderColor: "#1C1D2A", background: "#0A0B0F" }}
+            style={{ borderColor: "#161B26", background: "#0A0B0F" }}
           >
-            <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "#1C1D2A" }}>
-              <span className="font-mono text-[10px] font-bold uppercase" style={{ color: "#00FF88" }}>
+            <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "#161B26" }}>
+              <span className="font-mono text-[10px] font-bold uppercase" style={{ color: "#10B981" }}>
                 Properties
               </span>
               <button onClick={() => setSelectedNode(null)} className="text-muted-foreground hover:text-foreground">
@@ -643,12 +643,12 @@ function CanvasContent() {
                     }
                   }}
                   className="w-full rounded px-2 py-1.5 text-[10px] font-mono mt-1 focus:outline-none"
-                  style={{ background: "#12131A", border: "1px solid #1C1D2A", color: "#00FF88" }}
+                  style={{ background: "#0D1117", border: "1px solid #161B26", color: "#10B981" }}
                 />
               </div>
               <div>
                 <label className="font-mono text-[9px] text-muted-foreground uppercase">Type</label>
-                <p className="font-mono text-[10px] mt-1" style={{ color: NODE_COLORS[selectedNode.data.asset_type as string] || "#00FF88" }}>
+                <p className="font-mono text-[10px] mt-1" style={{ color: NODE_COLORS[selectedNode.data.asset_type as string] || "#10B981" }}>
                   {(selectedNode.data.asset_type as string) || "unknown"}
                 </p>
               </div>
@@ -661,7 +661,7 @@ function CanvasContent() {
                     setNodes((nds) => nds.map((n) => n.id === selectedNode.id ? { ...n, data: { ...n.data, notes: val } } : n));
                   }}
                   className="w-full rounded px-2 py-1.5 text-[10px] font-mono mt-1 min-h-[60px] focus:outline-none"
-                  style={{ background: "#12131A", border: "1px solid #1C1D2A", color: "#00FF8888" }}
+                  style={{ background: "#0D1117", border: "1px solid #161B26", color: "#10B98188" }}
                 />
               </div>
               <button
@@ -674,7 +674,7 @@ function CanvasContent() {
                   setSelectedNode(null);
                 }}
                 className="flex items-center gap-1.5 w-full rounded px-2 py-1.5 text-[10px] font-mono"
-                style={{ color: "#FF3366", border: "1px solid #FF336633" }}
+                style={{ color: "#FB7185", border: "1px solid #FB718533" }}
               >
                 <Trash2 className="h-3 w-3" /> DELETE
               </button>
@@ -718,11 +718,11 @@ function ImportModal({ onImport, onClose }: { onImport: (scanId: string, assetId
         animate={{ scale: 1 }}
         exit={{ scale: 0.95 }}
         className="w-full max-w-md rounded-lg overflow-hidden"
-        style={{ background: "#0A0B0F", border: "1px solid #1C1D2A" }}
+        style={{ background: "#0A0B0F", border: "1px solid #161B26" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#1C1D2A" }}>
-          <span className="font-mono text-[10px] font-bold uppercase" style={{ color: "#00FF88" }}>
+        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#161B26" }}>
+          <span className="font-mono text-[10px] font-bold uppercase" style={{ color: "#10B981" }}>
             Import Scan
           </span>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -731,7 +731,7 @@ function ImportModal({ onImport, onClose }: { onImport: (scanId: string, assetId
         </div>
         <div className="max-h-80 overflow-y-auto p-4 space-y-2">
           {loading ? (
-            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" style={{ color: "#00FF88" }} /></div>
+            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" style={{ color: "#10B981" }} /></div>
           ) : scans.length === 0 ? (
             <p className="font-mono text-[10px] text-muted-foreground text-center py-8">No completed scans available.</p>
           ) : (
@@ -740,9 +740,9 @@ function ImportModal({ onImport, onClose }: { onImport: (scanId: string, assetId
                 key={scan.id}
                 onClick={() => { onImport(scan.id); }}
                 className="flex items-center gap-3 w-full rounded px-3 py-2.5 text-left transition-colors hover:bg-white/5"
-                style={{ border: "1px solid #1C1D2A" }}
+                style={{ border: "1px solid #161B26" }}
               >
-                <Globe className="h-3.5 w-3.5 shrink-0" style={{ color: "#00FF88" }} />
+                <Globe className="h-3.5 w-3.5 shrink-0" style={{ color: "#10B981" }} />
                 <div className="flex-1 min-w-0">
                   <p className="font-mono text-[10px] text-foreground">{scan.domain}</p>
                   <p className="font-mono text-[9px] text-muted-foreground">{scan.scan_type}</p>

@@ -55,10 +55,10 @@ import { MetricSparkline } from "@/components/common/MetricSparkline";
 import { TrendBadge } from "@/components/common/TrendBadge";
 
 const CHART_COLORS = [
-  "hsl(152 100% 50%)",   /* Phosphor */
-  "hsl(190 100% 50%)",   /* Cyan Signal */
-  "hsl(258 90% 66%)",    /* Neon Violet */
-  "hsl(40 100% 50%)",    /* Amber */
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-5))",
 ];
 
 const EMPTY_STATS = {
@@ -79,7 +79,7 @@ function ThreatScoreRing({ score }: { score: number }) {
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
   const color =
-    score <= 25 ? "hsl(152 100% 50%)" : score <= 50 ? "hsl(40 100% 50%)" : score <= 75 ? "hsl(40 100% 50%)" : "hsl(345 80% 60%)";
+    score <= 25 ? "hsl(var(--success))" : score <= 50 ? "hsl(var(--warning))" : score <= 75 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
 
   return (
     <div className="relative flex items-center justify-center">
@@ -100,8 +100,8 @@ function ThreatScoreRing({ score }: { score: number }) {
         />
         <defs>
           <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="hsl(152 100% 50%)" />
-            <stop offset="100%" stopColor="hsl(190 100% 50%)" />
+            <stop offset="0%" stopColor="hsl(var(--brand))" />
+            <stop offset="100%" stopColor="hsl(var(--brand-2))" />
           </linearGradient>
         </defs>
       </svg>
@@ -147,8 +147,8 @@ function RiskTrendChart({ scans }: { scans: Scan[] }) {
       <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -15, bottom: 0 }}>
         <defs>
           <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="hsl(152 100% 50%)" stopOpacity={0.25} />
-            <stop offset="95%" stopColor="hsl(152 100% 50%)" stopOpacity={0} />
+            <stop offset="5%" stopColor="hsl(var(--brand))" stopOpacity={0.25} />
+            <stop offset="95%" stopColor="hsl(var(--brand))" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.4)" vertical={false} />
@@ -164,7 +164,7 @@ function RiskTrendChart({ scans }: { scans: Scan[] }) {
             boxShadow: "0 4px 20px -4px hsl(0 0% 0% / 0.4)",
           }}
         />
-        <Area type="monotone" dataKey="score" stroke="hsl(152 100% 50%)" strokeWidth={2} fill="url(#colorScore)" connectNulls={false} />
+        <Area type="monotone" dataKey="score" stroke="hsl(var(--brand))" strokeWidth={2} fill="url(#colorScore)" connectNulls={false} />
       </AreaChart>
     </ResponsiveContainer>
   );

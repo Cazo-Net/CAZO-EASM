@@ -20,13 +20,13 @@ export function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
     >
       <defs>
         <linearGradient id="cazo-ring" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#00FF88" />
-          <stop offset="1" stopColor="#00D4FF" />
+          <stop stopColor="#10B981" />
+          <stop offset="1" stopColor="#06B6D4" />
         </linearGradient>
-        <radialGradient id="cazo-sweep" cx="0.5" cy="0.5" r="0.5">
-          <stop stopColor="#00FF88" stopOpacity="0.35" />
-          <stop offset="1" stopColor="#00FF88" stopOpacity="0" />
-        </radialGradient>
+        <linearGradient id="radarSweep" x1="0" y1="0" x2="1" y2="0">
+          <stop stopColor="#10B981" stopOpacity="0.35" />
+          <stop offset="1" stopColor="#10B981" stopOpacity="0" />
+        </linearGradient>
       </defs>
 
       {/* faint sweep glow */}
@@ -41,12 +41,12 @@ export function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
       />
 
       {/* inner tick marks — radar bearings */}
-      <path d="M16 4.5v2.2" stroke="#00FF88" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
-      <path d="M27.5 16h-2.2" stroke="#00D4FF" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
+      <path d="M16 4.5v2.2" stroke="#10B981" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
+      <path d="M27.5 16h-2.2" stroke="#06B6D4" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
 
       {/* the scan node sitting on the ring opening */}
-      <circle cx="27" cy="16" r="2.6" fill="#00FF88" />
-      <circle cx="27" cy="16" r="4.4" stroke="#00FF88" strokeWidth="1" opacity="0.35" />
+      <circle cx="27" cy="16" r="2.6" fill="#10B981" />
+      <circle cx="27" cy="16" r="4.4" stroke="#10B981" strokeWidth="1" opacity="0.35" />
     </svg>
   );
 }

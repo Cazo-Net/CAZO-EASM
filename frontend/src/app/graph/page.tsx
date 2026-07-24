@@ -43,19 +43,19 @@ import type { Scan } from "@/types";
 // ---------------------------------------------------------------------------
 
 const TYPE_META: Record<string, { icon: any; color: string; size: number; label: string }> = {
-  domain: { icon: Globe, color: "#00FF88", size: 42, label: "Domain" },
-  subdomain: { icon: Server, color: "#00D4FF", size: 30, label: "Subdomain" },
-  port: { icon: null, color: "#00FF88", size: 18, label: "Port" },
-  vulnerability: { icon: Bug, color: "#FF3366", size: 18, label: "Vulnerability" },
-  certificate: { icon: ShieldAlert, color: "#FFAA00", size: 22, label: "Certificate" },
+  domain: { icon: Globe, color: "#10B981", size: 42, label: "Domain" },
+  subdomain: { icon: Server, color: "#06B6D4", size: 30, label: "Subdomain" },
+  port: { icon: null, color: "#10B981", size: 18, label: "Port" },
+  vulnerability: { icon: Bug, color: "#FB7185", size: 18, label: "Vulnerability" },
+  certificate: { icon: ShieldAlert, color: "#F59E0B", size: 22, label: "Certificate" },
 };
 
 const SEVERITY_COLOR: Record<string, string> = {
-  critical: "#FF3366",
+  critical: "#FB7185",
   high: "#FF6B35",
-  medium: "#FFAA00",
-  low: "#00D4FF",
-  unknown: "#8B5CF6",
+  medium: "#F59E0B",
+  low: "#06B6D4",
+  unknown: "#818CF8",
 };
 
 const ALL_TYPES = Object.keys(TYPE_META);
@@ -74,7 +74,7 @@ function CyberNode({ data, selected }: NodeProps) {
   const dimmed = d.dimmed;
   const highlighted = d.highlighted;
 
-  const ringColor = isVuln ? SEVERITY_COLOR[sev] || "#FF3366" : meta.color;
+  const ringColor = isVuln ? SEVERITY_COLOR[sev] || "#FB7185" : meta.color;
 
   return (
     <div
@@ -156,7 +156,7 @@ function ZoneOverlay({ nodes }: { nodes: Node[] }) {
       const zone = (n.data as any)?.zone;
       if (!zone) continue;
       if (!groups[zone]) {
-        groups[zone] = { x: n.position.x - 80, y: n.position.y - 60, w: 160, h: 120, color: "#00FF88", label: zone };
+        groups[zone] = { x: n.position.x - 80, y: n.position.y - 60, w: 160, h: 120, color: "#10B981", label: zone };
       }
       const g = groups[zone];
       g.x = Math.min(g.x, n.position.x - 80);
@@ -202,7 +202,7 @@ function ZoneOverlay({ nodes }: { nodes: Node[] }) {
 
 function HeatMeter({ vulnCount, criticalCount }: { vulnCount: number; criticalCount: number }) {
   const heat = Math.min(10, Math.floor(criticalCount * 3 + vulnCount * 0.5));
-  const heatColor = heat >= 7 ? "#FF3366" : heat >= 4 ? "#FFAA00" : "#00FF88";
+  const heatColor = heat >= 7 ? "#FB7185" : heat >= 4 ? "#F59E0B" : "#10B981";
   const label = heat >= 7 ? "HIGH THREAT" : heat >= 4 ? "ELEVATED" : "SILENT";
 
   return (
@@ -214,7 +214,7 @@ function HeatMeter({ vulnCount, criticalCount }: { vulnCount: number; criticalCo
             key={i}
             className="h-2 w-1.5 rounded-sm transition-all duration-300"
             style={{
-              background: i < heat ? heatColor : "#1C1D2A",
+              background: i < heat ? heatColor : "#161B26",
               boxShadow: i < heat ? `0 0 4px ${heatColor}66` : "none",
             }}
           />
@@ -249,7 +249,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: `${ringColor}22` }}>
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: "#00FF88" }}>
+          <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: "#10B981" }}>
             NODE INTEL
           </span>
         </div>
@@ -259,7 +259,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
       </div>
 
       {/* Status */}
-      <div className="px-4 py-2 border-b" style={{ borderColor: "#1C1D2A" }}>
+      <div className="px-4 py-2 border-b" style={{ borderColor: "#161B26" }}>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] text-muted-foreground">STATUS</span>
           <span className="px-1.5 py-0.5 rounded font-mono text-[9px] font-bold" style={{ background: `${ringColor}22`, color: ringColor }}>
@@ -291,7 +291,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
             <span className="font-mono text-[9px] text-muted-foreground uppercase">Open Ports ({ports.length})</span>
             <div className="mt-1 space-y-1">
               {ports.slice(0, 20).map((p: any, i: number) => (
-                <div key={i} className="flex items-center justify-between rounded px-2 py-1" style={{ background: "#1C1D2A" }}>
+                <div key={i} className="flex items-center justify-between rounded px-2 py-1" style={{ background: "#161B26" }}>
                   <span className="font-mono text-[10px] text-foreground">{p.port}</span>
                   <span className="font-mono text-[9px] text-muted-foreground">{p.service || "?"}</span>
                 </div>
@@ -302,7 +302,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
         {osDetection && (
           <div>
             <span className="font-mono text-[9px] text-muted-foreground uppercase">OS Detection</span>
-            <div className="mt-1 rounded px-2 py-1" style={{ background: "#1C1D2A" }}>
+            <div className="mt-1 rounded px-2 py-1" style={{ background: "#161B26" }}>
               {typeof osDetection === "string" ? (
                 <p className="font-mono text-[10px] text-foreground">{osDetection}</p>
               ) : (
@@ -328,7 +328,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
             <span className="font-mono text-[9px] text-muted-foreground uppercase">Host Scripts ({hostScripts.length})</span>
             <div className="mt-1 space-y-1">
               {hostScripts.slice(0, 5).map((s: any, i: number) => (
-                <div key={i} className="rounded px-2 py-1" style={{ background: "#1C1D2A" }}>
+                <div key={i} className="rounded px-2 py-1" style={{ background: "#161B26" }}>
                   <p className="font-mono text-[10px] text-foreground">{s.id || s.name || "script"}</p>
                   {s.output && (
                     <p className="font-mono text-[9px] text-muted-foreground mt-0.5 break-all">{s.output.slice(0, 200)}</p>
@@ -404,18 +404,18 @@ function GraphCanvas({
       };
     });
 
-    const edgeColors: Record<string, string> = { attack: "#FF3366", "weak-cipher": "#FFAA00" };
+    const edgeColors: Record<string, string> = { attack: "#FB7185", "weak-cipher": "#F59E0B" };
 
     const flowEdges: Edge[] = rawEdges.map((e, i) => ({
       id: `e-${i}`, source: e.source, target: e.target,
       type: "smoothstep",
       animated: e.label === "attack",
       style: {
-        stroke: edgeColors[e.label || ""] || "#00FF8855",
+        stroke: edgeColors[e.label || ""] || "#10B98155",
         strokeWidth: e.label === "attack" ? 2 : 1,
         strokeDasharray: e.label === "attack" ? "6 3" : undefined,
       },
-      markerEnd: { type: MarkerType.ArrowClosed, color: edgeColors[e.label || ""] || "#00FF8855", width: 12, height: 12 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: edgeColors[e.label || ""] || "#10B98155", width: 12, height: 12 },
     }));
 
     setNodes(flowNodes);
@@ -432,8 +432,8 @@ function GraphCanvas({
     return (
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#00FF88" }} />
-          <p className="font-mono text-xs" style={{ color: "#00FF8888" }}>Computing attack graph...</p>
+          <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#10B981" }} />
+          <p className="font-mono text-xs" style={{ color: "#10B98188" }}>Computing attack graph...</p>
         </div>
       </div>
     );
@@ -443,7 +443,7 @@ function GraphCanvas({
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center space-y-3">
-          <Waypoints className="h-10 w-10 mx-auto" style={{ color: "#1C1D2A" }} />
+          <Waypoints className="h-10 w-10 mx-auto" style={{ color: "#161B26" }} />
           <p className="font-mono text-xs text-muted-foreground">No graph data available</p>
         </div>
       </div>
@@ -466,13 +466,13 @@ function GraphCanvas({
         proOptions={{ hideAttribution: true }}
         className="bg-transparent"
       >
-        <Background variant={BackgroundVariant.Dots} gap={40} size={1} color="#1C1D2A44" />
+        <Background variant={BackgroundVariant.Dots} gap={40} size={1} color="#161B2644" />
         <Controls
           showZoom
           showFitView
           showInteractive={false}
           className="!rounded !border !bg-[#0A0B0Fdd] !backdrop-blur-xl"
-          style={{ borderColor: "#1C1D2A", background: "#0A0B0Fdd" }}
+          style={{ borderColor: "#161B26", background: "#0A0B0Fdd" }}
         />
       </ReactFlow>
 
@@ -558,7 +558,7 @@ function GraphContent() {
   return (
     <div className="flex h-screen flex-col overflow-hidden" style={{ background: "#050608" }}>
       {/* ── Status bar (top) ── */}
-      <div className="shrink-0 border-b px-6 py-2 flex items-center justify-between" style={{ borderColor: "#1C1D2A", background: "#0A0B0Fee" }}>
+      <div className="shrink-0 border-b px-6 py-2 flex items-center justify-between" style={{ borderColor: "#161B26", background: "#0A0B0Fee" }}>
         <div className="flex items-center gap-4">
           {/* Scan selector */}
           <select
@@ -566,7 +566,7 @@ function GraphContent() {
             onChange={(e) => setSelectedScanId(e.target.value)}
             disabled={loadingScans}
             className="h-7 rounded border px-2 text-[11px] font-mono focus:outline-none"
-            style={{ borderColor: "#1C1D2A", background: "#12131A", color: "#00FF88" }}
+            style={{ borderColor: "#161B26", background: "#0D1117", color: "#10B981" }}
           >
             {loadingScans && <option>Loading...</option>}
             {!loadingScans && scans.length === 0 && <option>No scans</option>}
@@ -580,9 +580,9 @@ function GraphContent() {
             <span
               className="font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
               style={{
-                color: nodeStats.critical > 0 ? "#FF3366" : "#00FF88",
-                background: nodeStats.critical > 0 ? "#FF336615" : "#00FF8815",
-                border: `1px solid ${nodeStats.critical > 0 ? "#FF336633" : "#00FF8833"}`,
+                color: nodeStats.critical > 0 ? "#FB7185" : "#10B981",
+                background: nodeStats.critical > 0 ? "#FB718515" : "#10B98115",
+                border: `1px solid ${nodeStats.critical > 0 ? "#FB718533" : "#10B98133"}`,
               }}
             >
               {nodeStats.critical > 0 ? "ALERT" : "SILENT"}
@@ -595,18 +595,18 @@ function GraphContent() {
         <form
           onSubmit={(e) => { e.preventDefault(); setHighlightId(matchNode); }}
           className="flex items-center gap-1.5 rounded border px-2 py-1"
-          style={{ borderColor: "#1C1D2A", background: "#12131A" }}
+          style={{ borderColor: "#161B26", background: "#0D1117" }}
         >
-          <Search className="h-3 w-3" style={{ color: "#00FF8866" }} />
+          <Search className="h-3 w-3" style={{ color: "#10B98166" }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search nodes..."
             className="h-5 w-32 bg-transparent text-[10px] font-mono focus:outline-none"
-            style={{ color: "#00FF88" }}
+            style={{ color: "#10B981" }}
           />
           {search.trim() && (
-            <span className="font-mono text-[9px]" style={{ color: matchNode ? "#00FF88" : "#FF336666" }}>
+            <span className="font-mono text-[9px]" style={{ color: matchNode ? "#10B981" : "#FB718566" }}>
               {matchNode ? "found" : "—"}
             </span>
           )}
@@ -617,7 +617,7 @@ function GraphContent() {
       <div className="relative flex-1 overflow-hidden">
         {/* Filter toggles (left) */}
         {graphData && !loadingGraph && (
-          <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 rounded border p-2" style={{ borderColor: "#1C1D2A", background: "#0A0B0Fee", backdropFilter: "blur(8px)" }}>
+          <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 rounded border p-2" style={{ borderColor: "#161B26", background: "#0A0B0Fee", backdropFilter: "blur(8px)" }}>
             <span className="font-mono text-[9px] text-muted-foreground uppercase mb-1">Types</span>
             {ALL_TYPES.map((t) => {
               const m = TYPE_META[t];
@@ -649,14 +649,14 @@ function GraphContent() {
 
         {/* Node stats (bottom-center) */}
         {graphData && !loadingGraph && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4 rounded border px-4 py-1.5" style={{ borderColor: "#1C1D2A", background: "#0A0B0Fee" }}>
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4 rounded border px-4 py-1.5" style={{ borderColor: "#161B26", background: "#0A0B0Fee" }}>
             <span className="font-mono text-[10px] text-muted-foreground">
               Nodes: <span className="text-foreground">{nodeStats.total}</span>
             </span>
-            <span className="font-mono text-[10px]" style={{ color: "#00FF88" }}>
+            <span className="font-mono text-[10px]" style={{ color: "#10B981" }}>
               {nodeStats.domains} domains
             </span>
-            <span className="font-mono text-[10px]" style={{ color: "#00D4FF" }}>
+            <span className="font-mono text-[10px]" style={{ color: "#06B6D4" }}>
               {nodeStats.subdomains} subdomains
             </span>
           </div>
@@ -666,9 +666,9 @@ function GraphContent() {
         {error ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center space-y-3">
-              <Bug className="h-8 w-8 mx-auto" style={{ color: "#FF3366" }} />
-              <p className="font-mono text-xs" style={{ color: "#FF3366" }}>{error}</p>
-              <Button variant="outline" size="sm" onClick={() => selectedScanId && fetchGraph(selectedScanId)} className="gap-1.5" style={{ borderColor: "#1C1D2A" }}>
+              <Bug className="h-8 w-8 mx-auto" style={{ color: "#FB7185" }} />
+              <p className="font-mono text-xs" style={{ color: "#FB7185" }}>{error}</p>
+              <Button variant="outline" size="sm" onClick={() => selectedScanId && fetchGraph(selectedScanId)} className="gap-1.5" style={{ borderColor: "#161B26" }}>
                 Retry
               </Button>
             </div>
