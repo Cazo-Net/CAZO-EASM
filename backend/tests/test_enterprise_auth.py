@@ -1,4 +1,3 @@
-import pytest
 from datetime import datetime, timezone, timedelta
 
 
@@ -74,7 +73,6 @@ class TestPasswordResetFlow:
     def test_reset_password_success(self, client, db_session):
         from app.models.user import User
         from secrets import token_urlsafe
-        from datetime import datetime, timezone, timedelta
 
         client.post("/api/v1/auth/register", json={
             "email": "rst@test.com", "password": "RstPass1!", "full_name": "Rst User",
@@ -97,7 +95,6 @@ class TestPasswordResetFlow:
     def test_reset_password_expired_token(self, client, db_session):
         from app.models.user import User
         from secrets import token_urlsafe
-        from datetime import datetime, timezone, timedelta
 
         client.post("/api/v1/auth/register", json={
             "email": "exp@test.com", "password": "ExpPass1!", "full_name": "Exp User",

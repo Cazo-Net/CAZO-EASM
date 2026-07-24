@@ -9,12 +9,11 @@ Replaces the single-key-per-user approach with:
 """
 
 import logging
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
 
 from app.database import get_db
 from app.api.deps import get_current_user
@@ -41,7 +40,7 @@ async def list_api_keys(
     """List all API keys for the current user."""
     keys = db.query(ApiKey).filter(
         ApiKey.user_id == current_user.id,
-        ApiKey.is_active == True,
+        ApiKey.is_active,
     ).order_by(ApiKey.created_at.desc()).all()
 
     return ApiKeyListResponse(
@@ -70,11 +69,6 @@ async def create_api_key(
     db: Session = Depends(get_db),
 ):
     """Create a new API key."""
-    existing_count = db.query(ApiKey).filter(
-        ApiKey.user_id == current_user.id,
-        ApiKey.is_active == True,
-    ).count()
-
     raw_key = generate_api_key()
     key_hash = hash_api_key(raw_key)
     prefix = raw_key[:16]
@@ -143,7 +137,7 @@ async def update_api_key(
     api_key = db.query(ApiKey).filter(
         ApiKey.id == key_id,
         ApiKey.user_id == current_user.id,
-        ApiKey.is_active == True,
+        ApiKey.is_active,
     ).first()
 
     if not api_key:
@@ -183,7 +177,7 @@ async def rotate_api_key(
     old_key = db.query(ApiKey).filter(
         ApiKey.id == key_id,
         ApiKey.user_id == current_user.id,
-        ApiKey.is_active == True,
+        ApiKey.is_active,
     ).first()
 
     if not old_key:
@@ -230,7 +224,7 @@ def verify_api_key(db: Session, raw_key: str) -> Optional[User]:
 
     api_key = db.query(ApiKey).filter(
         ApiKey.key_hash == key_hash,
-        ApiKey.is_active == True,
+        ApiKey.is_active,
     ).first()
 
     if not api_key:

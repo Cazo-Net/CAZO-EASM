@@ -16,13 +16,12 @@ report generation. Results are persisted to ``AssetScore``.
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from sqlalchemy.orm import Session
 
 from app.models.asset_inventory import Asset
 from app.models.asset_score import AssetScore
-from app.models.vulnerability import Vulnerability
 
 logger = logging.getLogger(__name__)
 

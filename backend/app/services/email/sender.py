@@ -13,7 +13,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Optional
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ class SMTPProvider(EmailProvider):
             msg["From"] = f"{message.from_name} <{message.from_email or self.from_email}>"
             msg["To"] = message.to
             msg["X-Mailer"] = "CAZO"
-            msg["List-Unsubscribe"] = f"<mailto:unsubscribe@cazo.io?subject=unsubscribe>"
+            msg["List-Unsubscribe"] = "<mailto:unsubscribe@cazo.io?subject=unsubscribe>"
 
             if message.text_body:
                 msg.attach(MIMEText(message.text_body, "plain"))

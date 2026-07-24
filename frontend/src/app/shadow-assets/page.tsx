@@ -13,6 +13,7 @@ import {
   Flag,
   ChevronRight,
   Clock,
+  Settings,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
@@ -72,6 +73,7 @@ function signalVariant(sig: ShadowSignal): "destructive" | "warning" | "secondar
 
 function ShadowAssetsContent() {
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [shadows, setShadows] = useState<ShadowCandidate[]>([]);
   const [knownCount, setKnownCount] = useState(0);
   const [discoveredCount, setDiscoveredCount] = useState(0);
@@ -83,16 +85,24 @@ function ShadowAssetsContent() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError(null);
     try {
       const data = await listShadowAssets();
       setShadows(data.shadows);
       setKnownCount(data.known_count);
       setDiscoveredCount(data.discovered_count);
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || err?.message || "Failed to load shadow assets.";
+      console.error("shadow load failed:", err);
+      setLoadError(detail);
+    }
+    try {
       const lg = await getShadowReviewLog();
       setLog(lg);
-    } finally {
-      setLoading(false);
+    } catch {
+      // review log is non-critical; silently ignore failures
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -164,6 +174,21 @@ function ShadowAssetsContent() {
           No confirmed inventory yet. Confirm at least one asset as{" "}
           <span className="font-semibold">known</span> (e.g. your apex domain) so
           detection has a baseline to compare against. Until then, nothing is flagged.
+        </div>
+      )}
+
+      {loadError && (
+        <div className="rounded-lg border border-warning/30 bg-warning/5 p-4 text-sm text-warning">
+          <Flag className="mr-2 inline h-4 w-4" />
+          {loadError}
+          {loadError.includes("organization") && (
+            <a
+              href="/settings/organization"
+              className="ml-2 inline-flex items-center gap-1 font-semibold underline underline-offset-2 hover:text-warning/80"
+            >
+              <Settings className="h-3.5 w-3.5" /> Create Organization
+            </a>
+          )}
         </div>
       )}
 

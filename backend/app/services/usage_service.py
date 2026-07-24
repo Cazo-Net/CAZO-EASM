@@ -5,7 +5,7 @@ Records usage events and maintains period aggregations.
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
@@ -13,7 +13,6 @@ from sqlalchemy import func
 
 from app.models.usage_record import UsageRecord, UsageAggregation
 from app.models.subscription import Subscription
-from app.models.organization import Organization
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +135,7 @@ class UsageService:
 
         users_count = self.db.query(func.count(User.id)).filter(
             User.organization_id == org_id,
-            User.is_active == True,
+            User.is_active,
         ).scalar() or 0
 
         reports_count = self.db.query(func.count(Report.id)).filter(

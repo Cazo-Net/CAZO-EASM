@@ -15,7 +15,7 @@ import functools
 import json
 import logging
 import time
-from typing import Any, Callable, Optional
+from typing import Callable, Optional
 
 from app.config import settings
 

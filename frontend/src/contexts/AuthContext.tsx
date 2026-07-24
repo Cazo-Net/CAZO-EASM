@@ -19,6 +19,7 @@ interface AuthContextType {
   register: (email: string, password: string, fullName?: string) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -123,6 +124,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/");
   };
 
+  const refreshUser = async () => {
+    const storedToken = getToken();
+    if (!storedToken) return;
+    try {
+      const response = await api.get("/auth/me");
+      setUser(response.data);
+    } catch {
+      // silently fail
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -132,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         loginWithGoogle,
         logout,
+        refreshUser,
         isAuthenticated: !!user,
         loading,
       }}

@@ -1,5 +1,5 @@
 """Executive reporting API: aggregated org-level security summary."""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from datetime import datetime

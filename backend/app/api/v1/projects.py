@@ -6,7 +6,6 @@ from app.models.project import Project
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
 from app.api.deps import get_current_user
-from app.core.permissions import require_permission, Permission
 
 router = APIRouter()
 

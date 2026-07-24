@@ -13,8 +13,6 @@ from sqlalchemy.orm import Session
 
 from app.models.asset_inventory import Asset, AssetRelationship
 from app.models.asset import Subdomain
-from app.models.port import Port
-from app.models.ssl import SSLCertificate
 from app.utils.asn import resolve_asn
 
 logger = logging.getLogger(__name__)

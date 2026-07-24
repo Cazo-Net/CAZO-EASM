@@ -130,7 +130,7 @@ async def list_trusted_devices(
     """List trusted devices."""
     devices = (
         db.query(TrustedDevice)
-        .filter(TrustedDevice.user_id == current_user.id, TrustedDevice.is_active == True)
+        .filter(TrustedDevice.user_id == current_user.id, TrustedDevice.is_active)
         .order_by(TrustedDevice.trusted_at.desc())
         .all()
     )
@@ -203,7 +203,7 @@ async def list_recovery_codes(
     return [
         RecoveryCodeResponse(
             id=c.id,
-            code_display=f"****-****",
+            code_display="****-****",
             created_at=str(c.created_at),
             last_used=str(c.used_at) if c.used_at else None,
             is_active=not c.used,

@@ -1,18 +1,15 @@
 """Session management endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session as DBSession
-from sqlalchemy import func
 from typing import List
 from pydantic import BaseModel
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 
 from app.database import get_db
 from app.models.user import User
 from app.models.auth_models import UserSession
 from app.api.deps import get_current_user
-from app.core.security import decode_token, hash_api_key
-import hashlib
 
 router = APIRouter()
 
@@ -66,7 +63,7 @@ async def list_sessions(
     """List all active sessions for the current user."""
     sessions = (
         db.query(UserSession)
-        .filter(UserSession.user_id == current_user.id, UserSession.is_active == True)
+        .filter(UserSession.user_id == current_user.id, UserSession.is_active)
         .order_by(UserSession.last_activity.desc())
         .all()
     )
@@ -112,7 +109,7 @@ async def revoke_all_sessions(
     """Revoke all sessions except the current one."""
     db.query(UserSession).filter(
         UserSession.user_id == current_user.id,
-        UserSession.is_active == True,
+        UserSession.is_active,
     ).update({"is_active": False})
     db.commit()
     return {"message": "All sessions revoked"}

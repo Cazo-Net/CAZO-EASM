@@ -1,5 +1,5 @@
 """Unit tests for the discovery plugin registry."""
-from app.scanners.registry import registry, ScannerCategory, register_scanner, ScannerPlugin
+from app.scanners.registry import registry, ScannerCategory, register_scanner
 from app.scanners.base import BaseScanner
 
 

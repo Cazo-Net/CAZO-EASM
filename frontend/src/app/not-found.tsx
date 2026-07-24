@@ -1,8 +1,28 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function NotFound() {
+  const router = useRouter();
+  const [countdown, setCountdown] = useState(3);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          router.back();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [router]);
+
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-[#09090B] px-6 text-center">
       <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-cyan-500/20 bg-cyan-500/10">
@@ -17,18 +37,22 @@ export default function NotFound() {
         The page you are looking for does not exist, may have been moved, or the URL is incorrect.
       </p>
 
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-        <Link
-          href="/dashboard"
+      <p className="mt-6 text-sm text-gray-500">
+        Redirecting back in <span className="font-mono text-cyan-400">{countdown}</span>s&hellip;
+      </p>
+
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+        <button
+          onClick={() => router.back()}
           className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-black transition-all hover:bg-gray-200"
         >
-          Return Dashboard
-        </Link>
+          Go Back
+        </button>
         <Link
-          href="/"
+          href="/dashboard"
           className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-white/10"
         >
-          Go Home
+          Return Dashboard
         </Link>
       </div>
 

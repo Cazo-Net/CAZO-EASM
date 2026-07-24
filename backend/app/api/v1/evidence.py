@@ -16,8 +16,6 @@ from app.schemas.evidence import (
     FindingListResponse,
     FindingHistoryEntry,
     FindingEvidenceItem,
-    FindingStatus,
-    EvidenceType,
 )
 from app.api.deps import get_current_user
 import uuid

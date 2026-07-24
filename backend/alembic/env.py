@@ -8,7 +8,14 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.database import Base, get_database_url
-from app.models import user, scan, asset, port, dns, ssl, technology, vulnerability, whois, risk, organization, project, report, scope, audit, asset_inventory, asset_score, asset_change, comment, notification, notification_preference, notification_email_log
+from app.models import (
+    user, scan, asset, port, dns, ssl, technology, vulnerability, whois,
+    risk, organization, project, report, scope, audit, asset_inventory,
+    asset_score, asset_change, comment, notification, notification_preference,
+    notification_email_log, tag, canvas, auth_models, subscription, invoice,
+    payment_method, api_key_v2, usage_record, feature_flag, webhook_event,
+    role, passkey, osint_cache,
+)
 
 config = context.config
 config.set_main_option("sqlalchemy.url", get_database_url())

@@ -39,7 +39,6 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
     If a user with the same email exists, link the Google account to that user.
     Otherwise, create a new user (no password, email_verified=True).
     """
-    import json
 
     body = await request.json()
     credential = body.get("credential")

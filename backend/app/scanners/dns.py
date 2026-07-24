@@ -2,7 +2,7 @@ import asyncio
 import dns.resolver
 import dns.rdatatype
 import dns.exception
-from typing import Any, Dict, List
+from typing import Any, Dict
 from app.scanners.base import BaseScanner
 from app.scanners.registry import register_scanner, ScannerCategory
 import logging

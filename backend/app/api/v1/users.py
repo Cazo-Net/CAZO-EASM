@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Dict
 from datetime import datetime, timezone
 from app.database import get_db
 from app.models.user import User

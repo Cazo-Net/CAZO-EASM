@@ -19,8 +19,6 @@ from app.plans import (
     get_plan_limits,
     get_plan_features,
     is_feature_enabled,
-    check_usage_limit,
-    get_remaining_capacity,
     list_all_plans,
 )
 from app.config import settings
@@ -281,12 +279,7 @@ class SubscriptionService:
 
         sub = self.get_org_subscription(org_id)
         if sub and sub.current_period_starts_at:
-            period_start = sub.current_period_starts_at
-            period_end = sub.current_period_ends_at or now
-        else:
-            from datetime import timedelta
-            period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            period_end = now
+            pass
 
         usage = self.db.query(UsageAggregation).filter(
             UsageAggregation.organization_id == org_id,
@@ -321,7 +314,7 @@ class SubscriptionService:
             ).scalar() or 0,
             "users": lambda: self.db.query(func.count(User.id)).filter(
                 User.organization_id == org_id,
-                User.is_active == True,
+                User.is_active,
             ).scalar() or 0,
             "reports": lambda: self.db.query(func.count(Report.id)).filter(
                 Report.generated_by.in_(

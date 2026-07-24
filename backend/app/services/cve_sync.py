@@ -13,8 +13,6 @@ sleeps between pages and is resumable via --start-index.
 """
 import argparse
 import asyncio
-import json
-import os
 import time
 import httpx
 
@@ -187,7 +185,6 @@ def main():
     # NVD limits a single pubStart/pubEnd span; chunk into <=120-day windows.
     chunk = 120
     total = 0
-    win_end = now
     win_start = now - timedelta(days=args.days)
     cursor_end = now
     while win_start < now and total < args.limit:

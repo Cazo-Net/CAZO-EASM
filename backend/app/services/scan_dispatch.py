@@ -4,6 +4,8 @@ Priority:
 1. SCAN_ENGINE_URL set → HTTP POST to the scan engine service (production)
 2. USE_CELERY=true → Celery task queue (legacy production)
 3. Otherwise → FastAPI BackgroundTasks (local development)
+
+Supports v2 scanner engine via SCAN_ENGINE=v2 environment variable.
 """
 
 import os
@@ -22,6 +24,9 @@ logger = logging.getLogger(__name__)
 # to the always-on scan engine container (Railway, etc.).
 SCAN_ENGINE_URL = os.environ.get("SCAN_ENGINE_URL", "")
 SCAN_ENGINE_SECRET = os.environ.get("SCAN_ENGINE_SECRET", "")
+
+# Scanner engine version: "v1" (default) or "v2" (enterprise EASM pipeline)
+SCAN_ENGINE_VERSION = os.environ.get("SCAN_ENGINE", "v1").lower()
 
 
 def dispatch_scan(scan_id: str, background_tasks: Optional[BackgroundTasks] = None) -> None:
@@ -66,7 +71,52 @@ def dispatch_scan(scan_id: str, background_tasks: Optional[BackgroundTasks] = No
         raise RuntimeError("No execution backend available for scan dispatch")
 
 
-def _dispatch_to_scan_engine(scan_id: str) -> None:
+def dispatch_scan_v2(scan_id: str, background_tasks: Optional[BackgroundTasks] = None) -> None:
+    """Queue a scan using the v2 enterprise scanner engine.
+
+    Same dispatch tiers as dispatch_scan, but uses V2ScanRunner under the hood.
+    """
+    # Tier 1: Scan engine service (v2)
+    if SCAN_ENGINE_URL and SCAN_ENGINE_SECRET:
+        _dispatch_to_scan_engine(scan_id, engine_version="v2")
+        return
+
+    # Tier 2: Celery
+    if settings.USE_CELERY:
+        try:
+            from app.tasks import execute_scan_task_v2
+            execute_scan_task_v2.delay(scan_id)
+            logger.info("Dispatched scan %s to Celery (v2)", scan_id)
+            return
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to dispatch scan %s to Celery v2; falling back", scan_id)
+
+    # Tier 3: FastAPI BackgroundTasks (dev)
+    if background_tasks is not None:
+        from app.database import SessionLocal
+
+        async def _run():
+            db = SessionLocal()
+            try:
+                from app.services.scan_service_v2 import ScanServiceV2
+                await ScanServiceV2(db).execute_scan(scan_id)
+            finally:
+                db.close()
+
+        background_tasks.add_task(_run)
+        logger.info("Dispatched scan %s to background task (v2)", scan_id)
+    else:
+        raise RuntimeError("No execution backend available for v2 scan dispatch")
+
+
+def get_active_engine() -> str:
+    """Return the currently active scanner engine version."""
+    if SCAN_ENGINE_URL and SCAN_ENGINE_SECRET:
+        return SCAN_ENGINE_VERSION
+    return SCAN_ENGINE_VERSION
+
+
+def _dispatch_to_scan_engine(scan_id: str, engine_version: str = "v1") -> None:
     """POST scan job to the scan engine service.
 
     The scan engine inserts the job into the database-backed queue
@@ -97,6 +147,7 @@ def _dispatch_to_scan_engine(scan_id: str) -> None:
             "scan_type": scan.scan_type or "full",
             "scan_options": scan_options,
             "org_id": scan.organization_id or "",
+            "engine": engine_version,
         }
 
         url = f"{SCAN_ENGINE_URL.rstrip('/')}/jobs"
@@ -106,8 +157,8 @@ def _dispatch_to_scan_engine(scan_id: str) -> None:
         response.raise_for_status()
 
         logger.info(
-            "Dispatched scan %s to scan engine (status=%d)",
-            scan_id, response.status_code,
+            "Dispatched scan %s to scan engine (status=%d, engine=%s)",
+            scan_id, response.status_code, engine_version,
         )
 
     except httpx.HTTPStatusError as exc:

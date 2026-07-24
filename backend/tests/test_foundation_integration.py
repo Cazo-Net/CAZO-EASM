@@ -9,9 +9,7 @@ instead we seed minimal data through the repository/service layer directly to
 validate the read paths and authorization.
 """
 import pytest
-from app.repositories.assets import upsert_asset, upsert_relationship, get_asset_graph
-from app.services.scoring import compute_asset_scores, score_health, score_exposure
-from app.models.asset_inventory import Asset, AssetRelationship
+from app.repositories.assets import upsert_asset, upsert_relationship
 
 
 @pytest.fixture
@@ -46,7 +44,6 @@ def org_user(client, auth_headers):
 
 def test_scope_crud_and_enforcement(client, org_user):
     h = org_user["headers"]
-    org_id = org_user["org_id"]
 
     # Create a scope.
     resp = client.post(

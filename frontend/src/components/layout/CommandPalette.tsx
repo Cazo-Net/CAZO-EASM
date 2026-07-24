@@ -13,6 +13,7 @@ import {
   Search,
   Waypoints,
   ShieldCheck,
+  Radar,
   Settings,
   FileText,
   Sun,
@@ -68,6 +69,14 @@ export function CommandPalette({
       group: "Navigation",
       icon: ScanSearch,
       action: () => router.push("/scans"),
+    },
+    {
+      id: "nav-scanner-v2",
+      label: "Go to Scanner v2",
+      group: "Navigation",
+      icon: Radar,
+      keywords: ["easm", "enterprise"],
+      action: () => router.push("/scanner-v2"),
     },
     {
       id: "nav-newscan",

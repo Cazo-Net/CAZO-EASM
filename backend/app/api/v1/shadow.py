@@ -1,9 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional
 import logging
-
-logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.models.user import User
@@ -17,6 +14,8 @@ from app.schemas.shadow import (
 )
 from app.api.deps import get_current_user
 from app.services.shadow_assets import detect_shadow_assets, review_shadow_asset
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

@@ -17,11 +17,13 @@ import {
   CheckCircle2,
   AlertCircle,
   ShieldCheck,
+  Plus,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import api, {
   getOrganization,
+  createOrganization,
   updateOrganization,
   listOrganizationMembers,
   updateMemberRole,
@@ -70,7 +72,7 @@ const ROLE_LABELS: Record<OrgRole, string> = {
 };
 
 export default function OrganizationSettingsPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const orgId = user?.organization_id;
 
   const [loading, setLoading] = useState(true);
@@ -84,9 +86,14 @@ export default function OrganizationSettingsPage() {
   const [inviteRole, setInviteRole] = useState<OrgRole>("analyst");
   const [inviting, setInviting] = useState(false);
   const [error, setError] = useState("");
+  const [orgName, setOrgName] = useState("");
+  const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
@@ -169,6 +176,21 @@ export default function OrganizationSettingsPage() {
     }
   }
 
+  async function handleCreateOrg() {
+    if (!orgName.trim()) return;
+    setCreating(true);
+    setError("");
+    try {
+      await createOrganization({ name: orgName.trim() });
+      await refreshUser();
+      await load();
+    } catch {
+      setError("Failed to create organization.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="page-container-md">
@@ -182,16 +204,58 @@ export default function OrganizationSettingsPage() {
   if (!orgId || !org) {
     return (
       <div className="page-container-md">
-        <EmptyState
-          icon={<Building className="h-8 w-8" />}
-          title="No organization"
-          description="You are not part of an organization yet."
-          action={
-            <Link href="/settings">
-              <Button>Go to Settings</Button>
-            </Link>
-          }
+        <PageHeader
+          title="Organization"
+          description="Create your organization to get started with scanning"
+          icon={<Building className="h-5 w-5" />}
+          breadcrumbs={[
+            { label: "Settings", href: "/settings" },
+            { label: "Organization" },
+          ]}
         />
+
+        <SectionCard
+          title="Create Organization"
+          description="Set up your organization to enable scanning, asset management, and team collaboration."
+          icon={<Building className="h-4 w-4" />}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              You need an organization to use the scanner. Creating one gives you the <strong>Owner</strong> role with full permissions including scan creation.
+            </p>
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                  Organization Name
+                </label>
+                <Input
+                  placeholder="My Security Team"
+                  value={orgName}
+                  onChange={(e) => setOrgName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreateOrg()}
+                />
+              </div>
+              <Button
+                onClick={handleCreateOrg}
+                disabled={creating || !orgName.trim()}
+                className="bg-gradient-to-r gradient-brand hover:from-primary/90 hover:to-cyan-500/90 shadow-lg shadow-primary/25"
+              >
+                {creating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                Create
+              </Button>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4" /> {error}
+              </div>
+            )}
+          </div>
+        </SectionCard>
       </div>
     );
   }

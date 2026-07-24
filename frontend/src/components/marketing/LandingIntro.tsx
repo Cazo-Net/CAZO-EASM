@@ -52,32 +52,11 @@ export function LandingIntro() {
   }, []);
 
   useEffect(() => {
-    const force =
-      new URLSearchParams(window.location.search).get("intro") === "1";
-    if (force) {
-      try {
-        sessionStorage.removeItem(SESSION_KEY);
-      } catch {
-        /* ignore */
-      }
-    }
-
-    let seen = false;
-    try {
-      seen = sessionStorage.getItem(SESSION_KEY) === "1";
-    } catch {
-      /* ignore */
-    }
     const reduced = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
-    if ((seen || reduced) && !force) {
-      try {
-        sessionStorage.setItem(SESSION_KEY, "1");
-      } catch {
-        /* ignore */
-      }
+    if (reduced) {
       return;
     }
 

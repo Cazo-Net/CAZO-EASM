@@ -1,15 +1,12 @@
 """Unit tests for authorized-scope enforcement (pure logic, no DB)."""
-import pytest
 
 from app.core.scope import (
     check_target_authorized,
     is_valid_scope_value,
     _matches_domain,
     _ip_in_scope,
-    ScopeMatch,
 )
 from app.models.scope import AuthorizedScope
-from app.core.permissions import Permission
 
 
 class TestScopeValidation:

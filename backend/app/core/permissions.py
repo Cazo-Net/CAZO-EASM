@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.role import Role
-from app.models.organization import Organization
 
 
 class Permission(str, Enum):
@@ -207,7 +206,7 @@ def check_custom_permission(
         role = db.query(Role).filter(
             Role.slug == user_role,
             Role.organization_id == organization_id,
-            Role.is_system == False,
+            not Role.is_system,
         ).first()
 
         if role:
@@ -277,7 +276,7 @@ def get_user_permissions(user_role: str, db: Session, organization_id: Optional[
         role = db.query(Role).filter(
             Role.slug == user_role,
             Role.organization_id == organization_id,
-            Role.is_system == False,
+            not Role.is_system,
         ).first()
 
         if role:

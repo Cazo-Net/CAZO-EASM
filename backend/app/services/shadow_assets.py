@@ -15,7 +15,7 @@ score reflects how strongly the shared infrastructure implies common ownership:
 The relationship graph built by :mod:`app.repositories.assets` is the sole data
 source, so detection is stable across scans and additive (no raw-scan reads).
 """
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session

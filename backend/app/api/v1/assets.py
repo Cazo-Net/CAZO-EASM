@@ -15,7 +15,7 @@ from app.models.asset_inventory import Asset, AssetRelationship
 from app.models.asset_score import AssetScore
 from app.api.deps import get_current_user
 from app.repositories.assets import get_asset_graph as repository_get_asset_graph
-from app.services.scoring import compute_asset_scores, score_health, score_exposure
+from app.services.scoring import compute_asset_scores
 from app.services.change_detector import get_timeline
 
 router = APIRouter()

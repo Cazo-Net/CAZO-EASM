@@ -18,29 +18,33 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
+def _column_exists(table: str, column: str) -> bool:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    columns = {c["name"] for c in inspector.get_columns("trusted_devices")}
-    indexes = {i["name"] for i in inspector.get_indexes("trusted_devices")}
-    if "is_active" not in columns:
-        with op.batch_alter_table("trusted_devices", reflect_inspector=inspector) as batch_op:
+    return column in {c["name"] for c in inspector.get_columns(table)}
+
+
+def _index_exists(table: str, name: str) -> bool:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    return name in {i["name"] for i in inspector.get_indexes(table)}
+
+
+def upgrade() -> None:
+    if not _column_exists("trusted_devices", "is_active"):
+        with op.batch_alter_table("trusted_devices") as batch_op:
             batch_op.add_column(
                 sa.Column("is_active", sa.Boolean(), nullable=True, server_default=sa.true())
             )
-    if "ix_trusted_devices_is_active" not in indexes:
-        with op.batch_alter_table("trusted_devices", reflect_inspector=inspector) as batch_op:
+    if not _index_exists("trusted_devices", "ix_trusted_devices_is_active"):
+        with op.batch_alter_table("trusted_devices") as batch_op:
             batch_op.create_index("ix_trusted_devices_is_active", ["is_active"])
 
 
 def downgrade() -> None:
-    bind = op.get_bind()
-    inspector = sa.inspect(bind)
-    indexes = {i["name"] for i in inspector.get_indexes("trusted_devices")}
-    columns = {c["name"] for c in inspector.get_columns("trusted_devices")}
-    if "ix_trusted_devices_is_active" in indexes:
-        with op.batch_alter_table("trusted_devices", reflect_inspector=inspector) as batch_op:
+    if _index_exists("trusted_devices", "ix_trusted_devices_is_active"):
+        with op.batch_alter_table("trusted_devices") as batch_op:
             batch_op.drop_index("ix_trusted_devices_is_active")
-    if "is_active" in columns:
-        with op.batch_alter_table("trusted_devices", reflect_inspector=inspector) as batch_op:
+    if _column_exists("trusted_devices", "is_active"):
+        with op.batch_alter_table("trusted_devices") as batch_op:
             batch_op.drop_column("is_active")

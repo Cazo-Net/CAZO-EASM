@@ -1,7 +1,7 @@
 """Pydantic schemas for executive reporting."""
 from typing import List, Optional, Literal
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class ExecAsset(BaseModel):

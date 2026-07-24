@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 from app.scanners.base import BaseScanner
 from app.scanners.registry import register_scanner, ScannerCategory
 import logging

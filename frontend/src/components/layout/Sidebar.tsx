@@ -18,6 +18,7 @@ import {
   Search,
   Waypoints,
   ShieldCheck,
+  Radar,
   Ghost,
   Zap,
   ChevronsUpDown,
@@ -55,6 +56,7 @@ const navSections = [
     label: "DISCOVERY",
     items: [
       { href: "/scans", label: "Scans", icon: ScanSearch },
+      { href: "/scanner-v2", label: "Scanner v2", icon: Radar },
       { href: "/search", label: "Search", icon: Search },
       { href: "/intel", label: "Intelligence", icon: Zap },
       { href: "/assets", label: "Assets", icon: Globe },

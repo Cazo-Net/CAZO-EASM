@@ -1,9 +1,8 @@
 import os
 import json
 import csv
-import io
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from sqlalchemy.orm import Session
 from app.models.scan import Scan
 from app.models.asset import Subdomain
@@ -171,8 +170,7 @@ class ReportService:
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
-        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
         
         data = self._gather_scan_data(scan_id)
         file_path = os.path.join(self.REPORTS_DIR, f"{scan_id}.pdf")

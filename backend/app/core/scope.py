@@ -268,9 +268,9 @@ def is_valid_scope_value(scope_type: str, value: str) -> bool:
     if scope_type in ("ip", "cidr"):
         try:
             if "/" in value:
-                net = ipaddress.ip_network(value, strict=False)
+                ipaddress.ip_network(value, strict=False)
             else:
-                net = ipaddress.ip_address(value)
+                ipaddress.ip_address(value)
             # Block private/loopback/reserved ranges
             if _scope_value_is_private(value):
                 return False

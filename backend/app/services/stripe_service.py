@@ -5,7 +5,6 @@ checkout sessions, billing portal, webhooks, and payment methods.
 """
 
 import logging
-import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 
@@ -15,8 +14,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.models.organization import Organization
 from app.models.subscription import Subscription
-from app.models.invoice import Invoice, InvoiceLineItem
-from app.models.payment_method import PaymentMethod
+from app.models.invoice import Invoice
 from app.models.webhook_event import WebhookEvent
 from app.plans import get_plan_info
 
@@ -247,7 +245,7 @@ class StripeService:
         sub = self.db.query(Subscription).filter(
             Subscription.organization_id == org.id,
             Subscription.status.in_(["active", "canceled"]),
-            Subscription.cancel_at_period_end == True,
+            Subscription.cancel_at_period_end,
         ).first()
 
         if not sub or not sub.stripe_subscription_id:

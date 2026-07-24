@@ -11,11 +11,8 @@ before production deployment.
 """
 
 import logging
-import hashlib
 import base64
-import json
 import secrets
-from typing import Optional
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -43,7 +40,7 @@ async def list_passkeys(
     """List all passkeys for the current user."""
     passkeys = db.query(Passkey).filter(
         Passkey.user_id == current_user.id,
-        Passkey.is_active == True,
+        Passkey.is_active,
     ).order_by(Passkey.created_at.desc()).all()
 
     return {
@@ -72,7 +69,7 @@ async def register_passkey_begin(
     """
     existing_credentials = db.query(Passkey).filter(
         Passkey.user_id == current_user.id,
-        Passkey.is_active == True,
+        Passkey.is_active,
     ).all()
 
     exclude_credentials = [
@@ -192,7 +189,7 @@ async def authenticate_passkey_begin(
 
     passkeys = db.query(Passkey).filter(
         Passkey.user_id == user.id,
-        Passkey.is_active == True,
+        Passkey.is_active,
     ).all()
 
     if not passkeys:
@@ -238,7 +235,7 @@ async def authenticate_passkey_complete(
 
     passkey = db.query(Passkey).filter(
         Passkey.credential_id == credential_id,
-        Passkey.is_active == True,
+        Passkey.is_active,
     ).first()
 
     if not passkey:

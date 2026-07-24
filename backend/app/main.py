@@ -32,8 +32,16 @@ async def lifespan(app: FastAPI):
     init_db()
     get_rate_limiter()
     _reap_stuck_scans()
+
+    # Start scan scheduler
+    from app.services.scan_scheduler import scan_scheduler
+    await scan_scheduler.start()
+
     logger.info("Application started", extra={"environment": settings.ENVIRONMENT})
     yield
+
+    # Stop scan scheduler
+    await scan_scheduler.stop()
     logger.info("Application shutting down")
 
 
@@ -249,7 +257,7 @@ async def readiness_check():
 
 
 # Import and include routers
-from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint
+from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2  # noqa: E402
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(auth_google.router, prefix="/api/v1/auth", tags=["Google OAuth"])
@@ -282,6 +290,7 @@ app.include_router(evidence.router, prefix="/api/v1/findings", tags=["Evidence C
 app.include_router(shadow.router, prefix="/api/v1/shadow-assets", tags=["Shadow Assets"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["Search"])
 app.include_router(osint.router, prefix="/api/v1/osint", tags=["OSINT Intelligence"])
+app.include_router(scanner_v2.router, prefix="/api/v1/scanner-v2", tags=["Scanner v2"])
 
 
 # API docs (only in debug mode)

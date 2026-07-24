@@ -25,7 +25,7 @@ Usage:
 """
 
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 
 from sqlalchemy.orm import Session

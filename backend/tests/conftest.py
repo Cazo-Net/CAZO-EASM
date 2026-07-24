@@ -39,7 +39,7 @@ engine = create_engine(
 # opens its own SessionLocal). Without WAL, the default rollback journal can
 # leave a background task reading a stale snapshot and failing to find a just
 # created scan.
-from sqlalchemy import event
+from sqlalchemy import event  # noqa: E402
 
 @event.listens_for(engine, "connect")
 def _set_sqlite_pragmas(dbapi_con, con_record):
@@ -51,7 +51,7 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 Base.metadata.create_all(bind=engine)
 
 # Make the application use this same test database engine/session factory.
-import app.database as _appdb
+import app.database as _appdb  # noqa: E402
 
 _appdb.engine = engine
 _appdb.SessionLocal = TestingSessionLocal
@@ -60,7 +60,7 @@ _appdb.SessionLocal = TestingSessionLocal
 # daemon thread that outlives each test and has caused intermittent,
 # non-deterministic interference; tests only assert on HTTP responses, not on
 # email delivery.
-import app.services.email.sender as _emailsender
+import app.services.email.sender as _emailsender  # noqa: E402
 
 _emailsender.EmailService._ensure_worker = lambda self: None
 

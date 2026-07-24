@@ -14,7 +14,6 @@ never by destructive schema changes.
 from sqlalchemy import (
     Column, String, DateTime, ForeignKey, Boolean, JSON, Text, UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
 import uuid

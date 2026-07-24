@@ -107,7 +107,7 @@ def welcome_email(name: str, verify_url: str) -> tuple[str, str]:
         <a href="{verify_url}" class="btn">Verify Email Address</a>
       </div>
       <p style="font-size:13px;color:#6B7280;">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
-    """, f"Welcome to CAZO EASM! Verify your email to get started.")
+    """, "Welcome to CAZO EASM! Verify your email to get started.")
     return f"Welcome to CAZO EASM, {name}", html
 
 
@@ -209,7 +209,7 @@ def new_login(name: str, ip_address: str, browser: str, os_name: str, location: 
 
 def mfa_enabled(name: str) -> tuple[str, str]:
     """MFA enabled confirmation."""
-    html = _base("MFA Enabled", f"""
+    html = _base("MFA Enabled", """
       <div style="text-align:center;margin-bottom:24px;">
         <div style="display:inline-block;width:48px;height:48px;background:#D1FAE5;border-radius:50%;text-align:center;line-height:48px;font-size:24px;">&#128274;</div>
       </div>

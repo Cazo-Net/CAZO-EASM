@@ -1098,10 +1098,91 @@ export interface OsintResult {
     source: string;
   }[];
   sources_status: Record<string, string>;
+  ip_reputation: {
+    ip: string;
+    country: string | null;
+    org: string | null;
+    city: string | null;
+    loc: string | null;
+    hostname: string | null;
+    abuse_confidence: number;
+    noise?: boolean;
+    riot?: boolean;
+    classification?: string;
+  }[];
+  whois: {
+    name: string;
+    status: string[];
+    nameservers: string[];
+    registration_date: string | null;
+    expiration_date: string | null;
+    last_changed: string | null;
+    registrar: string | null;
+    handle: string | null;
+  } | null;
+  historical_subdomains: string[];
+  reverse_ip: string[];
+  email_security: {
+    mx_records: { host: string; priority: string }[];
+    dmarc_record: string | null;
+    dmarc_policy: string | null;
+    spf_record: string | null;
+    spf_valid: boolean | null;
+    dkim_found: string[];
+    smtp_banner: string | null;
+    emails_found: string[];
+  } | null;
+  waf_cdn: {
+    cdn: string | null;
+    waf: string | null;
+    server: string | null;
+    powered_by: string | null;
+    technologies_from_headers: string[];
+  } | null;
+  security_headers: {
+    hsts: string | null;
+    csp: string | null;
+    x_frame_options: string | null;
+    x_content_type_options: string | null;
+    x_xss_protection: string | null;
+    referrer_policy: string | null;
+    permissions_policy: string | null;
+    score: number;
+    issues: string[];
+  } | null;
+  sensitive_paths: {
+    path: string;
+    status: number;
+    size: number;
+    category: string;
+  }[];
+  web_fingerprint: {
+    title: string | null;
+    meta_generator: string | null;
+    technologies: string[];
+    cookies: string[];
+    forms: number;
+    external_links: number;
+    js_files: string[];
+    email_addresses: string[];
+    phone_numbers: string[];
+    social_links: string[];
+  } | null;
+  reverse_dns_range: string[];
+  risk_score: {
+    score: number;
+    grade: string;
+    findings: { severity: string; detail: string }[];
+    exposed_services: number;
+    missing_security_headers: number;
+    sensitive_paths_found: number;
+    ssl_issues: number;
+    dns_misconfigs: number;
+  } | null;
 }
 
 export async function osintLookup(query: string): Promise<OsintResult> {
-  const { data } = await api.get("/osint", { params: { q: query } });
+  const { data } = await api.get("/osint", { params: { q: query }, timeout: 120000 });
   return data;
 }
 
@@ -1111,5 +1192,109 @@ export async function osintImport(query: string): Promise<{
   sources_status: Record<string, string>;
 }> {
   const { data } = await api.post("/osint/import", null, { params: { q: query } });
+  return data;
+}
+
+// --- Scanner v2 ---
+
+export interface ScanV2Health {
+  status: string;
+  engine: string;
+  registered_scanners: Array<{
+    name: string;
+    version: string;
+    category: string;
+    priority: string;
+  }>;
+  pipeline_stages: string[];
+  version: string;
+}
+
+export interface ScanV2Plugin {
+  name: string;
+  version: string;
+  category: string;
+  priority: string;
+  scanner_class: string;
+}
+
+export interface ScanV2Result {
+  success: boolean;
+  domain: string;
+  scan_engine: string;
+  subdomains: string[];
+  risk_score: Record<string, any>;
+  graph: Record<string, any>;
+  scanner_status: Record<string, string>;
+  pipeline_summary: Record<string, any>;
+  errors: Array<Record<string, any>>;
+}
+
+export interface MonitorSchedule {
+  id: string;
+  domain: string;
+  interval_hours: number;
+  scan_type: string;
+  enabled: boolean;
+  created_at: string;
+  last_run: string | null;
+  next_run: string | null;
+}
+
+export async function getScannerV2Health(): Promise<ScanV2Health> {
+  const { data } = await api.get("/scanner-v2/health");
+  return data;
+}
+
+export async function getScannerV2Plugins(): Promise<{
+  total: number;
+  plugins: ScanV2Plugin[];
+}> {
+  const { data } = await api.get("/scanner-v2/plugins");
+  return data;
+}
+
+export async function runScanV2(params: {
+  domain: string;
+  scan_type?: string;
+  max_subdomains?: number;
+  port_mode?: string;
+  timeout?: number;
+  included_scanners?: string[];
+  excluded_scanners?: string[];
+}): Promise<ScanV2Result> {
+  const { data } = await api.post("/scanner-v2/scan", params);
+  return data;
+}
+
+export async function createMonitor(params: {
+  domain: string;
+  interval_hours?: number;
+  scan_type?: string;
+}): Promise<MonitorSchedule> {
+  const { data } = await api.post("/scanner-v2/monitor", params);
+  return data;
+}
+
+export async function listMonitors(): Promise<MonitorSchedule[]> {
+  const { data } = await api.get("/scanner-v2/monitor");
+  return data;
+}
+
+export async function deleteMonitor(monitorId: string): Promise<void> {
+  await api.delete(`/scanner-v2/monitor/${monitorId}`);
+}
+
+export async function analyzeDomain(params: {
+  domain: string;
+  question: string;
+  scan_data?: Record<string, any>;
+}): Promise<{
+  domain: string;
+  question: string;
+  answer: string;
+  generated_at: string;
+}> {
+  const { data } = await api.post("/scanner-v2/analyze", params);
   return data;
 }

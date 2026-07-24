@@ -1,6 +1,6 @@
 """Asset collaboration comments/annotations (team collaboration)."""
 from sqlalchemy import (
-    Column, String, DateTime, ForeignKey, Text, Boolean, Integer,
+    Column, String, DateTime, ForeignKey, Text, Boolean,
 )
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func

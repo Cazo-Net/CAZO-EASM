@@ -18,9 +18,6 @@ from sqlalchemy.orm import Session
 from app.models.asset_change import AssetChange
 from app.models.scan import Scan
 from app.models.asset import Subdomain
-from app.models.port import Port
-from app.models.ssl import SSLCertificate
-from app.models.technology import Technology
 
 logger = logging.getLogger(__name__)
 

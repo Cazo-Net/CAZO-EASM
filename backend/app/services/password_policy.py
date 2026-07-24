@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.organization import Organization
-from app.config import settings
 
 
 DEFAULT_PASSWORD_POLICY = {

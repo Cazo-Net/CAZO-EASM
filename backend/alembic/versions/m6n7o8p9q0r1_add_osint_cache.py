@@ -25,5 +25,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("uq_osint_cache_domain", table_name="osint_cache")
-    op.drop_table("osint_cache")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "osint_cache" in inspector.get_table_names():
+        existing = {idx["name"] for idx in inspector.get_indexes("osint_cache")}
+        if "uq_osint_cache_domain" in existing:
+            op.drop_index("uq_osint_cache_domain", table_name="osint_cache")
+        op.drop_table("osint_cache")

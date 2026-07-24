@@ -8,7 +8,7 @@ from datetime import datetime
 import logging
 
 from cryptography import x509
-from cryptography.hazmat.primitives.asymmetric import rsa, ec, dsa
+from cryptography.hazmat.primitives.asymmetric import rsa, ec
 
 logger = logging.getLogger(__name__)
 
@@ -229,7 +229,6 @@ class SSLScanner(BaseScanner):
             score -= 10
         
         # Check key length
-        subject = dict(x[0] for x in cert.get('subject', []))
         
         # Convert score to grade
         if score >= 90:

@@ -3,7 +3,6 @@
 Confirms that signing in with Google using an email that matches an existing
 password-based account returns HTTP 409, not a silent account takeover.
 """
-import pytest
 from unittest.mock import patch
 
 
@@ -55,7 +54,6 @@ class TestGoogleOAuthSilentLinkingBlock:
     def test_google_only_account_allows_link(self, client, db_session):
         """Existing Google-only account -> Google OAuth same email -> 200 (link succeeds)."""
         from app.models.user import User
-        from app.core.security import create_access_token
 
         # Step 1: Create a Google-only account (no password)
         user = User(

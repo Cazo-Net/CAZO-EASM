@@ -11,9 +11,9 @@ from app.core.security import (
     get_password_hash, verify_password,
     create_access_token, create_refresh_token, decode_token,
     generate_verification_token, generate_totp_secret, verify_totp,
-    generate_api_key, hash_api_key,
+    hash_api_key,
 )
-from app.config import settings, frontend_url
+from app.config import frontend_url
 from app.services.notification_service import dispatch_notification
 from app.api.deps import get_current_user
 from app.services.audit import log_auth_event
@@ -320,7 +320,7 @@ async def logout(current_user: User = Depends(get_current_user), db: Session = D
     # Also deactivate all sessions for this user
     db.query(UserSession).filter(
         UserSession.user_id == current_user.id,
-        UserSession.is_active == True,
+        UserSession.is_active,
     ).update({"is_active": False})
     db.commit()
     return {"message": "Logged out successfully"}

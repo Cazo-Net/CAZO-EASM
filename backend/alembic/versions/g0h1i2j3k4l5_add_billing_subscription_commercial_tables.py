@@ -18,9 +18,35 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _table_exists(table_name: str) -> bool:
+    """Check if a table already exists (idempotent migration support)."""
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    return table_name in inspector.get_table_names()
+
+
 def upgrade() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_tables = set(inspector.get_table_names())
+
+    def _safe_add_column(table, column):
+        cols = {c["name"] for c in inspector.get_columns(table)}
+        if column.name not in cols:
+            op.add_column(table, column)
+
+    def _safe_create_table(name, *args, **kwargs):
+        if name not in existing_tables:
+            op.create_table(name, *args, **kwargs)
+
+    def _safe_create_index(table, name, columns, unique=False):
+        indexes = {i["name"] for i in inspector.get_indexes(table)}
+        if name not in indexes:
+            with op.batch_alter_table(table) as batch_op:
+                batch_op.create_index(name, columns, unique=unique)
+
     # --- Subscriptions ---
-    op.create_table(
+    _safe_create_table(
         "subscriptions",
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("organization_id", sa.String(length=36), nullable=False),
@@ -43,14 +69,13 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    with op.batch_alter_table("subscriptions") as batch_op:
-        batch_op.create_index("ix_subscriptions_organization_id", ["organization_id"])
-        batch_op.create_index("ix_subscriptions_status", ["status"])
-        batch_op.create_index("ix_subscriptions_stripe_customer_id", ["stripe_customer_id"], unique=True)
-        batch_op.create_index("ix_subscriptions_stripe_subscription_id", ["stripe_subscription_id"], unique=True)
+    _safe_create_index("subscriptions", "ix_subscriptions_organization_id", ["organization_id"])
+    _safe_create_index("subscriptions", "ix_subscriptions_status", ["status"])
+    _safe_create_index("subscriptions", "ix_subscriptions_stripe_customer_id", ["stripe_customer_id"], unique=True)
+    _safe_create_index("subscriptions", "ix_subscriptions_stripe_subscription_id", ["stripe_subscription_id"], unique=True)
 
     # --- Invoices ---
-    op.create_table(
+    _safe_create_table(
         "invoices",
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("organization_id", sa.String(length=36), nullable=False),
@@ -68,12 +93,11 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["subscription_id"], ["subscriptions.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    with op.batch_alter_table("invoices") as batch_op:
-        batch_op.create_index("ix_invoices_organization_id", ["organization_id"])
-        batch_op.create_index("ix_invoices_stripe_invoice_id", ["stripe_invoice_id"], unique=True)
+    _safe_create_index("invoices", "ix_invoices_organization_id", ["organization_id"])
+    _safe_create_index("invoices", "ix_invoices_stripe_invoice_id", ["stripe_invoice_id"], unique=True)
 
     # --- Invoice Line Items ---
-    op.create_table(
+    _safe_create_table(
         "invoice_line_items",
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("invoice_id", sa.String(length=36), nullable=False),
@@ -86,11 +110,10 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["invoice_id"], ["invoices.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    with op.batch_alter_table("invoice_line_items") as batch_op:
-        batch_op.create_index("ix_invoice_line_items_invoice_id", ["invoice_id"])
+    _safe_create_index("invoice_line_items", "ix_invoice_line_items_invoice_id", ["invoice_id"])
 
     # --- Payment Methods ---
-    op.create_table(
+    _safe_create_table(
         "payment_methods",
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("organization_id", sa.String(length=36), nullable=False),
@@ -105,12 +128,11 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    with op.batch_alter_table("payment_methods") as batch_op:
-        batch_op.create_index("ix_payment_methods_organization_id", ["organization_id"])
-        batch_op.create_index("ix_payment_methods_stripe_payment_method_id", ["stripe_payment_method_id"], unique=True)
+    _safe_create_index("payment_methods", "ix_payment_methods_organization_id", ["organization_id"])
+    _safe_create_index("payment_methods", "ix_payment_methods_stripe_payment_method_id", ["stripe_payment_method_id"], unique=True)
 
     # --- API Keys v2 ---
-    op.create_table(
+    _safe_create_table(
         "api_keys",
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("user_id", sa.String(length=36), nullable=False),
@@ -129,14 +151,13 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    with op.batch_alter_table("api_keys") as batch_op:
-        batch_op.create_index("ix_api_keys_user_id", ["user_id"])
-        batch_op.create_index("ix_api_keys_organization_id", ["organization_id"])
-        batch_op.create_index("ix_api_keys_key_hash", ["key_hash"], unique=True)
-        batch_op.create_index("ix_api_keys_is_active", ["is_active"])
+    _safe_create_index("api_keys", "ix_api_keys_user_id", ["user_id"])
+    _safe_create_index("api_keys", "ix_api_keys_organization_id", ["organization_id"])
+    _safe_create_index("api_keys", "ix_api_keys_key_hash", ["key_hash"], unique=True)
+    _safe_create_index("api_keys", "ix_api_keys_is_active", ["is_active"])
 
     # --- Usage Records ---
-    op.create_table(
+    _safe_create_table(
         "usage_records",
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("organization_id", sa.String(length=36), nullable=False),
@@ -148,12 +169,11 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    with op.batch_alter_table("usage_records") as batch_op:
-        batch_op.create_index("ix_usage_records_organization_id", ["organization_id"])
-        batch_op.create_index("ix_usage_records_metric_name", ["metric_name"])
+    _safe_create_index("usage_records", "ix_usage_records_organization_id", ["organization_id"])
+    _safe_create_index("usage_records", "ix_usage_records_metric_name", ["metric_name"])
 
     # --- Usage Aggregations ---
-    op.create_table(
+    _safe_create_table(
         "usage_aggregations",
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("organization_id", sa.String(length=36), nullable=False),
@@ -174,11 +194,10 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    with op.batch_alter_table("usage_aggregations") as batch_op:
-        batch_op.create_index("ix_usage_aggregations_organization_id", ["organization_id"])
+    _safe_create_index("usage_aggregations", "ix_usage_aggregations_organization_id", ["organization_id"])
 
     # --- Feature Flags ---
-    op.create_table(
+    _safe_create_table(
         "feature_flags",
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("key", sa.String(length=100), nullable=False),
@@ -190,11 +209,10 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    with op.batch_alter_table("feature_flags") as batch_op:
-        batch_op.create_index("ix_feature_flags_key", ["key"], unique=True)
+    _safe_create_index("feature_flags", "ix_feature_flags_key", ["key"], unique=True)
 
     # --- Webhook Events ---
-    op.create_table(
+    _safe_create_table(
         "webhook_events",
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("stripe_event_id", sa.String(length=255), nullable=False),
@@ -205,47 +223,24 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
     )
-    with op.batch_alter_table("webhook_events") as batch_op:
-        batch_op.create_index("ix_webhook_events_stripe_event_id", ["stripe_event_id"], unique=True)
-        batch_op.create_index("ix_webhook_events_event_type", ["event_type"])
-        batch_op.create_index("ix_webhook_events_processed", ["processed"])
-
-    # --- Roles ---
-    op.create_table(
-        "roles",
-        sa.Column("id", sa.String(length=36), nullable=False),
-        sa.Column("organization_id", sa.String(length=36), nullable=True),
-        sa.Column("name", sa.String(length=100), nullable=False),
-        sa.Column("slug", sa.String(length=100), nullable=False),
-        sa.Column("description", sa.String(length=500), nullable=True),
-        sa.Column("permissions", sa.JSON(), nullable=True),
-        sa.Column("is_system", sa.Boolean(), server_default="0"),
-        sa.Column("is_default", sa.Boolean(), server_default="0"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
-        sa.ForeignKeyConstraint(["organization_id"], ["organizations.id"]),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    with op.batch_alter_table("roles") as batch_op:
-        batch_op.create_index("ix_roles_organization_id", ["organization_id"])
-        batch_op.create_index("ix_roles_slug", ["slug"])
+    _safe_create_index("webhook_events", "ix_webhook_events_stripe_event_id", ["stripe_event_id"], unique=True)
+    _safe_create_index("webhook_events", "ix_webhook_events_event_type", ["event_type"])
+    _safe_create_index("webhook_events", "ix_webhook_events_processed", ["processed"])
 
     # --- Enhance organizations table ---
-    with op.batch_alter_table("organizations") as batch_op:
-        batch_op.add_column(sa.Column("billing_email", sa.String(length=255), nullable=True))
-        batch_op.add_column(sa.Column("tax_id", sa.String(length=100), nullable=True))
-        batch_op.add_column(sa.Column("invoice_prefix", sa.String(length=20), nullable=True))
-        batch_op.add_column(sa.Column("stripe_customer_id", sa.String(length=255), nullable=True))
-        batch_op.add_column(sa.Column("trial_ends_at", sa.DateTime(timezone=True), nullable=True))
-        batch_op.add_column(sa.Column("is_active", sa.Boolean(), server_default="1"))
-        batch_op.add_column(sa.Column("is_archived", sa.Boolean(), server_default="0"))
-        batch_op.create_index("ix_organizations_stripe_customer_id", ["stripe_customer_id"], unique=True)
+    _safe_add_column("organizations", sa.Column("billing_email", sa.String(length=255), nullable=True))
+    _safe_add_column("organizations", sa.Column("tax_id", sa.String(length=100), nullable=True))
+    _safe_add_column("organizations", sa.Column("invoice_prefix", sa.String(length=20), nullable=True))
+    _safe_add_column("organizations", sa.Column("stripe_customer_id", sa.String(length=255), nullable=True))
+    _safe_add_column("organizations", sa.Column("trial_ends_at", sa.DateTime(timezone=True), nullable=True))
+    _safe_add_column("organizations", sa.Column("is_active", sa.Boolean(), server_default="1"))
+    _safe_add_column("organizations", sa.Column("is_archived", sa.Boolean(), server_default="0"))
+    _safe_create_index("organizations", "ix_organizations_stripe_customer_id", ["stripe_customer_id"], unique=True)
 
     # --- Enhance users table ---
-    with op.batch_alter_table("users") as batch_op:
-        batch_op.add_column(sa.Column("password_changed_at", sa.DateTime(timezone=True), nullable=True))
-        batch_op.add_column(sa.Column("password_expires_at", sa.DateTime(timezone=True), nullable=True))
-        batch_op.add_column(sa.Column("mfa_enforced", sa.Boolean(), server_default="0"))
+    _safe_add_column("users", sa.Column("password_changed_at", sa.DateTime(timezone=True), nullable=True))
+    _safe_add_column("users", sa.Column("password_expires_at", sa.DateTime(timezone=True), nullable=True))
+    _safe_add_column("users", sa.Column("mfa_enforced", sa.Boolean(), server_default="0"))
 
 
 def downgrade() -> None:

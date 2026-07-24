@@ -138,7 +138,6 @@ class ScanRunner:
         **kwargs,
     ) -> Dict[str, Any]:
         options = options or {}
-        scan_size = options.get("scan_size", "large")
         max_subdomains = options.get("max_subdomains", 0)
         port_mode = options.get("port_mode", "full")
         subdomain_tools = options.get("subdomain_tools", ["default", "bruteforce", "permutations"])
@@ -171,7 +170,6 @@ class ScanRunner:
                 await progress_callback(5, "Discovering subdomains + WHOIS (parallel)...")
 
             subdomains = {domain}
-            from app.config import settings
             # Full scans are driven by the chosen port scanner's own range:
             #  - nmap (preferred) uses its top-N default (config.NMAP_TOP_PORTS)
             #  - python fallback uses its TOP_1000_PORTS
@@ -487,7 +485,6 @@ class ScanRunner:
 
             quick_ports = [80, 443, 22, 8080, 8443, 21, 25, 53, 3306, 5432]
             scan_targets = subdomains[:20]
-            total = max(len(scan_targets), 1)
             sem = asyncio.Semaphore(20)
             counters = {"dns_ok": 0, "dns_fail": 0, "ssl_ok": 0, "ssl_fail": 0,
                         "port_ok": 0, "port_fail": 0, "tech_ok": 0, "tech_fail": 0}

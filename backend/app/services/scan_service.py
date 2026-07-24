@@ -13,9 +13,8 @@ from app.database import SessionLocal
 from app.core.scope import check_target_authorized
 from app.services.audit import log_event
 from app.services.notification_service import dispatch_notification
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
-import asyncio
 import json
 import logging
 

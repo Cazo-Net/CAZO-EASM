@@ -20,7 +20,6 @@ Clamped to 0-100. Labels: 0-25 Low, 26-50 Medium, 51-75 High, 76-100 Critical.
 """
 
 from typing import Any, Dict, List, Optional
-from datetime import datetime, timezone
 
 
 # --- Port risk definitions ---
@@ -123,8 +122,6 @@ def _score_ssl(
 ) -> int:
     """Score SSL certificate issues."""
     points = 0
-    now = datetime.now(timezone.utc)
-
     for host, cert in certs_by_host.items():
         if not cert:
             # No cert data at all — may mean connection refused or no HTTPS
@@ -272,8 +269,6 @@ def _score_security_headers(
 
         has_hsts = "hsts" in tech_text or "strict-transport-security" in tech_text
         has_csp = "csp" in tech_text or "content-security-policy" in tech_text
-        has_xfo = "x-frame-options" in tech_text
-
         if has_hsts and has_csp:
             pts = -10
             points += pts

@@ -116,7 +116,7 @@ class NmapPortScanner(BaseScanner):
                 return f"1-{max(ports)}"
             return ",".join(str(p) for p in ports)
         if scan_type == "full":
-            return f"1-10000"
+            return "1-10000"
         return f"--top-ports {top_ports}"
 
     async def scan(

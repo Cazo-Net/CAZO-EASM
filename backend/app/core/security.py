@@ -6,7 +6,6 @@ from app.config import settings
 import secrets
 import hashlib
 import base64
-import hmac
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

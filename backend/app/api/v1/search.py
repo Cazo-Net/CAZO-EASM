@@ -7,9 +7,8 @@ Supports query syntax with ``key:value`` filters and free-text terms, e.g.::
 
 Filters are case-insensitive. Unknown keys fall back to free-text search.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional
 import re
 
 from app.database import get_db
@@ -77,7 +76,6 @@ def _org_scans(db: Session, org_id: str):
 
 def _match_subdomain_ids(db, org_id, filters, terms):
     """Resolve the set of subdomain ids matching the query."""
-    scan_ids = db.query(Scan.id).filter(Scan.organization_id == org_id)
     q = db.query(Subdomain).join(Scan, Subdomain.scan_id == Scan.id).filter(
         Scan.organization_id == org_id
     )

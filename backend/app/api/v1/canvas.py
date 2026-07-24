@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List
-import json
 
 from app.database import get_db
 from app.api.deps import get_current_user
@@ -582,7 +581,6 @@ def import_scan_to_canvas(canvas_id: str, data: CanvasImportRequest,
         for v in vulns:
             if selected_ids and v.id not in selected_ids:
                 continue
-            vuln_node_key = f"vuln_{v.id}"
             nodes_data.append(CanvasNodeCreate(
                 asset_type="vulnerability", asset_id=v.id,
                 label=f"[{v.severity.upper()}] {v.name[:50]}",

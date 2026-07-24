@@ -1,6 +1,7 @@
 """OSINT intelligence API — key-free Shodan-style lookup for any domain/company."""
 import json
-from datetime import datetime, timezone, timedelta
+import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -14,6 +15,7 @@ from app.services.osint_import import import_osint_findings
 from fastapi.concurrency import run_in_threadpool
 
 router = APIRouter()
+log = logging.getLogger("osint.api")
 
 DEFAULT_TTL = 3600  # 1 hour
 
@@ -70,12 +72,20 @@ async def osint_lookup(
         cached["from_cache"] = True
         return cached
 
-    result = await run_in_threadpool(osint.lookup_domain, domain)
-    result_dict = osint.intel_to_dict(result)
+    try:
+        result = await run_in_threadpool(osint.lookup_domain, domain)
+        result_dict = osint.intel_to_dict(result)
+    except Exception as e:
+        log.exception("OSINT lookup failed for %s", domain)
+        raise HTTPException(status_code=500, detail=f"Lookup failed: {type(e).__name__}: {e}")
 
     # Persist to cache
-    _set_cache(domain, result_dict, db)
-    db.commit()
+    try:
+        _set_cache(domain, result_dict, db)
+        db.commit()
+    except Exception as e:
+        log.warning("Cache write failed for %s: %s", domain, e)
+        db.rollback()
 
     result_dict["from_cache"] = False
     return result_dict

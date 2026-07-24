@@ -7,7 +7,7 @@ and change feed all work across both data sources seamlessly.
 """
 from __future__ import annotations
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Set
+from typing import Dict, Optional
 import logging
 
 from sqlalchemy.orm import Session
@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.models.asset_inventory import Asset, AssetRelationship
 from app.models.vulnerability import Vulnerability
 from app.models.scan import Scan
-from app.services.osint import IntelResult, intel_to_dict
+from app.services.osint import IntelResult
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +66,12 @@ def _upsert_relationship(
     target_id: str,
     rel_type: str,
     weight: float = 1.0,
+    _seen: Optional[set] = None,
 ) -> None:
     """Create a relationship edge if it doesn't already exist."""
+    key = (source_id, target_id, rel_type)
+    if _seen is not None and key in _seen:
+        return
     existing = (
         db.query(AssetRelationship)
         .filter(
@@ -79,6 +83,8 @@ def _upsert_relationship(
     )
     if existing:
         existing.last_seen = datetime.now(timezone.utc)
+        if _seen is not None:
+            _seen.add(key)
         return
     rel = AssetRelationship(
         organization_id=org_id,
@@ -88,6 +94,8 @@ def _upsert_relationship(
         weight={"value": weight},
     )
     db.add(rel)
+    if _seen is not None:
+        _seen.add(key)
 
 
 def _upsert_vuln(
@@ -148,6 +156,7 @@ def import_osint_findings(
         "relationships": 0,
         "vulnerabilities": 0,
     }
+    _seen_rels: set = set()
 
     # 1) Upsert each discovered subdomain as a host asset
     hostname_assets: Dict[str, Asset] = {}
@@ -161,7 +170,7 @@ def import_osint_findings(
         for ip in sub.ips:
             ip_asset = _upsert_asset(db, org_id, "ip", ip, source="osint")
             counts["ip_assets"] += 1
-            _upsert_relationship(db, org_id, asset.id, ip_asset.id, "resolves_to")
+            _upsert_relationship(db, org_id, asset.id, ip_asset.id, "resolves_to", _seen=_seen_rels)
             counts["relationships"] += 1
 
     # 3) DNS records → store as attributes on the host asset
@@ -194,14 +203,14 @@ def import_osint_findings(
 
             # Link certificate to host via serves relationship
             if subject_host in hostname_assets:
-                _upsert_relationship(db, org_id, hostname_assets[subject_host].id, cert_asset.id, "serves")
+                _upsert_relationship(db, org_id, hostname_assets[subject_host].id, cert_asset.id, "serves", _seen=_seen_rels)
                 counts["relationships"] += 1
 
             # Also link via SAN hostnames
             for san_name in cert.san:
                 san_name = san_name.lstrip("*.").lower()
                 if san_name in hostname_assets:
-                    _upsert_relationship(db, org_id, hostname_assets[san_name].id, cert_asset.id, "serves")
+                    _upsert_relationship(db, org_id, hostname_assets[san_name].id, cert_asset.id, "serves", _seen=_seen_rels)
                     counts["relationships"] += 1
 
     # 5) Vulnerabilities → Vulnerability records (linked to an osint scan)

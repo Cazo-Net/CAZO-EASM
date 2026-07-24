@@ -189,7 +189,6 @@ class PortScanner(BaseScanner):
                     ctx = ssl.create_default_context()
                     ctx.check_hostname = False
                     ctx.verify_mode = ssl.CERT_NONE
-                    transport = writer.transport
                     tls_reader, tls_writer = await asyncio.wait_for(
                         self._wrap_tls(reader, writer, ctx, host),
                         timeout=self.banner_timeout,
@@ -246,7 +245,6 @@ class PortScanner(BaseScanner):
 
     async def _wrap_tls(self, reader, writer, ctx, host):
         """Wrap an established connection in TLS and return (reader, writer)."""
-        import ssl
         # Use a fresh loop-based SSL wrapping on the existing transport.
         ssl_reader = await asyncio.wait_for(
             _TlsUpgrader.upgrade(reader, writer, ctx, host),

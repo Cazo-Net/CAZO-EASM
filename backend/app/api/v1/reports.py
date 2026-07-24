@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Optional
 from app.database import get_db
 from app.models.scan import Scan
 from app.models.report import Report
@@ -9,7 +9,6 @@ from app.models.user import User
 from app.api.deps import get_current_user
 from app.core.permissions import require_permission, Permission
 from app.services.report_service import ReportService
-from datetime import datetime
 import os
 
 router = APIRouter()
@@ -50,7 +49,6 @@ async def generate_report(
 ):
     """Generate a report for a scan."""
     _assert_scan_belongs_to_org(db, scan_id, current_user)
-    scan = db.query(Scan).filter(Scan.id == scan_id).first()
 
     try:
         service = ReportService(db)

@@ -4,7 +4,7 @@ Provides FastAPI dependencies that check subscription plan entitlements
 and usage limits before allowing access to protected endpoints.
 """
 
-from typing import Callable, Optional
+from typing import Callable
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 

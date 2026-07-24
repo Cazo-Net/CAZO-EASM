@@ -1,11 +1,9 @@
 import asyncio
 import httpx
-import json
 import re
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, Set
 from app.scanners.base import BaseScanner
 from app.scanners.registry import register_scanner, ScannerCategory
-from app.config import settings
 import logging
 
 logger = logging.getLogger(__name__)

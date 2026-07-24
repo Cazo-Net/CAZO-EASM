@@ -8,8 +8,6 @@ Covers:
   - Scan hook CVE dispatch
 """
 
-import pytest
-from datetime import datetime, timezone, timedelta
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +141,7 @@ class TestDispatchDeduplication:
     def test_dedup_allows_different_entity(self, db_session):
         from app.services.notification_service import dispatch_notification
         user = _create_user(db_session)
-        notif1 = dispatch_notification(
+        dispatch_notification(
             db=db_session,
             organization_id=None,
             user_id=user.id,

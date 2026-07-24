@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -39,9 +40,13 @@ async def create_scan(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN))
 ):
-    """Create and start a new scan (authorized-scope enforced)."""
+    """Create and start a new scan (authorized-scope enforced).
+
+    Use X-Scan-Engine: v2 header to run via the enterprise EASM pipeline.
+    """
     service = ScanService(db)
     request_id = request.headers.get("x-request-id")
+    engine = request.headers.get("x-scan-engine", "v1").lower()
 
     try:
         scan = await service.create_scan(
@@ -59,7 +64,11 @@ async def create_scan(
             detail=str(exc),
         )
 
-    dispatch_scan(scan.id, background_tasks)
+    if engine == "v2":
+        from app.services.scan_dispatch import dispatch_scan_v2
+        dispatch_scan_v2(scan.id, background_tasks)
+    else:
+        dispatch_scan(scan.id, background_tasks)
 
     return scan
 

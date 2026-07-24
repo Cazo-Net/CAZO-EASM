@@ -5,7 +5,6 @@ device management, login history, and security scoring.
 """
 
 import logging
-from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -75,7 +74,7 @@ def _compute_security_score(user: User, db: Session) -> dict:
     # Limited active sessions (+10)
     active_sessions = db.query(func.count(UserSession.id)).filter(
         UserSession.user_id == user.id,
-        UserSession.is_active == True,
+        UserSession.is_active,
     ).scalar() or 0
 
     if active_sessions <= 5:
@@ -88,7 +87,7 @@ def _compute_security_score(user: User, db: Session) -> dict:
     # API keys with expiration (+10)
     active_keys = db.query(ApiKey).filter(
         ApiKey.user_id == user.id,
-        ApiKey.is_active == True,
+        ApiKey.is_active,
     ).all()
 
     if active_keys:
@@ -106,7 +105,7 @@ def _compute_security_score(user: User, db: Session) -> dict:
     # Recovery codes exist (+10)
     recovery_count = db.query(func.count(RecoveryCode.id)).filter(
         RecoveryCode.user_id == user.id,
-        RecoveryCode.used == False,
+        not RecoveryCode.used,
     ).scalar() or 0
 
     if recovery_count >= 5:
@@ -122,7 +121,7 @@ def _compute_security_score(user: User, db: Session) -> dict:
     # Trusted devices limited (+5)
     trusted_count = db.query(func.count(TrustedDevice.id)).filter(
         TrustedDevice.user_id == user.id,
-        TrustedDevice.is_active == True,
+        TrustedDevice.is_active,
     ).scalar() or 0
 
     if trusted_count <= 3:
@@ -152,22 +151,22 @@ async def security_dashboard(
 
     active_sessions = db.query(func.count(UserSession.id)).filter(
         UserSession.user_id == current_user.id,
-        UserSession.is_active == True,
+        UserSession.is_active,
     ).scalar() or 0
 
     trusted_devices = db.query(func.count(TrustedDevice.id)).filter(
         TrustedDevice.user_id == current_user.id,
-        TrustedDevice.is_active == True,
+        TrustedDevice.is_active,
     ).scalar() or 0
 
     active_api_keys = db.query(func.count(ApiKey.id)).filter(
         ApiKey.user_id == current_user.id,
-        ApiKey.is_active == True,
+        ApiKey.is_active,
     ).scalar() or 0
 
     recovery_codes = db.query(func.count(RecoveryCode.id)).filter(
         RecoveryCode.user_id == current_user.id,
-        RecoveryCode.used == False,
+        not RecoveryCode.used,
     ).scalar() or 0
 
     failed_30d = db.query(func.count(AuthAuditLog.id)).filter(
@@ -202,7 +201,7 @@ async def list_sessions(
     """List all active sessions for the current user."""
     sessions = db.query(UserSession).filter(
         UserSession.user_id == current_user.id,
-        UserSession.is_active == True,
+        UserSession.is_active,
     ).order_by(desc(UserSession.last_activity)).all()
 
     return {
@@ -260,7 +259,7 @@ async def revoke_all_sessions(
     """Revoke all sessions except the current one."""
     revoked = db.query(UserSession).filter(
         UserSession.user_id == current_user.id,
-        UserSession.is_active == True,
+        UserSession.is_active,
     ).update({"is_active": False})
 
     db.commit()
@@ -284,7 +283,7 @@ async def list_trusted_devices(
     """List trusted devices."""
     devices = db.query(TrustedDevice).filter(
         TrustedDevice.user_id == current_user.id,
-        TrustedDevice.is_active == True,
+        TrustedDevice.is_active,
     ).order_by(desc(TrustedDevice.last_used)).all()
 
     return {
