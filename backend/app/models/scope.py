@@ -6,7 +6,7 @@ against targets that match at least one active scope for the owning organization
 This enforces the platform's "authorized data collection only" policy and
 produces an auditable record of what was approved and by whom.
 """
-from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey, Text
+from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey, Text, Index
 from sqlalchemy.sql import func
 from app.database import Base
 import uuid
@@ -14,6 +14,11 @@ import uuid
 
 class AuthorizedScope(Base):
     __tablename__ = "authorized_scopes"
+    __table_args__ = (
+        Index("ix_scopes_org_type", "organization_id", "scope_type"),
+        Index("ix_scopes_org_verified", "organization_id", "verified"),
+        Index("ix_scopes_value", "value"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(

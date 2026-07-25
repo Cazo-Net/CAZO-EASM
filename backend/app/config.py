@@ -14,13 +14,21 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     SECRET_KEY: str = os.getenv("SECRET_KEY", "")
 
-    # Database
+    # Database — production-grade for 1M+ users
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/easm"
     DATABASE_ECHO: bool = False
-    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "10"))
-    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "20"))
-    DB_POOL_TIMEOUT: int = int(os.getenv("DB_POOL_TIMEOUT", "30"))
-    DB_POOL_RECYCLE: int = int(os.getenv("DB_POOL_RECYCLE", "1800"))
+    # Read replica (optional — routes all reads here when set)
+    DATABASE_READ_URL: Optional[str] = None
+    # Connection pool — tuned for high-concurrency (1M+ users, 200+ workers)
+    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "30"))
+    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "50"))
+    DB_POOL_TIMEOUT: int = int(os.getenv("DB_POOL_TIMEOUT", "15"))
+    DB_POOL_RECYCLE: int = int(os.getenv("DB_POOL_RECYCLE", "900"))
+    DB_POOL_PRE_PING: bool = os.getenv("DB_POOL_PRE_PING", "true").lower() in ("1", "true", "yes")
+    DB_STATEMENT_CACHE_SIZE: int = int(os.getenv("DB_STATEMENT_CACHE_SIZE", "1000"))
+    DB_PREPARED_STATEMENT_CACHE_SIZE: int = int(os.getenv("DB_PREPARED_STATEMENT_CACHE_SIZE", "100"))
+    # Table partitioning (for scans, vulnerabilities, assets on large deployments)
+    DB_PARTITION_ENABLED: bool = os.getenv("DB_PARTITION_ENABLED", "false").lower() in ("1", "true", "yes")
 
     # SQLite for development. Kept under ./data to match the Docker volume layout
     # (see backend/Dockerfile and backend/.env.example).

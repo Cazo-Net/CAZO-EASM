@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Integer
+from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -7,6 +7,13 @@ import uuid
 
 class Port(Base):
     __tablename__ = "ports"
+    __table_args__ = (
+        Index("ix_ports_subdomain_number", "subdomain_id", "port_number"),
+        Index("ix_ports_number", "port_number"),
+        Index("ix_ports_service", "service"),
+        Index("ix_ports_status", "status"),
+        Index("ix_ports_scanned", "scanned_at"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     subdomain_id = Column(String(36), ForeignKey("subdomains.id"), nullable=False, index=True)

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, JSON, Integer
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, JSON, Integer, Index
 from sqlalchemy.sql import func
 from app.database import Base
 import uuid
@@ -6,13 +6,21 @@ import uuid
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        # Composite indexes for 1M+ user queries
+        Index("ix_users_org_active", "organization_id", "is_active"),
+        Index("ix_users_org_role", "organization_id", "role"),
+        Index("ix_users_email_active", "email", "is_active"),
+        Index("ix_users_created_at", "created_at"),
+        Index("ix_users_last_login", "last_login"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=True)
     full_name = Column(String(255))
     role = Column(String(20), default="member")
-    organization_id = Column(String(36), ForeignKey("organizations.id"))
+    organization_id = Column(String(36), ForeignKey("organizations.id"), index=True)
     is_active = Column(Boolean, default=True)
     api_key = Column(String(255), unique=True, index=True)
     preferences = Column(JSON, default=lambda: {

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Text, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -8,12 +8,23 @@ import json
 
 class Scan(Base):
     __tablename__ = "scans"
+    __table_args__ = (
+        # Composite indexes for 1M+ scan queries
+        Index("ix_scans_org_status", "organization_id", "status"),
+        Index("ix_scans_org_created", "organization_id", "created_at"),
+        Index("ix_scans_domain_status", "domain", "status"),
+        Index("ix_scans_created_by", "created_by"),
+        Index("ix_scans_project", "project_id"),
+        Index("ix_scans_status_started", "status", "started_at"),
+        # Partial index for active scans (PostgreSQL)
+        Index("ix_scans_active", "status", "started_at", postgresql_where="status IN ('running', 'pending')"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     domain = Column(String(255), nullable=False, index=True)
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)
     project_id = Column(String(36), nullable=True)
-    status = Column(String(20), default="pending")
+    status = Column(String(20), default="pending", index=True)
     progress = Column(Integer, default=0)
     scan_type = Column(String(20), default="full")
     scan_options_raw = Column("scan_options", Text, nullable=True)
@@ -74,6 +85,11 @@ class ScanJob(Base):
     SELECT FOR UPDATE SKIP LOCKED for safe concurrent access.
     """
     __tablename__ = "scan_jobs"
+    __table_args__ = (
+        Index("ix_scan_jobs_status_priority", "status", "priority"),
+        Index("ix_scan_jobs_org_status", "org_id", "status"),
+        Index("ix_scan_jobs_created", "created_at"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     scan_id = Column(String(36), ForeignKey("scans.id", ondelete="CASCADE"), nullable=False, index=True)

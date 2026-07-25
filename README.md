@@ -1,39 +1,64 @@
-# CAZO EASM
+# CAZO EASM Platform
 
-External Attack Surface Management (EASM) platform for authorized security
-assessments. Discovery is gated by an authorized-scope registry, built on a
-pluggable scanner architecture with a normalized asset inventory, scoring, and
-change tracking.
+External Attack Surface Management (EASM) platform for authorized security assessments. Discovery is gated by an authorized-scope registry, built on a pluggable scanner architecture with a normalized asset inventory, scoring, and change tracking.
+
+## Architecture
+
+```
+easm-platform/
+├── backend/          # FastAPI (port 8000) — 44 models, 34 API routers
+├── frontend/         # Next.js (port 3000) — user-facing dashboard
+├── admin-panel/      # Standalone admin console (port 9000/3001)
+│   ├── backend/      # FastAPI admin API (port 9000)
+│   └── frontend/     # Next.js admin UI (port 3001)
+└── docs/             # Architecture PDF, deployment guides
+```
 
 ## Features
 
-- **Authorized-Scope Registry** - Register domains, wildcards, IPs, and CIDRs you are cleared to test; out-of-scope targets are blocked from discovery
-- **Pluggable Discovery** - Subdomain, DNS, WHOIS, SSL, port, technology, and Nuclei scanners registered via a discovery registry
-- **Asset Inventory** - Normalized assets and relationships (e.g. `subdomain_of`) derived from scans
-- **Health & Exposure Scoring** - Per-asset health and exposure scores
-- **Change Timeline** - Detects new/removed subdomains, ports, certificates, and technologies between scans
-- **Audit Logging** - Privileged actions are recorded for accountability
-- **Subdomain Discovery** - Using subfinder
-- **DNS Analysis** - Using dnspython
-- **SSL/TLS Analysis** - Certificate validation and grading
-- **Port Scanning** - Using nmap
-- **Technology Detection** - Using Wappalyzer
-- **WHOIS Lookups** - Domain registration info
-- **Risk Scoring** - Automated risk assessment
-- **Multi-tenant** - Organization and workspace support
-- **REST API** - Full API access with authentication
-- **Web Dashboard** - Modern Next.js frontend with command palette (`Cmd/Ctrl + K`)
+### EASM Platform (Backend + Frontend)
+- **Authorized-Scope Registry** — Register domains, wildcards, IPs, and CIDRs you are cleared to test
+- **Pluggable Discovery** — Subdomain, DNS, WHOIS, SSL, port, technology, and Nuclei scanners
+- **Asset Inventory** — Normalized assets and relationships with health/exposure scoring
+- **Change Timeline** — Detects new/removed subdomains, ports, certificates, and technologies
+- **Vulnerability Management** — Severity tracking, assignment, evidence, audit trail
+- **Intelligence Canvas** — Visual attack surface maps with nodes and edges
+- **Shadow Asset Detection** — Unknown/suspected assets for review
+- **OSINT Intelligence** — Cached OSINT data aggregation
+- **Multi-tenant** — Organization, project, and role-based access
+- **Scanner V2** — WebSocket-based real-time scan engine with scheduled monitoring
+- **WebAuthn Passkeys** — Passwordless authentication support
+- **REST API** — Full API with JWT + API key authentication
+
+### Admin Panel (Standalone)
+- **13 management tabs** — Overview, Users, Organizations, Scans, Vulnerabilities, Assets, Sessions, Audit Log, Notifications, API Keys, Feature Flags, Database, System
+- **User control** — Profile editing, password reset, role change, MFA enforcement, session revocation, account enable/disable/unlock
+- **Organization management** — Plan, status, MFA enforcement, user/scan/project counts
+- **Scan management** — Status monitoring, cancellation, scan history
+- **Vulnerability tracking** — Severity filtering, status management
+- **Asset inventory** — Type filtering, search, inventory status
+- **Session management** — View/revoke active sessions with browser/OS/IP details
+- **Audit trail** — Action/actor/target tracking with status
+- **Notifications** — Read management, broadcast capability
+- **API key management** — View/revoke API keys
+- **Feature flags** — Toggle features by plan
+- **System monitoring** — CPU, memory, disk, processes, network I/O, load average
+- **Database inspection** — Table row counts, schema introspection
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | Next.js 14 + React + TypeScript + Tailwind CSS |
+| Frontend | Next.js 14 + React 18 + TypeScript + Tailwind CSS |
+| Admin Frontend | Next.js 14 + React 18 + TypeScript + Tailwind CSS |
 | Backend | FastAPI + Python 3.11+ |
-| Database | PostgreSQL (SQLite for dev) |
-| ORM | SQLAlchemy + Alembic |
-| Auth | JWT + API Keys |
-| Proxy | Nginx |
+| Admin Backend | FastAPI + Python 3.11+ |
+| Database | PostgreSQL (SQLite for dev), PgBouncer (production) |
+| ORM | SQLAlchemy 2.0 + Alembic |
+| Auth | JWT + API Keys + WebAuthn Passkeys + TOTP MFA |
+| Task Queue | Celery + Redis |
+| Scanners | subfinder, dnspython, nmap, wappalyzer, nuclei |
+| PDF | fpdf2 |
 
 ## Quick Start
 
@@ -41,113 +66,158 @@ change tracking.
 
 - Python 3.11+
 - Node.js 18+
-- PostgreSQL
+- PostgreSQL (or SQLite for dev)
 - Nmap
 - Go (for subfinder)
 
-### Installation
+### 1. Clone
 
-1. Clone the repository:
 ```bash
-git clone <your-repo-url>
-cd easm-platform
+git clone https://github.com/Cazo-Net/CAZO-EASM.git
+cd CAZO-EASM
 ```
 
-2. Setup backend:
+### 2. Backend (EASM Platform)
+
 ```bash
 cd backend
-python3.11 -m venv venv
-source venv/bin/activate
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with your settings
-```
-
-3. Setup database:
-```bash
-# PostgreSQL
-sudo -u postgres createdb easm
-sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'your-password';"
+# Edit .env with your database URL and settings
 
 # Run migrations
 alembic upgrade head
+
+# Start server
+uvicorn app.main:app --reload --port 8000
 ```
 
-4. Setup frontend:
+### 3. Frontend (EASM Platform)
+
 ```bash
-cd ../frontend
+cd frontend
 npm install
 npm run dev
 ```
 
-5. Install security tools:
-```bash
-# Install subfinder
-go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+### 4. Admin Panel
 
-# Nmap (Ubuntu/Debian)
-sudo apt install nmap
-```
-
-6. Start the application:
 ```bash
 # Backend
-cd ../backend
-uvicorn app.main:app --reload --port 8000
+cd admin-panel/backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+uvicorn app.main:app --host 0.0.0.0 --port 9000
 
 # Frontend (new terminal)
-cd ../frontend
+cd admin-panel/frontend
+npm install
 npm run dev
 ```
 
-7. Access the application:
-- Frontend: http://localhost:3000
-- API Docs: http://localhost:8000/api/docs
+### 5. Access
 
-## API Endpoints
+| Service | URL |
+|---------|-----|
+| EASM Frontend | http://localhost:3000 |
+| EASM API Docs | http://localhost:8000/docs |
+| Admin Panel | http://localhost:3001 |
+| Admin API | http://localhost:9000 |
 
-### Authentication
-- `POST /api/v1/auth/register` - Create account
-- `POST /api/v1/auth/login` - Login
-- `GET /api/v1/auth/me` - Get current user
+### Default Admin Credentials
 
-### Scans
-- `POST /api/v1/scans/` - Create new scan
-- `GET /api/v1/scans/` - List scans
-- `GET /api/v1/scans/{id}` - Get scan details
-- `DELETE /api/v1/scans/{id}` - Delete scan
+- Email: `admin@cazo.io`
+- Password: `admin123`
 
-### Assets
-- `GET /api/v1/assets/subdomains` - List subdomains
-- `GET /api/v1/assets/ports` - List ports
-- `GET /api/v1/assets/ssl` - List SSL certificates
-- `GET /api/v1/assets/technologies` - List technologies
-- `GET /api/v1/assets/inventory` - Asset inventory + relationships
-- `GET /api/v1/assets/inventory/graph` - Asset graph
-- `GET /api/v1/assets/scores` - Asset health/exposure scores
-- `POST /api/v1/assets/scores/recompute` - Recompute scores
-- `GET /api/v1/assets/timeline` - Change timeline
+(Configure via `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `admin-panel/backend/.env`)
 
-### Authorized Scopes
-- `GET /api/v1/scopes` - List authorized scopes
-- `POST /api/v1/scopes` - Add authorized scope
-- `DELETE /api/v1/scopes/{id}` - Remove authorized scope
-- `POST /api/v1/scopes/check` - Check if a target is authorized
+## Production Deployment
 
-### Discovery
-- `GET /api/v1/scans/discovery/plugins` - List discovery plugins
+```bash
+# Docker Compose (recommended)
+docker-compose up -d
 
-### Audit
-- `GET /api/v1/audit/events` - List audit events
+# Services started:
+# - PostgreSQL (port 5432) with PgBouncer (transaction mode, 1000 max connections)
+# - Redis (port 6379)
+# - Backend (port 8000)
+# - Frontend (port 3000)
+# - Celery worker + beat
+```
 
-### Reports
-- `POST /api/v1/reports/` - Generate report
-- `GET /api/v1/reports/` - List reports
-- `GET /api/v1/reports/{id}/download` - Download report
+### Database Production Settings (1M+ users)
 
-## Deployment
+- **Connection Pool**: 30 pool size, 50 overflow, pre-ping enabled
+- **Statement Cache**: 1000 entries
+- **Read Replica**: Supported via `DATABASE_READ_URL`
+- **Partitioning**: Available via `DB_PARTITION_ENABLED`
+- **Composite Indexes**: 50+ indexes across all tables
 
-See [docs/deployment.md](docs/deployment.md) for production deployment instructions.
+## API Reference
+
+### EASM Platform API (`/api/v1/`)
+
+| Prefix | Purpose |
+|--------|---------|
+| `/api/v1/auth` | Login, register, 2FA, password reset |
+| `/api/v1/users` | User CRUD, profile |
+| `/api/v1/scans` | Scan create/list/track |
+| `/api/v1/assets` | Asset inventory, graph, scores, timeline |
+| `/api/v1/vulnerabilities` | Vulnerability management |
+| `/api/v1/reports` | Report generation/download |
+| `/api/v1/organizations` | Org management |
+| `/api/v1/projects` | Project CRUD |
+| `/api/v1/api-keys` | API key management |
+| `/api/v1/notifications` | Notification center |
+| `/api/v1/sessions` | Session management |
+| `/api/v1/scopes` | Authorized scope management |
+| `/api/v1/admin` | Admin user management |
+| `/api/v1/security` | Security center |
+| `/api/v1/canvases` | Intelligence canvas |
+| `/api/v1/findings` | Evidence center |
+| `/api/v1/shadow-assets` | Shadow asset detection |
+| `/api/v1/osint` | OSINT intelligence |
+
+### Admin Panel API (port 9000)
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /auth/login` | Admin login |
+| `GET /stats` | Platform-wide statistics |
+| `GET /health` | System health (CPU, memory, disk, processes) |
+| `GET/PUT /users` | User list, profile edit, password reset, MFA control |
+| `GET/PUT /organizations` | Org list, toggle active |
+| `GET/DELETE /scans` | Scan list, cancel |
+| `GET /vulnerabilities` | Vulnerability list (severity filter) |
+| `GET /assets` | Asset inventory (type/search filter) |
+| `GET/DELETE /sessions` | Session list, revoke |
+| `GET /audit-events` | Audit event stream |
+| `GET /notifications` | Notification list, mark read |
+| `GET /api-keys` | API key list, revoke |
+| `GET /feature-flags` | Feature flag list, toggle |
+| `GET /roles` | Role list |
+| `GET /scan-history` | Scan execution history |
+| `GET /system/processes` | Running processes |
+| `GET /database/stats` | Table row counts |
+| `GET /database/table/{name}` | Schema introspection |
+
+## Database Schema (50 tables)
+
+| Category | Tables |
+|----------|--------|
+| **Core** | users, organizations, projects, roles |
+| **Scanning** | scans, scan_jobs, scan_history, monitor_schedules |
+| **Assets** | subdomains, ports, dns_records, ssl_certificates, whois_records, technologies |
+| **Vulnerabilities** | vulnerabilities, finding_history, finding_evidence |
+| **Inventory** | assets, asset_relationships, asset_scores, asset_changes, asset_lifecycle, asset_comments |
+| **Auth** | user_sessions, trusted_devices, recovery_codes, auth_audit_logs, passkeys, api_keys |
+| **Notifications** | notifications, notification_preferences, notification_email_log, notification_triggers |
+| **Intelligence** | risk_scores, reports, canvases, canvas_nodes, canvas_edges, osint_cache |
+| **Governance** | authorized_scopes, audit_logs, audit_events, tags, asset_tags, favorites, feature_flags, invitations |
 
 ## License
 

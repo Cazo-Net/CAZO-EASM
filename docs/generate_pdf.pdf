@@ -1,0 +1,622 @@
+#!/usr/bin/env python3
+"""Generate CAZO EASM Platform Architecture PDF."""
+
+from fpdf import FPDF
+import os
+
+OUTPUT = os.path.join(os.path.dirname(__file__), "CAZO_EASM_Platform_Architecture.pdf")
+
+
+class CazoPDF(FPDF):
+    def header(self):
+        self.set_font("Helvetica", "B", 10)
+        self.set_text_color(37, 99, 235)
+        self.cell(0, 8, "CAZO EASM Platform", align="L")
+        self.set_text_color(120, 120, 120)
+        self.cell(0, 8, "Architecture Reference v1.0.5", align="R", new_x="LMARGIN", new_y="NEXT")
+        self.set_draw_color(37, 99, 235)
+        self.set_line_width(0.3)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(4)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Helvetica", "I", 8)
+        self.set_text_color(150, 150, 150)
+        self.cell(0, 10, f"Page {self.page_no()}/{{nb}}", align="C")
+
+    def chapter_title(self, title, level=1):
+        if level == 1:
+            self.set_font("Helvetica", "B", 16)
+            self.set_text_color(37, 99, 235)
+            self.ln(4)
+            self.cell(0, 10, title, new_x="LMARGIN", new_y="NEXT")
+            self.set_draw_color(37, 99, 235)
+            self.set_line_width(0.5)
+            self.line(10, self.get_y(), 80, self.get_y())
+            self.ln(4)
+        elif level == 2:
+            self.set_font("Helvetica", "B", 13)
+            self.set_text_color(30, 30, 30)
+            self.ln(3)
+            self.cell(0, 8, title, new_x="LMARGIN", new_y="NEXT")
+            self.ln(2)
+        elif level == 3:
+            self.set_font("Helvetica", "B", 11)
+            self.set_text_color(60, 60, 60)
+            self.ln(2)
+            self.cell(0, 7, title, new_x="LMARGIN", new_y="NEXT")
+            self.ln(1)
+
+    def body_text(self, text):
+        self.set_font("Helvetica", "", 10)
+        self.set_text_color(40, 40, 40)
+        self.multi_cell(0, 5.5, text)
+        self.ln(1)
+
+    def bullet(self, text, indent=10):
+        self.set_font("Helvetica", "", 10)
+        self.set_text_color(40, 40, 40)
+        left = self.l_margin
+        self.set_x(left + indent)
+        self.multi_cell(190 - indent, 5.5, "- " + text)
+
+    def table(self, headers, rows, col_widths=None):
+        if col_widths is None:
+            w = 190 / len(headers)
+            col_widths = [w] * len(headers)
+        # Header
+        self.set_font("Helvetica", "B", 9)
+        self.set_fill_color(37, 99, 235)
+        self.set_text_color(255, 255, 255)
+        for i, h in enumerate(headers):
+            self.cell(col_widths[i], 7, h, border=1, fill=True, align="C")
+        self.ln()
+        # Rows
+        self.set_font("Helvetica", "", 8.5)
+        self.set_text_color(40, 40, 40)
+        fill = False
+        for row in rows:
+            if fill:
+                self.set_fill_color(240, 244, 255)
+            else:
+                self.set_fill_color(255, 255, 255)
+            max_h = 7
+            for i, cell in enumerate(row):
+                self.cell(col_widths[i], max_h, str(cell)[:60], border=1, fill=True)
+            self.ln()
+            fill = not fill
+        self.ln(2)
+
+
+def build_pdf():
+    pdf = CazoPDF()
+    pdf.alias_nb_pages()
+    pdf.set_auto_page_break(auto=True, margin=20)
+
+    # ── COVER PAGE ──
+    pdf.add_page()
+    pdf.ln(40)
+    pdf.set_font("Helvetica", "B", 36)
+    pdf.set_text_color(37, 99, 235)
+    pdf.cell(0, 15, "CAZO EASM", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 18)
+    pdf.set_text_color(80, 80, 80)
+    pdf.cell(0, 10, "External Attack Surface Management Platform", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(10)
+    pdf.set_draw_color(37, 99, 235)
+    pdf.set_line_width(1)
+    pdf.line(60, pdf.get_y(), 150, pdf.get_y())
+    pdf.ln(10)
+    pdf.set_font("Helvetica", "", 12)
+    pdf.set_text_color(100, 100, 100)
+    pdf.cell(0, 8, "Complete Architecture Reference", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, "Version 1.0.5", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 8, "July 2026", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(30)
+    pdf.set_font("Helvetica", "I", 10)
+    pdf.set_text_color(120, 120, 120)
+    pdf.multi_cell(0, 6, "This document provides a comprehensive reference of the CAZO EASM platform architecture, covering backend services, frontend components, database models, scanner engines, API endpoints, security architecture, and deployment infrastructure.", align="C")
+
+    # ── TABLE OF CONTENTS ──
+    pdf.add_page()
+    pdf.chapter_title("Table of Contents")
+    toc = [
+        "1. Platform Overview",
+        "2. Technology Stack",
+        "3. System Architecture",
+        "4. Backend Architecture",
+        "   4.1 API Routers (34 routers)",
+        "   4.2 Services Layer (20+ services)",
+        "   4.3 Core Modules",
+        "   4.4 Authentication & Security",
+        "5. Database Architecture",
+        "   5.1 Models (30+ tables)",
+        "   5.2 Indexes & Performance",
+        "   5.3 Connection Pooling",
+        "6. Scanner Architecture",
+        "   6.1 V1 Scanner Engine",
+        "   6.2 V2 Enterprise Pipeline",
+        "   6.3 OSINT Intelligence Engine",
+        "7. Frontend Architecture",
+        "   7.1 Pages (70+ routes)",
+        "   7.2 Components",
+        "   7.3 State Management",
+        "8. Security Architecture",
+        "9. Deployment & Infrastructure",
+        "10. Configuration Reference",
+    ]
+    for item in toc:
+        pdf.set_font("Helvetica", "" if item.startswith(" ") else "B", 11)
+        pdf.set_text_color(40, 40, 40)
+        pdf.cell(0, 7, item, new_x="LMARGIN", new_y="NEXT")
+
+    # ── 1. PLATFORM OVERVIEW ──
+    pdf.add_page()
+    pdf.chapter_title("1. Platform Overview")
+    pdf.body_text(
+        "CAZO is a multi-tenant External Attack Surface Management (EASM) platform that discovers, "
+        "monitors, and assesses an organization's internet-facing attack surface. It provides continuous "
+        "discovery of subdomains, ports, SSL certificates, technologies, DNS records, and vulnerabilities "
+        "across an organization's digital assets."
+    )
+    pdf.chapter_title("Key Capabilities", 2)
+    for cap in [
+        "Automated subdomain enumeration (crt.sh, DNS brute-force, certificate transparency)",
+        "Port scanning with Nmap integration and pure-Python fallback",
+        "SSL/TLS certificate monitoring and expiry alerts",
+        "Technology fingerprinting (40+ technology signatures)",
+        "Vulnerability scanning via Nuclei templates and CVE correlation",
+        "OSINT intelligence aggregation from 15+ free sources",
+        "Shadow/rogue asset detection with confidence scoring",
+        "Real-time change detection and exposure replay timeline",
+        "AI-powered security analysis and recommendations",
+        "Visual attack surface canvas with drag-and-drop node editor",
+        "Multi-tenant organization management with RBAC (6 roles)",
+        "Enterprise scan pipeline with 8-stage execution",
+        "Scheduled and continuous monitoring",
+        "Executive reporting (PDF/CSV/JSON)",
+    ]:
+        pdf.bullet(cap)
+
+    # ── 2. TECHNOLOGY STACK ──
+    pdf.add_page()
+    pdf.chapter_title("2. Technology Stack")
+    pdf.table(
+        ["Layer", "Technology", "Version"],
+        [
+            ["Backend Framework", "FastAPI (Python)", "0.110+"],
+            ["Frontend Framework", "Next.js (React)", "14.1.0"],
+            ["Language", "Python / TypeScript", "3.11+ / 5.x"],
+            ["Database", "PostgreSQL (prod) / SQLite (dev)", "16"],
+            ["Connection Pool", "PgBouncer", "1.21"],
+            ["Cache / Broker", "Redis", "7"],
+            ["Task Queue", "Celery", "5.x"],
+            ["ORM", "SQLAlchemy", "2.x"],
+            ["Auth", "JWT (HS256) + bcrypt + WebAuthn", "-"],
+            ["MFA", "TOTP (pyotp)", "-"],
+            ["CSS", "Tailwind CSS + Shadcn/ui", "3.4"],
+            ["Animation", "Framer Motion", "10.x"],
+            ["Graph Viz", "ReactFlow + d3-force", "-"],
+            ["Charts", "Recharts + ECharts", "-"],
+            ["Scanner", "Nmap + Nuclei + custom Python", "-"],
+            ["Container", "Docker + Docker Compose", "-"],
+            ["Reverse Proxy", "nginx", "-"],
+            ["PDF Generation", "ReportLab (backend) / fpdf2", "-"],
+        ],
+        [50, 80, 60],
+    )
+
+    # ── 3. SYSTEM ARCHITECTURE ──
+    pdf.add_page()
+    pdf.chapter_title("3. System Architecture")
+    pdf.body_text(
+        "The platform follows a microservices-inspired architecture with clear separation of concerns. "
+        "Six Docker services compose the production stack, communicating via HTTP, WebSocket, and a shared PostgreSQL database."
+    )
+    pdf.chapter_title("Service Topology", 2)
+    pdf.table(
+        ["Service", "Port", "Role"],
+        [
+            ["db", "5432", "PostgreSQL 16 with tuned config (512MB shared_buffers, 500 max_connections)"],
+            ["pgbouncer", "6432", "Connection pooling (transaction mode, 1000 max client conns)"],
+            ["redis", "6379", "Cache, Celery broker, rate limiting (512MB LRU)"],
+            ["backend", "8000", "FastAPI REST API (30+ routers, 20+ services)"],
+            ["worker", "-", "Celery worker for background tasks (scans, emails, CVE sync)"],
+            ["frontend", "3000", "Next.js SSR/CSR application (70+ pages)"],
+        ],
+        [30, 20, 140],
+    )
+    pdf.chapter_title("Communication Flow", 2)
+    pdf.body_text(
+        "1. Frontend (Next.js) -> Backend (FastAPI) via REST API + WebSocket\n"
+        "2. Backend -> PostgreSQL via SQLAlchemy (read/write split with optional replica)\n"
+        "3. Backend -> Redis for caching and rate limiting\n"
+        "4. Backend -> Celery Worker via Redis broker for background tasks\n"
+        "5. Scan Engine -> PostgreSQL for job queue (SELECT FOR UPDATE SKIP LOCKED)\n"
+        "6. Backend -> External APIs: NVD, CISA KEV, Shodan, crt.sh, Censys (all free tier)"
+    )
+
+    # ── 4. BACKEND ARCHITECTURE ──
+    pdf.add_page()
+    pdf.chapter_title("4. Backend Architecture")
+    pdf.body_text(
+        "The backend is a FastAPI application organized into routers, services, models, schemas, "
+        "core modules, and scanners. It follows a layered architecture with dependency injection."
+    )
+
+    pdf.chapter_title("4.1 API Routers (34)", 2)
+    routers = [
+        ["auth.py", "/api/v1/auth", "Login, register, 2FA, password reset, JWT refresh"],
+        ["auth_google.py", "/api/v1/auth", "Google OAuth login/callback"],
+        ["scan.py", "/api/v1/scans", "Create/list/delete/rerun scans, dashboard stats"],
+        ["scanner_v2.py", "/api/v1/scanner-v2", "Enterprise pipeline, WebSocket streaming, AI analyst"],
+        ["assets.py", "/api/v1/assets", "Subdomains, ports, SSL, tech, DNS, WHOIS, graph, inventory"],
+        ["asset_360.py", "/api/v1/asset360", "360-degree asset intelligence view"],
+        ["vulnerabilities", "-", "Evidence center, finding management"],
+        ["organizations.py", "/api/v1/organizations", "Org CRUD, members, roles, stats"],
+        ["projects.py", "/api/v1/projects", "Project CRUD"],
+        ["users.py", "/api/v1/users", "User profile, avatar, passkey management"],
+        ["reports.py", "/api/v1/reports", "Report generation (JSON/CSV/PDF)"],
+        ["reports_v2.py", "/api/v1/reports/executive", "Executive summary reports"],
+        ["notifications.py", "/api/v1/notifications", "In-app notification CRUD"],
+        ["canvas.py", "/api/v1/canvases", "Visual attack surface canvas"],
+        ["compare.py", "/api/v1/compare", "Scan-to-scan comparison"],
+        ["change_feed.py", "/api/v1/changefeed", "Real-time change feed"],
+        ["replay.py", "/api/v1/replay", "Exposure replay timeline"],
+        ["shadow.py", "/api/v1/shadow-assets", "Shadow asset detection"],
+        ["search.py", "/api/v1/search", "Shodan-style asset search"],
+        ["osint.py", "/api/v1/osint", "OSINT intelligence lookups"],
+        ["scopes.py", "/api/v1/scopes", "Authorization scope management"],
+        ["security.py", "/api/v1/security", "Email change, trusted devices, recovery codes"],
+        ["security_center.py", "/api/v1/security-center", "Security posture dashboard"],
+        ["admin.py", "/api/v1/admin", "Admin user management"],
+        ["sessions.py", "/api/v1/sessions", "Session management"],
+        ["passkeys.py", "/api/v1/passkeys", "WebAuthn passkey auth"],
+        ["invitations.py", "/api/v1/invitations", "Team invitations"],
+        ["tags.py", "/api/v1/tags", "Asset tagging, audit logs, favorites"],
+        ["api_keys.py", "/api/v1/api-keys", "API key CRUD"],
+        ["api_keys_v2.py", "/api/v1/api-keys/v2", "Enhanced multi-key management"],
+        ["collaboration.py", "/api/v1/collaboration", "Asset comments and threads"],
+        ["notification_preferences.py", "/api/v1/notification-preferences", "Notification settings"],
+    ]
+    pdf.table(["File", "Prefix", "Purpose"], routers, [45, 45, 100])
+
+    pdf.add_page()
+    pdf.chapter_title("4.2 Services Layer", 2)
+    services = [
+        ["scan_service.py", "Core scan orchestration, scope enforcement, result storage"],
+        ["scan_service_v2.py", "Enterprise v2 scan pipeline execution"],
+        ["scan_dispatch.py", "3-tier dispatch: Scan Engine -> Celery -> BackgroundTasks"],
+        ["scan_scheduler.py", "In-memory recurring scan scheduler"],
+        ["notification_service.py", "Multi-channel dispatch (in-app + email), 24h dedup"],
+        ["osint.py", "15-source OSINT aggregation, 5-phase pipeline, 30s timeout"],
+        ["osint_advanced.py", "Email security, WAF/CDN, security headers, sensitive paths"],
+        ["osint_import.py", "OSINT-to-asset-inventory importer"],
+        ["change_detector.py", "Scan diff engine, timeline generation"],
+        ["report_service.py", "JSON/CSV/PDF report generation via ReportLab"],
+        ["replay_service.py", "Historical exposure timeline and diff"],
+        ["scoring.py", "Asset health (0-100) and exposure (0-100) scoring"],
+        ["shadow_assets.py", "Shadow detection via IP/cert/ASN correlation"],
+        ["password_policy.py", "Password strength validation, entropy scoring"],
+        ["audit.py", "Audit trail logging (auth + general events)"],
+        ["cve_sync.py", "NVD CVE database synchronization"],
+        ["email/sender.py", "3 providers: SMTP, Resend, Log (dev)"],
+        ["email/templates.py", "22 HTML email templates with dark mode support"],
+    ]
+    pdf.table(["Service", "Purpose"], services, [50, 140])
+
+    pdf.add_page()
+    pdf.chapter_title("4.3 Core Modules", 2)
+    core = [
+        ["security.py", "JWT (HS256), bcrypt, TOTP (pyotp), API keys (SHA-256), WebAuthn"],
+        ["permissions.py", "RBAC: 6 roles, 26 permissions, custom role support"],
+        ["scope.py", "SSRF prevention: domain/wildcard/IP/CIDR, 14 blocked networks"],
+        ["cache.py", "Dual-backend: MemoryCache (async TTL) + RedisCache, fail-open"],
+        ["rate_limit.py", "Redis (fixed window) or in-memory (sliding window), fail-open"],
+        ["logging.py", "Structured JSON (prod) / human-readable (dev)"],
+    ]
+    pdf.table(["Module", "Purpose"], core, [40, 150])
+
+    pdf.chapter_title("4.4 Authentication Flow", 3)
+    pdf.body_text(
+        "1. User submits credentials -> auth.py validates (bcrypt check, brute-force lockout)\n"
+        "2. On success: creates UserSession, generates access token (15min) + refresh token (7d)\n"
+        "3. Frontend stores JWT in localStorage, attaches to every request via Axios interceptor\n"
+        "4. On 401: auto-logout and redirect to /login\n"
+        "5. Refresh token rotation: on reuse detection, ALL sessions are terminated\n"
+        "6. 2FA: TOTP setup -> QR code -> verify code -> enable\n"
+        "7. Passkeys: WebAuthn register/assert flows for passwordless auth"
+    )
+
+    # ── 5. DATABASE ARCHITECTURE ──
+    pdf.add_page()
+    pdf.chapter_title("5. Database Architecture")
+    pdf.chapter_title("5.1 Models (30+ tables)", 2)
+    models = [
+        ["users", "User accounts, auth, MFA, passkeys, token versioning"],
+        ["organizations", "Multi-tenant containers, plan, settings, MFA enforcement"],
+        ["projects", "Project within org, links to scans"],
+        ["scans", "Scan jobs with status, progress, type, options, timestamps"],
+        ["scan_jobs", "Database-backed job queue (FOR UPDATE SKIP LOCKED)"],
+        ["subdomains", "Discovered subdomains with IPs, alive status"],
+        ["ports", "Open ports with service, version, banner detection"],
+        ["ssl_certificates", "SSL/TLS certs with validity, chain, SAN data"],
+        ["dns_records", "A, AAAA, MX, NS, TXT, CNAME records"],
+        ["technologies", "Detected technologies (Wappalyzer-style)"],
+        ["vulnerabilities", "CVE findings with severity, status, assignment"],
+        ["finding_history", "Audit trail for vulnerability status changes"],
+        ["finding_evidence", "Screenshots, logs, artifacts attached to findings"],
+        ["risk_scores", "Overall risk score (0-100) with factor breakdown"],
+        ["asset_inventories", "Consolidated cross-scan asset inventory"],
+        ["asset_relationships", "Graph edges (resolves_to, serves, belongs_to)"],
+        ["asset_scores", "Health + exposure scores per asset"],
+        ["asset_changes", "Detected changes between scans"],
+        ["whois_records", "Domain registration data"],
+        ["reports", "Generated report files (JSON/CSV/PDF)"],
+        ["notifications", "In-app notification messages"],
+        ["notification_preferences", "Per-user notification settings"],
+        ["notification_email_log", "Email deduplication log"],
+        ["authorized_scopes", "Domain/wildcard/IP/CIDR scan authorizations"],
+        ["tags", "Asset tagging system"],
+        ["canvas_nodes", "Visual canvas node positions"],
+        ["canvas_edges", "Canvas connection edges"],
+        ["comments", "Asset comments/annotations"],
+        ["audit_events", "Immutable audit trail"],
+        ["refresh_tokens", "JWT refresh tokens with device tracking"],
+        ["user_sessions", "Active user sessions"],
+        ["passkeys", "WebAuthn passkey credentials"],
+        ["api_keys_v2", "Multi-key API authentication"],
+        ["invitations", "Pending team invitations"],
+    ]
+    pdf.table(["Table", "Description"], models, [50, 140])
+
+    pdf.add_page()
+    pdf.chapter_title("5.2 Indexes (1M+ row optimization)", 2)
+    pdf.body_text(
+        "All high-traffic tables have composite indexes for multi-tenant queries. "
+        "Key index patterns:"
+    )
+    indexes = [
+        ["users", "ix_users_org_active, ix_users_org_role, ix_users_email_active"],
+        ["scans", "ix_scans_org_status, ix_scans_org_created, ix_scans_active (partial)"],
+        ["subdomains", "ix_subdomains_scan_alive, ix_subdomains_hostname"],
+        ["vulnerabilities", "ix_vulns_org_status, ix_vulns_org_severity, ix_vulns_fingerprint"],
+        ["ports", "ix_ports_subdomain_number, ix_ports_service, ix_ports_number"],
+        ["notifications", "ix_notifications_user_read, ix_notifications_user_type"],
+        ["authorized_scopes", "ix_scopes_org_type, ix_scopes_org_verified, ix_scopes_value"],
+    ]
+    pdf.table(["Table", "Composite Indexes"], indexes, [40, 150])
+
+    pdf.chapter_title("5.3 Connection Pooling", 2)
+    pdf.body_text(
+        "Production pool configuration:\n"
+        "- Pool size: 30 (DB_POOL_SIZE)\n"
+        "- Max overflow: 50 (DB_MAX_OVERFLOW) -- supports burst to 80 connections\n"
+        "- Pool timeout: 15s -- fast failure when pool exhausted\n"
+        "- Pool recycle: 900s -- prevents stale connections\n"
+        "- Pre-ping: enabled -- validates connections before use\n"
+        "- Statement cache: 1000 entries -- avoids re-parsing SQL\n"
+        "- Read replica support: DATABASE_READ_URL routes all SELECT to replica\n"
+        "- PgBouncer: transaction mode, 1000 max client connections"
+    )
+
+    # ── 6. SCANNER ARCHITECTURE ──
+    pdf.add_page()
+    pdf.chapter_title("6. Scanner Architecture")
+    pdf.chapter_title("6.1 V1 Scanner Engine", 2)
+    pdf.body_text(
+        "The V1 scanner uses a flat registry pattern with decorator-based self-registration. "
+        "Scanners run sequentially in 5 stages via ScanRunner."
+    )
+    v1_scanners = [
+        ["SubdomainEnum", "crt.sh + DNS brute (60 prefixes, 15 workers)"],
+        ["SubdomainBruteforce", "DNS brute-force with wordlist generation"],
+        ["SubdomainPermutations", "Permutation-based discovery"],
+        ["PortScanner", "Python connect scan (top 1000 ports)"],
+        ["NmapScanner", "Nmap -sV service/version fingerprinting"],
+        ["SSLChecker", "Live TLS cert grab + CT log lookup"],
+        ["DNSEnumerator", "Full DNS record enumeration"],
+        ["TechDetector", "HTTP header/HTML technology fingerprinting"],
+        ["WhoisLookup", "WHOIS via RDAP protocol"],
+        ["SecurityFindings", "Security header/config checks"],
+        ["ZoneTransfer", "DNS zone transfer attempts"],
+        ["CVECorrelation", "NVD keyword search + CISA KEV"],
+        ["RelationshipMapper", "Asset relationship graph construction"],
+    ]
+    pdf.table(["Scanner", "Capability"], v1_scanners, [55, 135])
+
+    pdf.chapter_title("6.2 V2 Enterprise Pipeline", 2)
+    pdf.body_text(
+        "The V2 scanner uses an 8-stage pipeline with circuit breaker, metrics, "
+        "parallel execution, and enhanced base class with retry logic."
+    )
+    v2_stages = [
+        ["Stage 1", "Validate", "Scope enforcement, target validation"],
+        ["Stage 2", "Enrich", "Asset discovery, subdomain intel, DNS intel, cert intel"],
+        ["Stage 3", "Analyze", "Network intel, Nmap, WHOIS, zone transfer, tech intel"],
+        ["Stage 4", "Correlate", "Security intel, vulnerability intel, CVE intel"],
+        ["Stage 5", "Score", "Multi-dimensional risk engine"],
+        ["Stage 6", "Graph", "Graph-based relationship analysis"],
+        ["Stage 7", "Report", "AI analyst, monitoring setup"],
+        ["Stage 8", "Cleanup", "Resource cleanup, metrics finalization"],
+    ]
+    pdf.table(["Step", "Stage", "Description"], v2_stages, [20, 35, 135])
+
+    pdf.chapter_title("6.3 OSINT Intelligence Engine", 2)
+    pdf.body_text(
+        "The OSINT module aggregates intelligence from 15+ free sources in a 5-phase pipeline "
+        "with a 30-second overall timeout. All sources are API-key-free."
+    )
+    osint_sources = [
+        ["hackertarget.com", "Subdomain enumeration, reverse IP"],
+        ["certspotter.com", "Certificate transparency logs"],
+        ["crt.sh", "Certificate transparency (fallback)"],
+        ["otx.alienvault.com", "Passive DNS"],
+        ["rapiddns.io", "Subdomain discovery"],
+        ["dns.google", "DNS-over-HTTPS"],
+        ["shodan.io", "InternetDB port/tech data"],
+        ["nvd.nist.gov", "CVE search"],
+        ["cisa.gov", "Known Exploited Vulnerabilities"],
+        ["ipinfo.io", "IP geolocation"],
+        ["abuseipdb.com", "IP abuse reputation"],
+        ["greynoise.io", "IP noise classification"],
+        ["rdap.org", "WHOIS via RDAP"],
+        ["web.archive.org", "Wayback Machine historical subdomains"],
+    ]
+    pdf.table(["Source", "Data"], osint_sources, [50, 140])
+
+    # ── 7. FRONTEND ARCHITECTURE ──
+    pdf.add_page()
+    pdf.chapter_title("7. Frontend Architecture")
+    pdf.chapter_title("7.1 Pages (70+ routes)", 2)
+    pages = [
+        ["/dashboard", "Main dashboard with metrics and recent activity"],
+        ["/scans", "Scan list with filters and quick-create"],
+        ["/scan/[id]", "Scan detail (5 tabs: Subdomains, Ports, SSL, Tech, Vulns)"],
+        ["/scan/new", "New scan form with profile selector"],
+        ["/assets", "Asset inventory browser"],
+        ["/assets/[id]", "Asset 360 view (Overview, Relationships, Timeline, Host Intel)"],
+        ["/vulnerabilities", "Vulnerability list with severity filters"],
+        ["/canvas", "Visual node editor (ReactFlow, 16 node types)"],
+        ["/graph", "Attack surface graph visualization"],
+        ["/replay", "Time-travel exposure replay with playback controls"],
+        ["/change-feed", "Continuous change stream"],
+        ["/shadow-assets", "Shadow asset detection with confidence scoring"],
+        ["/search", "Shodan-style search with 16 filter keys"],
+        ["/scanner-v2", "Enterprise pipeline with WebSocket streaming"],
+        ["/scopes", "Authorization scope management"],
+        ["/reports", "Report generation (JSON/CSV/PDF)"],
+        ["/settings", "8-tab settings (Profile, Security, Sessions, API Keys, etc.)"],
+        ["/settings/organization", "Org management, members, roles"],
+        ["/security-center", "Security posture dashboard (0-100 score)"],
+        ["/intel", "Intelligence dashboard"],
+        ["/dns", "DNS record browser"],
+        ["/whois", "WHOIS lookup interface"],
+    ]
+    pdf.table(["Route", "Description"], pages, [45, 145])
+
+    pdf.chapter_title("7.2 Component Architecture", 2)
+    pdf.body_text(
+        "The frontend uses a component-based architecture with shared UI primitives "
+        "(Shadcn/ui pattern) and feature-specific components."
+    )
+    components = [
+        ["AppShell", "Main layout with Sidebar + TopBar"],
+        ["Sidebar", "Collapsible navigation (Overview, Discovery, Tools)"],
+        ["TopBar", "Theme toggle, search, quick-create, notifications"],
+        ["CommandPalette", "Cmd+K palette (cmdk library)"],
+        ["PageHeader", "Consistent page header with breadcrumbs"],
+        ["StatCard", "Metric card with icon, value, trend"],
+        ["SectionCard", "Container with title, description, actions"],
+        ["SeverityPill", "Critical/High/Medium/Low/Info badge"],
+        ["NotificationCenter", "Bell icon + dropdown, 30s polling"],
+        ["ScanForm", "Domain input + profile selector"],
+        ["FindingsTable", "Expandable vulnerability table"],
+        ["RiskScoreCard", "SVG circle risk score display"],
+        ["ReplayProvider", "Context + useReducer for time-travel state"],
+        ["ErrorBoundary", "React error boundary with fallback UI"],
+        ["NetworkBackground", "Canvas particle animation background"],
+    ]
+    pdf.table(["Component", "Purpose"], components, [45, 145])
+
+    pdf.chapter_title("7.3 State Management", 2)
+    pdf.body_text(
+        "No global store (no Redux/Zustand). All state is local via useState/useReducer.\n"
+        "- AuthContext: user, token, login/logout/refresh\n"
+        "- ReplayProvider: useReducer for time-travel state\n"
+        "- Data fetching: useEffect + Axios (no SWR usage despite dependency)\n"
+        "- Polling: NotificationCenter (30s), scan detail (2s during active scan)\n"
+        "- WebSocket: Scanner V2 with reconnection + exponential backoff"
+    )
+
+    # ── 8. SECURITY ARCHITECTURE ──
+    pdf.add_page()
+    pdf.chapter_title("8. Security Architecture")
+    layers = [
+        ["Authentication", "JWT (HS256, 15min access / 7d refresh), bcrypt, WebAuthn"],
+        ["Authorization", "RBAC: 6 roles (owner/admin/security_manager/analyst/member/viewer), 26 permissions"],
+        ["MFA", "TOTP (pyotp), WebAuthn passkeys, recovery codes"],
+        ["SSRF Prevention", "14 blocked networks, write-time + run-time scope validation"],
+        ["Rate Limiting", "Redis fixed window or in-memory sliding window, fail-open"],
+        ["Brute-force Protection", "5 failed attempts -> 15min lockout"],
+        ["Token Rotation", "Refresh token rotation with reuse detection (terminates all sessions)"],
+        ["Password Policy", "Min 12 chars, entropy scoring, 90-day expiry, reuse prevention"],
+        ["Security Headers", "CSP, HSTS, X-Frame-Options, CORS, COOP, CORP, Permissions-Policy"],
+        ["Audit Trail", "Immutable audit events for all mutations"],
+        ["API Keys", "SHA-256 hashed, rotation support, expiry"],
+        ["Session Management", "Device tracking, IP logging, revocation"],
+        ["Scope Enforcement", "Domain/wildcard/IP/CIDR authorization before scanning"],
+        ["Email Security", "DMARC/SPF/DKIM analysis, SMTP TLS, CAN-SPAM compliance"],
+    ]
+    pdf.table(["Layer", "Implementation"], layers, [40, 150])
+
+    # ── 9. DEPLOYMENT ──
+    pdf.add_page()
+    pdf.chapter_title("9. Deployment & Infrastructure")
+    pdf.chapter_title("Docker Compose Services", 2)
+    pdf.body_text(
+        "Production stack (6 services):\n"
+        "1. PostgreSQL 16: tuned (512MB shared_buffers, 500 max_connections, parallel workers)\n"
+        "2. PgBouncer: transaction mode, 1000 max client connections, 50 default pool\n"
+        "3. Redis 7: 512MB LRU, AOF persistence\n"
+        "4. Backend: FastAPI via uvicorn, auto-scaling ready\n"
+        "5. Worker: Celery worker, 50 tasks/child recycling\n"
+        "6. Frontend: Next.js production build\n"
+        "7. nginx (optional): TLS termination, WebSocket proxying, security headers"
+    )
+    pdf.chapter_title("Celery Beat Schedule", 2)
+    pdf.table(
+        ["Task", "Schedule", "Purpose"],
+        [
+            ["check_ssl_expiry", "Daily 06:00 UTC", "SSL certificate expiry alerts"],
+            ["send_weekly_digest", "Monday 08:00 UTC", "Weekly security digest email"],
+            ["sync_cve_database", "Sunday 03:00 UTC", "NVD CVE database sync"],
+        ],
+        [55, 45, 90],
+    )
+
+    # ── 10. CONFIGURATION ──
+    pdf.add_page()
+    pdf.chapter_title("10. Configuration Reference")
+    pdf.chapter_title("Database Settings", 2)
+    config_db = [
+        ["DATABASE_URL", "postgresql://...", "Primary database URL"],
+        ["DATABASE_READ_URL", "None", "Optional read replica URL"],
+        ["DB_POOL_SIZE", "30", "Connection pool size"],
+        ["DB_MAX_OVERFLOW", "50", "Max overflow connections"],
+        ["DB_POOL_TIMEOUT", "15", "Seconds to wait for connection"],
+        ["DB_POOL_RECYCLE", "900", "Connection max age (seconds)"],
+        ["DB_POOL_PRE_PING", "true", "Validate connections before use"],
+    ]
+    pdf.table(["Setting", "Default", "Description"], config_db, [50, 50, 90])
+
+    pdf.chapter_title("Scanner Settings", 2)
+    config_scan = [
+        ["USE_NMAP", "true", "Use Nmap for port scanning"],
+        ["NMAP_TIMEOUT", "300", "Nmap timeout (seconds)"],
+        ["NMAP_MAX_CONCURRENCY", "20", "Max concurrent Nmap scans"],
+        ["MAX_CONCURRENT_SCANS", "5", "Max concurrent scan jobs"],
+        ["SCAN_TIMEOUT", "30", "Per-scanner timeout (seconds)"],
+    ]
+    pdf.table(["Setting", "Default", "Description"], config_scan, [50, 50, 90])
+
+    pdf.chapter_title("Security Settings", 2)
+    config_sec = [
+        ["JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "15", "Access token lifetime"],
+        ["JWT_REFRESH_TOKEN_EXPIRE_DAYS", "7", "Refresh token lifetime"],
+        ["REQUIRE_EXPLICIT_SCOPE", "true", "Require scope to scan"],
+        ["REQUIRE_VERIFIED_SCOPE", "false", "Require verified scope"],
+        ["RATE_LIMIT_PER_MINUTE", "60", "Global rate limit"],
+        ["PASSWORD_EXPIRY_DAYS", "90", "Password expiry period"],
+    ]
+    pdf.table(["Setting", "Default", "Description"], config_sec, [50, 50, 90])
+
+    # ── OUTPUT ──
+    pdf.output(OUTPUT)
+    print(f"PDF generated: {OUTPUT}")
+    return OUTPUT
+
+
+if __name__ == "__main__":
+    build_pdf()

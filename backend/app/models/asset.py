@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean, JSON
+from sqlalchemy import Column, String, DateTime, ForeignKey, Boolean, JSON, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -7,6 +7,12 @@ import uuid
 
 class Subdomain(Base):
     __tablename__ = "subdomains"
+    __table_args__ = (
+        Index("ix_subdomains_scan_alive", "scan_id", "is_alive"),
+        Index("ix_subdomains_scan_status", "scan_id", "status"),
+        Index("ix_subdomains_hostname", "hostname"),
+        Index("ix_subdomains_discovered", "discovered_at"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     scan_id = Column(String(36), ForeignKey("scans.id"), nullable=False, index=True)

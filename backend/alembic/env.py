@@ -12,8 +12,7 @@ from app.models import (
     user, scan, asset, port, dns, ssl, technology, vulnerability, whois,
     risk, organization, project, report, scope, audit, asset_inventory,
     asset_score, asset_change, comment, notification, notification_preference,
-    notification_email_log, tag, canvas, auth_models, subscription, invoice,
-    payment_method, api_key_v2, usage_record, feature_flag, webhook_event,
+    notification_email_log, tag, canvas, auth_models, api_key_v2,
     role, passkey, osint_cache,
 )
 

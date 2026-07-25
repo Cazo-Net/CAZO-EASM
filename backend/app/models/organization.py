@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Boolean, JSON
+from sqlalchemy import Column, String, DateTime, Boolean, JSON, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -7,6 +7,11 @@ import uuid
 
 class Organization(Base):
     __tablename__ = "organizations"
+    __table_args__ = (
+        Index("ix_orgs_active", "is_active"),
+        Index("ix_orgs_plan", "plan"),
+        Index("ix_orgs_created_at", "created_at"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)

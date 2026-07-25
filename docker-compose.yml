@@ -1,4 +1,4 @@
-# Production stack: Postgres + Redis + backend (API) + worker + frontend.
+# Production stack: Postgres + Redis + PgBouncer + backend (API) + worker + frontend.
 # This file already defaults to ENVIRONMENT=production and requires real
 # secrets/Postgres (see .env.example). For the full deploy with nginx + TLS,
 # run with the prod overlay:
@@ -12,6 +12,31 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-easm}
     volumes:
       - db-data:/var/lib/postgresql/data
+    command: >
+      postgres
+        -c shared_buffers=512MB
+        -c effective_cache_size=2GB
+        -c work_mem=32MB
+        -c maintenance_work_mem=256MB
+        -c max_connections=500
+        -c max_worker_processes=8
+        -c max_parallel_workers_per_gather=4
+        -c max_parallel_workers=8
+        -c max_parallel_maintenance_workers=4
+        -c wal_buffers=64MB
+        -c checkpoint_completion_target=0.9
+        -c random_page_cost=1.1
+        -c effective_io_concurrency=200
+        -c max_wal_size=4GB
+        -c min_wal_size=1GB
+        -c log_min_duration_statement=1000
+        -c log_checkpoints=on
+        -c log_connections=on
+        -c log_disconnections=on
+        -c shared_preload_libraries='pg_stat_statements'
+        -c track_activity_query_size=2048
+        -c log_lock_waits=on
+        -c deadlock_timeout=5s
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-easm}"]
@@ -19,9 +44,38 @@ services:
       timeout: 5s
       retries: 5
 
+  pgbouncer:
+    image: edoburu/pgbouncer:1.21.0
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-easm}:${POSTGRES_PASSWORD:-easm}@db:5432/${POSTGRES_DB:-easm}
+      - POOL_MODE=transaction
+      - DEFAULT_POOL_SIZE=50
+      - MAX_CLIENT_CONN=1000
+      - MAX_DB_CONNECTIONS=100
+      - RESERVE_POOL_SIZE=10
+      - RESERVE_POOL_TIMEOUT=3
+      - SERVER_IDLE_TIMEOUT=300
+      - CLIENT_IDLE_TIMEOUT=0
+      - QUERY_WAIT_TIMEOUT=30
+      - LOG_CONNECTIONS=1
+      - LOG_DISCONNECTIONS=1
+      - LOG_POOLER_ERRORS=1
+      - STATS_PERIOD=60
+    ports:
+      - "6432:6432"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h db -U ${POSTGRES_USER:-easm}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - redis-data:/data
     restart: unless-stopped
@@ -43,7 +97,14 @@ services:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
       - USE_SQLITE=false
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-easm}:${POSTGRES_PASSWORD:-easm}@db:5432/${POSTGRES_DB:-easm}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-easm}:${POSTGRES_PASSWORD:-easm}@pgbouncer:6432/${POSTGRES_DB:-easm}
+      - DB_POOL_SIZE=30
+      - DB_MAX_OVERFLOW=50
+      - DB_POOL_TIMEOUT=15
+      - DB_POOL_RECYCLE=900
+      - DB_POOL_PRE_PING=true
+      - DB_STATEMENT_CACHE_SIZE=1000
+      - DB_PREPARED_STATEMENT_CACHE_SIZE=100
       - REDIS_URL=redis://redis:6379/0
       - USE_CELERY=true
       - CELERY_BROKER_URL=redis://redis:6379/0
@@ -57,7 +118,7 @@ services:
       - backend-reports:/app/reports
       - backend-uploads:/app/uploads
     depends_on:
-      db:
+      pgbouncer:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -78,7 +139,9 @@ services:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
       - USE_SQLITE=false
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-easm}:${POSTGRES_PASSWORD:-easm}@db:5432/${POSTGRES_DB:-easm}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-easm}:${POSTGRES_PASSWORD:-easm}@pgbouncer:6432/${POSTGRES_DB:-easm}
+      - DB_POOL_SIZE=20
+      - DB_MAX_OVERFLOW=30
       - REDIS_URL=redis://redis:6379/0
       - USE_CELERY=true
       - CELERY_BROKER_URL=redis://redis:6379/0

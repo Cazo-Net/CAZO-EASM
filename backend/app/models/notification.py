@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, JSON, Text
+from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, JSON, Text, Index
 from sqlalchemy.sql import func
 from app.database import Base
 import uuid
@@ -6,6 +6,12 @@ import uuid
 
 class Notification(Base):
     __tablename__ = "notifications"
+    __table_args__ = (
+        Index("ix_notifications_user_read", "user_id", "read"),
+        Index("ix_notifications_user_type", "user_id", "type"),
+        Index("ix_notifications_user_created", "user_id", "created_at"),
+        Index("ix_notifications_org_type", "organization_id", "type"),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True, index=True)

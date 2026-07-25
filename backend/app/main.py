@@ -8,7 +8,7 @@ import time
 import logging
 
 from app.config import settings, is_production
-from app.database import init_db, engine
+from app.database import init_db, write_engine
 from app.core.rate_limit import get_rate_limiter
 from app.core.logging import configure_logging
 
