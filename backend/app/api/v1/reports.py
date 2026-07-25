@@ -166,8 +166,9 @@ async def delete_report(
     if report.file_path and os.path.exists(report.file_path):
         try:
             os.remove(report.file_path)
-        except Exception:
-            pass
+        except OSError as exc:
+            import logging
+            logging.getLogger(__name__).warning("Failed to delete report file %s: %s", report.file_path, exc)
 
     db.delete(report)
     db.commit()

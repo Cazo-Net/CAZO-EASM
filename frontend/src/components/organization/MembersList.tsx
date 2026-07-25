@@ -26,7 +26,6 @@ interface MembersListProps {
 const roleColors: Record<string, string> = {
   owner: "bg-warning/10 text-warning",
   admin: "bg-brand/10 text-brand",
-  billing_admin: "bg-accent-2/10 text-accent-2",
   security_manager: "bg-success/10 text-success",
   analyst: "bg-info/10 text-info",
   viewer: "bg-muted text-muted-foreground",

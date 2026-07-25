@@ -131,7 +131,9 @@ def reap_stuck_jobs(db: Session) -> int:
     """Recover jobs stuck in 'running' status past their timeout.
 
     Called on startup and periodically. Resets retryable jobs to 'pending'
-    and marks exhausted jobs as 'failed'. Returns total jobs reaped.
+    and marks exhausted jobs as 'failed'. Also updates the parent scans
+    table so the UI doesn't show stale "running" status.
+    Returns total jobs reaped.
     """
     total_reaped = 0
     for scan_type, timeout_minutes in SCAN_TIMEOUTS.items():
@@ -155,16 +157,30 @@ def reap_stuck_jobs(db: Session) -> int:
                 WHERE status = 'running'
                   AND scan_type = :scan_type
                   AND started_at < NOW() - INTERVAL '1 minute' * :timeout_minutes
-                RETURNING id, scan_id, domain, attempt
+                RETURNING id, scan_id, domain, attempt, status
             """),
             {"scan_type": scan_type, "timeout_minutes": timeout_minutes},
         )
         recovered = result.fetchall()
         for row in recovered:
+            job_id, scan_id, domain, attempt, new_status = row[0], row[1], row[2], row[3], row[4]
             logger.warning(
-                "Reaped stuck job %s (scan %s, domain %s, attempt %d)",
-                row[0], row[1], row[2], row[3],
+                "Reaped stuck job %s (scan %s, domain %s, attempt %d) -> %s",
+                job_id, scan_id, domain, attempt, new_status,
             )
+            # Sync parent scan status when job is permanently failed
+            if new_status == "failed" and scan_id:
+                db.execute(
+                    text("""
+                        UPDATE scans
+                        SET status = 'failed',
+                            error_message = :error_message,
+                            completed_at = NOW()
+                        WHERE id = :scan_id
+                          AND status = 'running'
+                    """),
+                    {"scan_id": scan_id, "error_message": f"Timed out after max retries (scan type: {scan_type})"},
+                )
         total_reaped += len(recovered)
     db.commit()
     return total_reaped

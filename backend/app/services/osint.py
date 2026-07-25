@@ -35,21 +35,22 @@ except Exception:  # pragma: no cover - cryptography is a hard dep of FastAPI st
     x509 = None
 
 _USER_AGENT = {
-    "User-Agent": "Mozilla/5.0 (compatible; CAZO-EASM-OSINT/1.0; +https://cazo.io)"
+    "User-Agent": "Mozilla/5.0 (compatible; CAZO-EASM-OSINT/1.0; +https://cazo.io)",
+    "Connection": "close",
 }
-_TIMEOUT = 10
+_TIMEOUT = 4
 
 # Common ports probed for the Shodan-style "ports/services/tech" view.
 _PROBE_PORTS = [80, 443, 22, 8080, 8443]
 
 # Maximum subdomains to resolve DNS for (keeps lookup fast).
-_MAX_DNS_RESOLUTIONS = 30
+_MAX_DNS_RESOLUTIONS = 20
 
 # Maximum hosts to probe for open ports.
-_MAX_PORT_PROBE_HOSTS = 5
+_MAX_PORT_PROBE_HOSTS = 3
 
 # Hard overall timeout for the entire lookup (seconds).
-_OVERALL_TIMEOUT = 90
+_OVERALL_TIMEOUT = 30
 
 _CVE_PRODUCT_KEYWORDS = [
     "nginx", "apache", "iis", "openssl", "wordpress", "drupal", "joomla",
@@ -133,7 +134,17 @@ class IntelResult:
 # Helpers
 # --------------------------------------------------------------------------- #
 def _http_get(url: str, params: Optional[dict] = None, timeout: int = _TIMEOUT):
-    return requests.get(url, params=params, headers=_USER_AGENT, timeout=timeout)
+    """HTTP GET with Connection: close to prevent socket reuse issues."""
+    try:
+        resp = requests.get(
+            url, params=params, headers=_USER_AGENT, timeout=timeout,
+            allow_redirects=True,
+        )
+        return resp
+    except requests.exceptions.ConnectionError:
+        raise
+    except Exception:
+        raise
 
 
 def _dns_resolve(host: str, timeout: float = 3.0) -> list:
@@ -187,7 +198,7 @@ def _resolve_dns(domain: str) -> Dict[str, List[str]]:
 
         for t in types:
             try:
-                ans = dns.resolver.resolve(domain, t, lifetime=8)
+                ans = dns.resolver.resolve(domain, t, lifetime=3)
                 records[t] = [r.to_text().rstrip(".") for r in ans]
             except Exception:
                 continue
@@ -208,7 +219,7 @@ def _grab_cert_sans(domain: str, port: int = 443) -> Optional[Dict[str, object]]
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     try:
-        with socket.create_connection((domain, port), timeout=10) as sock:
+        with socket.create_connection((domain, port), timeout=4) as sock:
             with ctx.wrap_socket(sock, server_hostname=domain) as ss:
                 der = ss.getpeercert(binary_form=True)
                 cert = x509.load_der_x509_certificate(der)
@@ -238,7 +249,7 @@ def _probe_port(host: str, port: int) -> PortResult:
            22: "SSH", 21: "FTP", 25: "SMTP", 53: "DNS", 3306: "MySQL",
            5432: "PostgreSQL", 6379: "Redis", 27017: "MongoDB", 3389: "RDP"}.get(port)
     try:
-        with socket.create_connection((host, port), timeout=3) as sock:
+        with socket.create_connection((host, port), timeout=2) as sock:
             banner = None
             title = None
             is_tls = port in (443, 8443)
@@ -346,7 +357,7 @@ def _collect_subdomains(domain: str, status: Dict[str, str]) -> List[SubdomainRe
     def _src_crtsh() -> Dict[str, List[str]]:
         result: Dict[str, List[str]] = {}
         try:
-            r = _http_get("https://crt.sh/", params={"q": f".{domain}", "output": "json"}, timeout=10)
+            r = _http_get("https://crt.sh/", params={"q": f".{domain}", "output": "json"}, timeout=4)
             if r.status_code == 200:
                 for entry in r.json():
                     for part in entry.get("name_value", "").split("\n"):
@@ -380,7 +391,7 @@ def _collect_subdomains(domain: str, status: Dict[str, str]) -> List[SubdomainRe
     def _src_rapiddns() -> Dict[str, List[str]]:
         result: Dict[str, List[str]] = {}
         try:
-            r = _http_get(f"https://rapiddns.io/subdomain/{domain}", params={"full": "1"}, timeout=10)
+            r = _http_get(f"https://rapiddns.io/subdomain/{domain}", params={"full": "1"}, timeout=4)
             if r.status_code == 200:
                 for m in re.finditer(r"<td>([\w.-]+\." + re.escape(domain) + r")</td>", r.text):
                     sub = m.group(1).strip().lower()
@@ -410,8 +421,8 @@ def _collect_subdomains(domain: str, status: Dict[str, str]) -> List[SubdomainRe
         status["google-dns"] = "ok" if result else "no_results"
         return result
 
-    # Fire all HTTP sources concurrently (6 threads, ~6s max)
-    with cf.ThreadPoolExecutor(max_workers=6) as ex:
+    # Fire all HTTP sources concurrently (5 threads, ~4s max)
+    with cf.ThreadPoolExecutor(max_workers=5) as ex:
         futures = {
             ex.submit(_src_hackertarget): "hackertarget",
             ex.submit(_src_certspotter): "certspotter",
@@ -434,35 +445,32 @@ def _collect_subdomains(domain: str, status: Dict[str, str]) -> List[SubdomainRe
             except Exception:
                 pass
 
-    # DNS brute-force (top 50, concurrent)
+    # DNS brute-force (top 30, concurrent — fast timeout)
     _DNS_PREFIXES = [
         "www", "mail", "ftp", "smtp", "webmail", "mx", "mx1", "mx2",
         "ns1", "ns2", "dns", "dns1", "dns2",
         "vpn", "remote", "gateway", "ssh",
         "api", "app", "web", "portal", "login", "sso",
-        "admin", "cpanel", "whm", "phpmyadmin",
-        "dashboard", "console", "panel", "backend",
-        "dev", "staging", "stage", "test", "beta", "demo",
-        "blog", "docs", "help", "support",
-        "shop", "store", "pay", "payment",
-        "cdn", "static", "assets", "media", "img", "files",
-        "git", "gitlab", "jenkins", "ci", "cd",
-        "docker", "registry", "k8s", "kubernetes",
-        "db", "database", "mysql", "postgres", "redis", "mongo",
-        "monitor", "grafana", "status", "health",
+        "admin", "cpanel", "whm",
+        "dashboard", "console", "panel",
+        "dev", "staging", "stage", "test", "beta",
+        "blog", "docs", "help",
+        "cdn", "static", "assets",
+        "git", "gitlab", "jenkins",
+        "monitor", "grafana", "status",
     ]
     _brute_candidates = [f"{prefix}.{domain}" for prefix in _DNS_PREFIXES if f"{prefix}.{domain}" not in found]
 
     def _try_brute(candidate: str) -> Optional[SubdomainResult]:
         try:
-            if _dns_resolve(candidate, timeout=3):
+            if _dns_resolve(candidate, timeout=2):
                 return SubdomainResult(hostname=candidate, sources=["dns-bruteforce"])
         except Exception:
             pass
         return None
 
     new_from_brute = 0
-    with cf.ThreadPoolExecutor(max_workers=30) as ex:
+    with cf.ThreadPoolExecutor(max_workers=15) as ex:
         for result in ex.map(_try_brute, _brute_candidates):
             if result:
                 found[result.hostname] = result
@@ -549,7 +557,7 @@ def _collect_ports(subdomains: List[SubdomainResult], status: Dict[str, str]) ->
     shodan_techs = []
     def _shodan_lookup(ip: str) -> dict:
         try:
-            r = _http_get(f"https://internetdb.shodan.io/{ip}", timeout=4)
+            r = _http_get(f"https://internetdb.shodan.io/{ip}", timeout=3)
             if r.status_code == 200:
                 return r.json()
         except Exception:
@@ -587,7 +595,7 @@ def _collect_vulns(technologies: List[str], status: Dict[str, str]) -> List[Vuln
     if kev_ids is None:
         kev_ids = set()
         try:
-            r = _http_get("https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", timeout=8)
+            r = _http_get("https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", timeout=4)
             if r.status_code == 200:
                 for v in r.json().get("vulnerabilities", []):
                     kev_ids.add(v.get("cveID"))
@@ -611,6 +619,7 @@ def _collect_vulns(technologies: List[str], status: Dict[str, str]) -> List[Vuln
                 r = _http_get(
                     "https://services.nvd.nist.gov/rest/json/cves/2.0",
                     params={"keywordSearch": kw, "resultsPerPage": 5},
+                    timeout=4,
                 )
                 if r.status_code != 200:
                     continue
@@ -680,12 +689,12 @@ def _infer_technologies(certs: List[CertResult], ports: List[PortResult], subdom
 def _collect_ip_reputation(ips: List[str], status: Dict[str, str]) -> List[Dict[str, object]]:
     """Query free IP reputation sources for each resolved IP."""
     results = []
-    for ip in ips[:8]:
+    for ip in ips[:4]:
         rep: Dict[str, object] = {"ip": ip, "abuse_confidence": 0, "is_tor": False, "country": None, "org": None}
 
         # IPinfo (free, no key)
         try:
-            r = _http_get(f"https://ipinfo.io/{ip}/json", timeout=8)
+            r = _http_get(f"https://ipinfo.io/{ip}/json", timeout=4)
             if r.status_code == 200:
                 data = r.json()
                 rep["country"] = data.get("country")
@@ -699,7 +708,7 @@ def _collect_ip_reputation(ips: List[str], status: Dict[str, str]) -> List[Dict[
 
         # AbuseIPDB free check (limited, no key for bulk)
         try:
-            r = _http_get("https://api.abuseipdb.com/api/v2/check", params={"ipAddress": ip}, timeout=8)
+            r = _http_get("https://api.abuseipdb.com/api/v2/check", params={"ipAddress": ip}, timeout=4)
             if r.status_code == 200:
                 d = r.json().get("data", {})
                 rep["abuse_confidence"] = d.get("abuseConfidenceScore", 0)
@@ -713,7 +722,7 @@ def _collect_ip_reputation(ips: List[str], status: Dict[str, str]) -> List[Dict[
 
         # GreyNoise Community (free, limited)
         try:
-            r = _http_get(f"https://api.greynoise.io/v3/community/{ip}", timeout=8)
+            r = _http_get(f"https://api.greynoise.io/v3/community/{ip}", timeout=4)
             if r.status_code == 200:
                 d = r.json()
                 rep["noise"] = d.get("noise", False)
@@ -732,7 +741,7 @@ def _collect_whois(domain: str, status: Dict[str, str]) -> Optional[Dict[str, ob
     """Collect WHOIS data via RDAP (free, no key)."""
     try:
         # Use RDAP (free protocol for domain registration data)
-        r = _http_get(f"https://rdap.org/domain/{domain}", timeout=10)
+        r = _http_get(f"https://rdap.org/domain/{domain}", timeout=4)
         if r.status_code == 200:
             data = r.json()
             events = {e.get("eventAction"): e.get("eventDate") for e in data.get("events", [])}
@@ -768,7 +777,7 @@ def _collect_wayback(domain: str, status: Dict[str, str]) -> List[str]:
         r = _http_get(
             "https://web.archive.org/cdx/search/cdx",
             params={"url": f"*.{domain}", "output": "json", "limit": 200, "fl": "original", "collapse": "urlkey"},
-            timeout=12,
+            timeout=4,
         )
         if r.status_code == 200:
             rows = r.json()
@@ -796,7 +805,7 @@ def _collect_reverse_ip(ips: List[str], domain: str, status: Dict[str, str]) -> 
     reverse = []
     for ip in ips[:3]:
         try:
-            r = _http_get(f"https://api.hackertarget.com/reverseiplookup/?q={ip}", timeout=10)
+            r = _http_get(f"https://api.hackertarget.com/reverseiplookup/?q={ip}", timeout=4)
             if r.status_code == 200 and r.text and not r.text.lower().startswith("error"):
                 for line in r.text.strip().splitlines():
                     host = line.strip().lower()
@@ -887,13 +896,13 @@ def lookup_domain(raw_query: str) -> IntelResult:
 
     # ---- Phase 4: IP reputation + WHOIS + Wayback + Reverse IP (concurrent) ----
     all_ips = []
-    for s in result.subdomains[:10]:
+    for s in result.subdomains[:5]:
         for ip in s.ips:
             if ip and ip not in all_ips:
                 all_ips.append(ip)
 
     with cf.ThreadPoolExecutor(max_workers=4) as ex:
-        f_ip = ex.submit(_collect_ip_reputation, all_ips[:8], result.sources_status)
+        f_ip = ex.submit(_collect_ip_reputation, all_ips[:4], result.sources_status)
         f_whois = ex.submit(_collect_whois, domain, result.sources_status)
         f_wb = ex.submit(_collect_wayback, domain, result.sources_status)
         f_rip = ex.submit(_collect_reverse_ip, all_ips[:3], domain, result.sources_status)
@@ -935,24 +944,24 @@ def lookup_domain(raw_query: str) -> IntelResult:
 
             try:
                 result.email_security = f_email.result(timeout=_time_left())
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("email_security intel failed for %s: %s", domain, exc)
             try:
                 result.waf_cdn = f_waf.result(timeout=_time_left())
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("waf_cdn intel failed for %s: %s", domain, exc)
             try:
                 result.security_headers = f_sech.result(timeout=_time_left())
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("security_headers intel failed for %s: %s", domain, exc)
             try:
                 result.sensitive_paths = f_sp.result(timeout=_time_left())
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("sensitive_paths intel failed for %s: %s", domain, exc)
             try:
                 result.web_fingerprint = f_fp.result(timeout=_time_left())
-            except Exception:
-                pass
+            except Exception as exc:
+                log.debug("web_fingerprint intel failed for %s: %s", domain, exc)
 
         # Risk scoring
         try:

@@ -9,8 +9,6 @@ class OrganizationCreate(BaseModel):
     slug: Optional[str] = None
     plan: str = "free"
     settings: Optional[Dict[str, Any]] = None
-    billing_email: Optional[str] = None
-    tax_id: Optional[str] = None
 
     @field_validator("name")
     @classmethod
@@ -36,9 +34,6 @@ class OrganizationUpdate(BaseModel):
     description: Optional[str] = None
     industry: Optional[str] = None
     company_size: Optional[str] = None
-    billing_email: Optional[str] = None
-    tax_id: Optional[str] = None
-    invoice_prefix: Optional[str] = None
     mfa_enforced: Optional[bool] = None
     allowed_email_domains: Optional[List[str]] = None
     is_active: Optional[bool] = None
@@ -72,10 +67,6 @@ class OrganizationResponse(BaseModel):
     description: Optional[str] = None
     industry: Optional[str] = None
     company_size: Optional[str] = None
-    billing_email: Optional[str] = None
-    tax_id: Optional[str] = None
-    invoice_prefix: Optional[str] = None
-    stripe_customer_id: Optional[str] = None
     trial_ends_at: Optional[datetime] = None
     mfa_enforced: bool = False
     allowed_email_domains: Optional[List[str]] = None
@@ -108,7 +99,7 @@ class OrganizationMemberRoleUpdate(BaseModel):
     @field_validator("role")
     @classmethod
     def validate_role(cls, v: str) -> str:
-        allowed_roles = ["owner", "admin", "billing_admin", "security_manager", "analyst", "viewer"]
+        allowed_roles = ["owner", "admin", "security_manager", "analyst", "viewer"]
         if v not in allowed_roles:
             raise ValueError(f"Role must be one of: {', '.join(allowed_roles)}")
         return v

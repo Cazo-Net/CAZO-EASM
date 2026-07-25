@@ -321,8 +321,8 @@ class ScanRunner:
                             r = await self.dns_scanner.resolve_ip(ip)
                             if r and r.get("success"):
                                 return [h.rstrip(".") for h in r.get("hostnames", []) if h]
-                        except Exception:
-                            pass
+                        except Exception as exc:
+                            logger.debug("Reverse DNS failed for %s: %s", ip, exc)
                         return []
 
                     rev_results = await asyncio.gather(
@@ -499,8 +499,9 @@ class ScanRunner:
                                 counters["dns_ok"] += 1
                             else:
                                 counters["dns_fail"] += 1
-                        except Exception:
+                        except Exception as exc:
                             counters["dns_fail"] += 1
+                            logger.debug("DNS scan failed for %s: %s", hostname, exc)
 
                     async def _s():
                         try:
@@ -510,8 +511,9 @@ class ScanRunner:
                                 counters["ssl_ok"] += 1
                             else:
                                 counters["ssl_fail"] += 1
-                        except Exception:
+                        except Exception as exc:
                             counters["ssl_fail"] += 1
+                            logger.debug("SSL scan failed for %s: %s", hostname, exc)
 
                     async def _p():
                         try:
@@ -522,8 +524,9 @@ class ScanRunner:
                                 counters["port_ok"] += 1
                             else:
                                 counters["port_fail"] += 1
-                        except Exception:
+                        except Exception as exc:
                             counters["port_fail"] += 1
+                            logger.debug("Port scan failed for %s: %s", hostname, exc)
 
                     async def _t():
                         try:
@@ -533,8 +536,9 @@ class ScanRunner:
                                 counters["tech_ok"] += 1
                             else:
                                 counters["tech_fail"] += 1
-                        except Exception:
+                        except Exception as exc:
                             counters["tech_fail"] += 1
+                            logger.debug("Tech scan failed for %s: %s", hostname, exc)
 
                     await asyncio.gather(_d(), _s(), _p(), _t(), return_exceptions=True)
 

@@ -56,7 +56,6 @@ import type {
 const ROLE_LABELS: Record<OrgRole, string> = {
   owner: "Owner",
   admin: "Administrator",
-  billing_admin: "Billing Admin",
   security_manager: "Security Manager",
   analyst: "Analyst",
   viewer: "Viewer",
@@ -65,7 +64,6 @@ const ROLE_LABELS: Record<OrgRole, string> = {
   const ROLE_ACCENT: Record<OrgRole, "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"> = {
   owner: "default",
   admin: "secondary",
-  billing_admin: "info",
   security_manager: "warning",
   analyst: "success",
   viewer: "info",

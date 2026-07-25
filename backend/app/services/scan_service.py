@@ -229,10 +229,10 @@ class ScanService:
                             data={"scan_id": scan.id, "domain": scan.domain, "error": str(e)},
                             skip_dedup=True,
                         )
-                    except Exception:
-                        pass
-            except Exception:
-                db.rollback()
+                    except Exception as notify_err:
+                        logger.warning("Failed to send scan failure notification: %s", notify_err)
+            except Exception as rollback_err:
+                logger.error("Failed to rollback after scan error: %s", rollback_err)
             raise
         finally:
             db.close()

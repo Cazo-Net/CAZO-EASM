@@ -102,6 +102,18 @@ function ScansContent() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Poll for updates when there are running scans
+  useEffect(() => {
+    const hasRunning = scans.some((s) => s.status === "running" || s.status === "pending");
+    if (!hasRunning) return;
+    const interval = setInterval(() => {
+      listScans({ limit: 100 })
+        .then(setScans)
+        .catch(() => {}); // silent — already showing stale data
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [scans]);
+
   const filteredScans = useMemo(() => {
     return scans.filter((scan) => {
       const matchesStatus = statusFilter === "all" || scan.status === statusFilter;

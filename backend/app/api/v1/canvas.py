@@ -59,8 +59,9 @@ def get_risk_for_asset(db: Session, asset_type: str, asset_id: str) -> str:
             sub = db.query(Subdomain).filter(Subdomain.id == asset_id).first()
             if sub and not sub.is_alive:
                 return "low"
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).debug("Failed to query risk for %s/%s: %s", asset_type, asset_id, exc)
     return "informational"
 
 

@@ -182,10 +182,6 @@ export interface Organization {
   description: string | null;
   industry: string | null;
   company_size: string | null;
-  billing_email: string | null;
-  tax_id: string | null;
-  invoice_prefix: string | null;
-  stripe_customer_id: string | null;
   trial_ends_at: string | null;
   mfa_enforced: boolean;
   allowed_email_domains: string[] | null;
@@ -222,7 +218,6 @@ export interface OrganizationStats {
 export type OrgRole =
   | "owner"
   | "admin"
-  | "billing_admin"
   | "security_manager"
   | "analyst"
   | "viewer";
@@ -416,66 +411,6 @@ export interface ScopeCheckResult {
   authorized: boolean;
   reason: string | null;
   matched_scope_id: string | null;
-}
-
-// ==================== BILLING & SUBSCRIPTION ====================
-
-export interface Plan {
-  id: string;
-  name: string;
-  description: string;
-  price_monthly: number;
-  price_yearly: number;
-  limits: Record<string, number>;
-  features: string[];
-}
-
-export interface Subscription {
-  id: string;
-  plan: string;
-  status: string;
-  stripe_subscription_id: string | null;
-  trial_starts_at: string | null;
-  trial_ends_at: string | null;
-  current_period_starts_at: string | null;
-  current_period_ends_at: string | null;
-  canceled_at: string | null;
-  cancel_at_period_end: boolean;
-}
-
-export interface Invoice {
-  id: string;
-  amount_cents: number;
-  currency: string;
-  status: string;
-  invoice_url: string | null;
-  invoice_pdf_url: string | null;
-  period_starts_at: string | null;
-  period_ends_at: string | null;
-  created_at: string;
-}
-
-export interface PaymentMethod {
-  id: string;
-  brand: string;
-  last4: string;
-  exp_month: number;
-  exp_year: number;
-}
-
-export interface UsageMetric {
-  current: number;
-  limit: number;
-  remaining: number;
-  percentage: number;
-  unlimited: boolean;
-}
-
-export interface UsageSummary {
-  plan: string;
-  metrics: Record<string, UsageMetric>;
-  period_starts_at: string;
-  period_ends_at: string;
 }
 
 // ==================== SECURITY CENTER ====================

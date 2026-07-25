@@ -21,15 +21,6 @@ class Organization(Base):
     industry = Column(String(100), nullable=True)
     company_size = Column(String(50), nullable=True)
 
-    # Billing
-    billing_email = Column(String(255), nullable=True)
-    tax_id = Column(String(100), nullable=True)
-    invoice_prefix = Column(String(20), nullable=True)
-    stripe_customer_id = Column(String(255), unique=True, nullable=True, index=True)
-
-    # Trial
-    trial_ends_at = Column(DateTime(timezone=True), nullable=True)
-
     # Security
     mfa_enforced = Column(Boolean, default=False)
     allowed_email_domains = Column(JSON, nullable=True)

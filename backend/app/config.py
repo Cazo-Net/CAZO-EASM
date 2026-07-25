@@ -100,45 +100,7 @@ class Settings(BaseSettings):
     # Google OAuth
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
 
-    # AI Settings (supports multiple keys for rotation)
-    AI_API_KEYS: str = os.getenv("AI_API_KEYS", "")  # Comma-separated keys
-    AI_API_KEY: str = os.getenv("AI_API_KEY", "")  # Single key fallback
-    AI_BASE_URL: str = os.getenv("AI_BASE_URL", "")
-    AI_MODEL: str = os.getenv("AI_MODEL", "gpt-4o-mini")
-    AI_TEMPERATURE: float = float(os.getenv("AI_TEMPERATURE", "0.7"))
-    AI_MAX_TOKENS: int = int(os.getenv("AI_MAX_TOKENS", "2048"))
-    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "openai")  # openai | anthropic | ollama | stub
-
-    # Anthropic provider settings
-    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-    ANTHROPIC_BASE_URL: str = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com")
-    ANTHROPIC_MODEL: str = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20240620")
-
-    # Ollama (local) provider settings
-    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3")
-
-    # Stripe / Billing
-    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
-    STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
-    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-    STRIPE_PRICE_STARTER: str = os.getenv("STRIPE_PRICE_STARTER", "")
-    STRIPE_PRICE_PROFESSIONAL: str = os.getenv("STRIPE_PRICE_PROFESSIONAL", "")
-    STRIPE_PRICE_ENTERPRISE: str = os.getenv("STRIPE_PRICE_ENTERPRISE", "")
-
-    # Subscription / Billing
-    TRIAL_DURATION_DAYS: int = int(os.getenv("TRIAL_DURATION_DAYS", "14"))
-    GRACE_PERIOD_DAYS: int = int(os.getenv("GRACE_PERIOD_DAYS", "7"))
     PASSWORD_EXPIRY_DAYS: int = int(os.getenv("PASSWORD_EXPIRY_DAYS", "90"))
-
-    def get_ai_api_keys(self) -> list[str]:
-        """Get list of AI API keys (supports rotation)."""
-        keys = []
-        if self.AI_API_KEYS:
-            keys = [k.strip() for k in self.AI_API_KEYS.split(",") if k.strip()]
-        if not keys and self.AI_API_KEY:
-            keys = [self.AI_API_KEY]
-        return keys
 
     class Config:
         env_file = ".env"

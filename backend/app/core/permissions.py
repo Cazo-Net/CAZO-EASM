@@ -39,10 +39,6 @@ class Permission(str, Enum):
     REMOVE_USERS = "remove_users"
     MANAGE_ROLES = "manage_roles"
 
-    # Billing
-    MANAGE_BILLING = "manage_billing"
-    VIEW_BILLING = "view_billing"
-
     # API Keys
     MANAGE_API_KEYS = "manage_api_keys"
 
@@ -76,7 +72,7 @@ SYSTEM_ROLES = {
     },
     "admin": {
         "name": "Administrator",
-        "description": "Full access except billing and org deletion.",
+        "description": "Full access except org deletion.",
         "permissions": [
             Permission.CREATE_SCAN.value,
             Permission.VIEW_SCAN.value,
@@ -92,7 +88,6 @@ SYSTEM_ROLES = {
             Permission.INVITE_USERS.value,
             Permission.REMOVE_USERS.value,
             Permission.MANAGE_ROLES.value,
-            Permission.VIEW_BILLING.value,
             Permission.MANAGE_API_KEYS.value,
             Permission.VIEW_AI.value,
             Permission.USE_AI.value,
@@ -103,20 +98,6 @@ SYSTEM_ROLES = {
             Permission.VIEW_SETTINGS.value,
             Permission.MANAGE_SCOPES.value,
             Permission.MANAGE_WEBHOOKS.value,
-        ],
-        "is_default": False,
-    },
-    "billing_admin": {
-        "name": "Billing Administrator",
-        "description": "Can manage billing, subscriptions, and invoices.",
-        "permissions": [
-            Permission.VIEW_SCAN.value,
-            Permission.VIEW_ASSETS.value,
-            Permission.VIEW_ORG.value,
-            Permission.MANAGE_BILLING.value,
-            Permission.VIEW_BILLING.value,
-            Permission.VIEW_SETTINGS.value,
-            Permission.VIEW_AUDIT_LOGS.value,
         ],
         "is_default": False,
     },

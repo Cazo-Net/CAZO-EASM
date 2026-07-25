@@ -9,6 +9,7 @@ Ties together:
 """
 from __future__ import annotations
 
+import asyncio
 import time
 import logging
 from typing import Any, Callable, Dict, Optional, Set
@@ -18,6 +19,10 @@ from app.scanners.v2.risk_engine import risk_engine
 from app.scanners.v2.graph_intel import build_graph_from_scan
 
 logger = logging.getLogger(__name__)
+
+# Default pipeline-level timeout (seconds). Prevents a single hung scanner
+# from blocking the entire pipeline indefinitely.
+_PIPELINE_TIMEOUT = 1800  # 30 minutes
 
 
 class EnhancedScanRunner:
@@ -43,15 +48,27 @@ class EnhancedScanRunner:
         """Execute a full scan pipeline and return comprehensive results."""
         cfg = {**self.config, **(config or {})}
         start_time = time.monotonic()
+        pipeline_timeout = cfg.get("pipeline_timeout", _PIPELINE_TIMEOUT)
 
-        # Execute pipeline
-        pipeline_result = await self._pipeline.execute(
-            target=domain,
-            config=cfg,
-            progress_callback=progress_callback,
-            included_scanners=included_scanners,
-            excluded_scanners=excluded_scanners,
-        )
+        # Execute pipeline with global timeout
+        try:
+            pipeline_result = await asyncio.wait_for(
+                self._pipeline.execute(
+                    target=domain,
+                    config=cfg,
+                    progress_callback=progress_callback,
+                    included_scanners=included_scanners,
+                    excluded_scanners=excluded_scanners,
+                ),
+                timeout=pipeline_timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.error(
+                "Pipeline timed out after %ds for %s", pipeline_timeout, domain,
+            )
+            raise TimeoutError(
+                f"Scan pipeline timed out after {pipeline_timeout}s for {domain}"
+            )
 
         # Transform pipeline results into expected format
         all_data = self._transform_pipeline_results(pipeline_result, domain)
@@ -101,7 +118,15 @@ class EnhancedScanRunner:
         ]
 
         pipeline = ScanPipeline(stages=essential_stages, config=quick_config)
-        pipeline_result = await pipeline.execute(target=domain, config=quick_config)
+        pipeline_timeout = quick_config.get("pipeline_timeout", 300)  # 5 min for quick
+        try:
+            pipeline_result = await asyncio.wait_for(
+                pipeline.execute(target=domain, config=quick_config),
+                timeout=pipeline_timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.error("Quick pipeline timed out after %ds for %s", pipeline_timeout, domain)
+            raise TimeoutError(f"Quick scan pipeline timed out after {pipeline_timeout}s")
         all_data = self._transform_pipeline_results(pipeline_result, domain)
         risk_result = risk_engine.calculate(all_data)
 

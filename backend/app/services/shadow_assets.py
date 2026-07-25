@@ -205,10 +205,12 @@ def detect_shadow_assets(db: Session, org_id: str) -> List[Dict]:
     candidates.sort(key=lambda c: c["confidence"], reverse=True)
 
     # Dispatch notifications for high-confidence shadow assets
-    try:
-        from app.services.notification_service import dispatch_notification
-        for candidate in candidates:
-            if candidate["confidence"] >= 70:
+    from app.services.notification_service import dispatch_notification
+    import logging
+    _logger = logging.getLogger(__name__)
+    for candidate in candidates:
+        if candidate["confidence"] >= 70:
+            try:
                 dispatch_notification(
                     db=db,
                     organization_id=org_id,
@@ -219,8 +221,8 @@ def detect_shadow_assets(db: Session, org_id: str) -> List[Dict]:
                     related_entity_id=candidate["asset_id"],
                     data=candidate,
                 )
-    except Exception:
-        pass
+            except Exception as exc:
+                _logger.warning("Failed to send shadow asset notification for %s: %s", candidate.get("value"), exc)
 
     return candidates
 

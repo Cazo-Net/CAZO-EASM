@@ -2,11 +2,14 @@
 
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      <AuthProvider>{children}</AuthProvider>
+      <ErrorBoundary>
+        <AuthProvider>{children}</AuthProvider>
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }
