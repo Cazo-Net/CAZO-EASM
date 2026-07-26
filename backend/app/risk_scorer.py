@@ -29,11 +29,20 @@ OPEN_RDP_PORTS = {3389}
 OPEN_DB_PORTS = {3306, 5432, 6379, 27017}
 
 PORT_SCORES = {
+    21: 10,      # FTP (cleartext)
     22: 15,      # SSH
-    3389: 20,    # RDP
+    23: 15,      # Telnet (cleartext)
+    25: 5,       # SMTP
+    53: 5,       # DNS recursion exposure
+    139: 10,     # SMB NetBIOS
+    445: 10,     # SMB
     3306: 25,    # MySQL
+    3389: 20,    # RDP
     5432: 25,    # PostgreSQL
+    5601: 10,    # Kibana
+    5900: 10,    # VNC
     6379: 25,    # Redis
+    9200: 15,    # Elasticsearch
     27017: 25,   # MongoDB
 }
 

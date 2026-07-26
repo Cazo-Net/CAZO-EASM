@@ -23,223 +23,224 @@ from app.scanners.v2.registry import register_scanner, ScannerCategory
 
 logger = logging.getLogger(__name__)
 
-# Expanded fingerprint database: name → {category, patterns: {header, cookie, html, meta}}
+# Expanded fingerprint database: name → {category, vendor_type, patterns: {header, cookie, html, meta}}
+# vendor_type: first_party_infra | third_party_service | saas_platform | security_tool | cloud_provider | devops_tool
 FINGERPRINTS: Dict[str, Dict[str, Any]] = {
     # Web Servers
-    "nginx": {"category": "Web Server", "patterns": {"header": [r"nginx"]}},
-    "apache": {"category": "Web Server", "patterns": {"header": [r"apache"]}},
-    "iis": {"category": "Web Server", "patterns": {"header": [r"microsoft-iis"]}},
-    "lighttpd": {"category": "Web Server", "patterns": {"header": [r"lighttpd"]}},
-    "caddy": {"category": "Web Server", "patterns": {"header": [r"caddy"]}},
-    "openresty": {"category": "Web Server", "patterns": {"header": [r"openresty"]}},
-    "litespeed": {"category": "Web Server", "patterns": {"header": [r"litespeed"]}},
-    "envoy": {"category": "Web Server", "patterns": {"header": [r"envoy"]}},
-    "traefik": {"category": "Web Server", "patterns": {"header": [r"traefik"]}},
+    "nginx": {"category": "Web Server", "vendor_type": "first_party_infra", "patterns": {"header": [r"nginx"]}},
+    "apache": {"category": "Web Server", "vendor_type": "first_party_infra", "patterns": {"header": [r"apache"]}},
+    "iis": {"category": "Web Server", "vendor_type": "first_party_infra", "patterns": {"header": [r"microsoft-iis"]}},
+    "lighttpd": {"category": "Web Server", "vendor_type": "first_party_infra", "patterns": {"header": [r"lighttpd"]}},
+    "caddy": {"category": "Web Server", "vendor_type": "first_party_infra", "patterns": {"header": [r"caddy"]}},
+    "openresty": {"category": "Web Server", "vendor_type": "first_party_infra", "patterns": {"header": [r"openresty"]}},
+    "litespeed": {"category": "Web Server", "vendor_type": "first_party_infra", "patterns": {"header": [r"litespeed"]}},
+    "envoy": {"category": "Web Server", "vendor_type": "first_party_infra", "patterns": {"header": [r"envoy"]}},
+    "traefik": {"category": "Web Server", "vendor_type": "first_party_infra", "patterns": {"header": [r"traefik"]}},
 
     # CDNs
-    "cloudflare": {"category": "CDN", "patterns": {"header": [r"cloudflare"]}},
-    "akamai": {"category": "CDN", "patterns": {"header": [r"akamaighost"]}},
-    "fastly": {"category": "CDN", "patterns": {"header": [r"fastly"]}},
-    "aws_cloudfront": {"category": "CDN", "patterns": {"header": [r"cloudfront"]}},
-    "azure_cdn": {"category": "CDN", "patterns": {"header": [r"azureedge"]}},
-    "cloudflare_cdn": {"category": "CDN", "patterns": {"header": [r"cf-ray"]}},
+    "cloudflare": {"category": "CDN", "vendor_type": "third_party_service", "patterns": {"header": [r"cloudflare"]}},
+    "akamai": {"category": "CDN", "vendor_type": "third_party_service", "patterns": {"header": [r"akamaighost"]}},
+    "fastly": {"category": "CDN", "vendor_type": "third_party_service", "patterns": {"header": [r"fastly"]}},
+    "aws_cloudfront": {"category": "CDN", "vendor_type": "third_party_service", "patterns": {"header": [r"cloudfront"]}},
+    "azure_cdn": {"category": "CDN", "vendor_type": "third_party_service", "patterns": {"header": [r"azureedge"]}},
+    "cloudflare_cdn": {"category": "CDN", "vendor_type": "third_party_service", "patterns": {"header": [r"cf-ray"]}},
 
     # WAFs
-    "cloudflare_waf": {"category": "WAF", "patterns": {"header": [r"cf-cache-status"]}},
-    "akamai_waf": {"category": "WAF", "patterns": {"header": [r"akamai"]}},
-    "aws_waf": {"category": "WAF", "patterns": {"header": [r"x-amzn-requestid"]}},
-    "incapsula": {"category": "WAF", "patterns": {"header": [r"incap_ses", r"x-iinfo"]}},
-    "sucuri": {"category": "WAF", "patterns": {"header": [r"x-sucuri-id"]}},
-    "mod_security": {"category": "WAF", "patterns": {"header": [r"mod_security"]}},
+    "cloudflare_waf": {"category": "WAF", "vendor_type": "security_tool", "patterns": {"header": [r"cf-cache-status"]}},
+    "akamai_waf": {"category": "WAF", "vendor_type": "security_tool", "patterns": {"header": [r"akamai"]}},
+    "aws_waf": {"category": "WAF", "vendor_type": "security_tool", "patterns": {"header": [r"x-amzn-requestid"]}},
+    "incapsula": {"category": "WAF", "vendor_type": "security_tool", "patterns": {"header": [r"incap_ses", r"x-iinfo"]}},
+    "sucuri": {"category": "WAF", "vendor_type": "security_tool", "patterns": {"header": [r"x-sucuri-id"]}},
+    "mod_security": {"category": "WAF", "vendor_type": "security_tool", "patterns": {"header": [r"mod_security"]}},
 
     # Languages
-    "php": {"category": "Programming Language", "patterns": {
+    "php": {"category": "Programming Language", "vendor_type": "first_party_infra", "patterns": {
         "header": [r"x-powered-by.*php"],
         "cookie": [r"phpsessid"],
         "html": [r"\.php"],
     }},
-    "python": {"category": "Programming Language", "patterns": {
+    "python": {"category": "Programming Language", "vendor_type": "first_party_infra", "patterns": {
         "header": [r"python", r"wsgi", r"uvicorn", r"gunicorn"],
     }},
-    "node.js": {"category": "Programming Language", "patterns": {
+    "node.js": {"category": "Programming Language", "vendor_type": "first_party_infra", "patterns": {
         "header": [r"x-powered-by.*express", r"express"],
     }},
-    "ruby": {"category": "Programming Language", "patterns": {
+    "ruby": {"category": "Programming Language", "vendor_type": "first_party_infra", "patterns": {
         "header": [r"x-powered-by.*phusion passenger", r"ruby"],
     }},
-    "java": {"category": "Programming Language", "patterns": {
+    "java": {"category": "Programming Language", "vendor_type": "first_party_infra", "patterns": {
         "header": [r"java", r"tomcat", r"jboss", r"wildfly"],
     }},
-    "dotnet": {"category": "Programming Language", "patterns": {
+    "dotnet": {"category": "Programming Language", "vendor_type": "first_party_infra", "patterns": {
         "header": [r"x-powered-by.*asp\.net", r"x-aspnet-version"],
         "html": [r"\.aspx", r"__viewstate"],
     }},
 
     # Frameworks
-    "django": {"category": "Web Framework", "patterns": {
+    "django": {"category": "Web Framework", "vendor_type": "first_party_infra", "patterns": {
         "header": [r"csrfmiddlewaretoken"],
         "cookie": [r"csrftoken", r"django"],
         "html": [r"csrfmiddlewaretoken", r"django"],
     }},
-    "flask": {"category": "Web Framework", "patterns": {
+    "flask": {"category": "Web Framework", "vendor_type": "first_party_infra", "patterns": {
         "header": [r"server.*werkzeug"],
         "cookie": [r"session=ey"],
     }},
-    "fastapi": {"category": "Web Framework", "patterns": {
+    "fastapi": {"category": "Web Framework", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"fastapi", r"swagger"],
         "path": ["/docs", "/openapi.json"],
     }},
-    "express": {"category": "Web Framework", "patterns": {
+    "express": {"category": "Web Framework", "vendor_type": "first_party_infra", "patterns": {
         "header": [r"x-powered-by.*express"],
     }},
-    "laravel": {"category": "Web Framework", "patterns": {
+    "laravel": {"category": "Web Framework", "vendor_type": "first_party_infra", "patterns": {
         "cookie": [r"laravel_session"],
         "html": [r"laravel"],
     }},
-    "spring": {"category": "Web Framework", "patterns": {
+    "spring": {"category": "Web Framework", "vendor_type": "first_party_infra", "patterns": {
         "header": [r"x-application-context"],
         "cookie": [r"jsessionid"],
     }},
-    "rails": {"category": "Web Framework", "patterns": {
+    "rails": {"category": "Web Framework", "vendor_type": "first_party_infra", "patterns": {
         "cookie": [r"_session_id"],
         "header": [r"x-powered-by.*phusion"],
     }},
-    "next.js": {"category": "Web Framework", "patterns": {
+    "next.js": {"category": "Web Framework", "vendor_type": "first_party_infra", "patterns": {
         "header": [r"x-nextjs"],
         "html": [r"__next", r"_next/static"],
     }},
-    "nuxt.js": {"category": "Web Framework", "patterns": {
+    "nuxt.js": {"category": "Web Framework", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"__nuxt", r"_nuxt/"],
     }},
-    "gatsby": {"category": "Web Framework", "patterns": {
+    "gatsby": {"category": "Web Framework", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"gatsby", r"___gatsby"],
     }},
 
     # CMS
-    "wordpress": {"category": "CMS", "patterns": {
+    "wordpress": {"category": "CMS", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"wp-content", r"wp-includes", r"wordpress"],
         "cookie": [r"wordpress_"],
         "meta": [r"generator.*wordpress"],
     }},
-    "drupal": {"category": "CMS", "patterns": {
+    "drupal": {"category": "CMS", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"drupal", r"sites/default/files"],
         "header": [r"x-drupal-cache"],
         "meta": [r"generator.*drupal"],
     }},
-    "joomla": {"category": "CMS", "patterns": {
+    "joomla": {"category": "CMS", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"joomla", r"/media/jui/"],
         "meta": [r"generator.*joomla"],
     }},
-    "shopify": {"category": "CMS", "patterns": {
+    "shopify": {"category": "CMS", "vendor_type": "saas_platform", "patterns": {
         "html": [r"shopify", r"cdn\.shopify\.com"],
         "header": [r"x-shopify"],
     }},
-    "squarespace": {"category": "CMS", "patterns": {
+    "squarespace": {"category": "CMS", "vendor_type": "saas_platform", "patterns": {
         "html": [r"squarespace", r"static\.squarespace"],
     }},
-    "wix": {"category": "CMS", "patterns": {
+    "wix": {"category": "CMS", "vendor_type": "saas_platform", "patterns": {
         "html": [r"wix", r"static\.wixstatic"],
     }},
-    "webflow": {"category": "CMS", "patterns": {
+    "webflow": {"category": "CMS", "vendor_type": "saas_platform", "patterns": {
         "html": [r"webflow", r"assets\.webflow"],
     }},
-    "magento": {"category": "CMS", "patterns": {
+    "magento": {"category": "CMS", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"magento", r"Mage\.Cookies"],
         "cookie": [r"frontend"],
     }},
-    "ghost": {"category": "CMS", "patterns": {
+    "ghost": {"category": "CMS", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"ghost", r"ghost-/content"],
         "meta": [r"generator.*ghost"],
     }},
 
     # JavaScript Frameworks
-    "react": {"category": "JavaScript Framework", "patterns": {
+    "react": {"category": "JavaScript Framework", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"react", r"__react", r"_reactroot"],
     }},
-    "vue.js": {"category": "JavaScript Framework", "patterns": {
+    "vue.js": {"category": "JavaScript Framework", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"vue\.js", r"__vue__", r"v-cloak"],
     }},
-    "angular": {"category": "JavaScript Framework", "patterns": {
+    "angular": {"category": "JavaScript Framework", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"ng-version", r"angular", r"ng-app"],
     }},
-    "svelte": {"category": "JavaScript Framework", "patterns": {
+    "svelte": {"category": "JavaScript Framework", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"svelte", r"__svelte"],
     }},
-    "jquery": {"category": "JavaScript Library", "patterns": {
+    "jquery": {"category": "JavaScript Library", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"jquery", r"jquery\.min\.js"],
     }},
-    "bootstrap": {"category": "CSS Framework", "patterns": {
+    "bootstrap": {"category": "CSS Framework", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"bootstrap\.min\.css", r"bootstrap\.min\.js"],
     }},
-    "tailwind": {"category": "CSS Framework", "patterns": {
+    "tailwind": {"category": "CSS Framework", "vendor_type": "first_party_infra", "patterns": {
         "html": [r"tailwindcss", r"tailwind"],
     }},
 
-    # Analytics
-    "google_analytics": {"category": "Analytics", "patterns": {
+    # Analytics (third-party services)
+    "google_analytics": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
         "html": [r"google-analytics\.com/analytics", r"gtag", r"googletagmanager"],
     }},
-    "google_tag_manager": {"category": "Analytics", "patterns": {
+    "google_tag_manager": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
         "html": [r"googletagmanager\.com/gtm"],
     }},
-    "hotjar": {"category": "Analytics", "patterns": {
+    "hotjar": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
         "html": [r"hotjar\.com", r"_hjSettings"],
     }},
-    "segment": {"category": "Analytics", "patterns": {
+    "segment": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
         "html": [r"segment\.com/analytics", r"analytics\.load"],
     }},
-    "mixpanel": {"category": "Analytics", "patterns": {
+    "mixpanel": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
         "html": [r"mixpanel\.com", r"mixpanel\.track"],
     }},
-    "amplitude": {"category": "Analytics", "patterns": {
+    "amplitude": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
         "html": [r"amplitude\.com", r"amplitude\.getInstance"],
     }},
 
     # Databases (detected via exposed ports/services)
-    "mysql": {"category": "Database", "patterns": {"header": [r"mysql"]}},
-    "postgresql": {"category": "Database", "patterns": {"header": [r"postgresql"]}},
-    "redis": {"category": "Database", "patterns": {"header": [r"redis"]}},
-    "mongodb": {"category": "Database", "patterns": {"header": [r"mongodb"]}},
-    "elasticsearch": {"category": "Database", "patterns": {"header": [r"elasticsearch"]}},
+    "mysql": {"category": "Database", "vendor_type": "first_party_infra", "patterns": {"header": [r"mysql"]}},
+    "postgresql": {"category": "Database", "vendor_type": "first_party_infra", "patterns": {"header": [r"postgresql"]}},
+    "redis": {"category": "Database", "vendor_type": "first_party_infra", "patterns": {"header": [r"redis"]}},
+    "mongodb": {"category": "Database", "vendor_type": "first_party_infra", "patterns": {"header": [r"mongodb"]}},
+    "elasticsearch": {"category": "Database", "vendor_type": "first_party_infra", "patterns": {"header": [r"elasticsearch"]}},
 
     # Cloud Providers
-    "aws": {"category": "Cloud Provider", "patterns": {
+    "aws": {"category": "Cloud Provider", "vendor_type": "cloud_provider", "patterns": {
         "header": [r"x-amz-", r"aws"],
         "html": [r"amazonaws\.com"],
     }},
-    "gcp": {"category": "Cloud Provider", "patterns": {
+    "gcp": {"category": "Cloud Provider", "vendor_type": "cloud_provider", "patterns": {
         "header": [r"google"],
         "html": [r"googleapis\.com", r"googlecloud"],
     }},
-    "azure": {"category": "Cloud Provider", "patterns": {
+    "azure": {"category": "Cloud Provider", "vendor_type": "cloud_provider", "patterns": {
         "header": [r"x-ms-", r"azure"],
         "html": [r"azure\.com", r"azurewebsites"],
     }},
 
     # DevOps
-    "gitlab": {"category": "DevOps", "patterns": {
+    "gitlab": {"category": "DevOps", "vendor_type": "devops_tool", "patterns": {
         "html": [r"gitlab", r"goname"],
         "header": [r"x-gitlab"],
     }},
-    "github_pages": {"category": "DevOps", "patterns": {
+    "github_pages": {"category": "DevOps", "vendor_type": "third_party_service", "patterns": {
         "html": [r"github\.io", r"github pages"],
     }},
-    "jenkins": {"category": "DevOps", "patterns": {
+    "jenkins": {"category": "DevOps", "vendor_type": "devops_tool", "patterns": {
         "html": [r"jenkins", r"hudson"],
         "header": [r"x-jenkins"],
     }},
-    "grafana": {"category": "DevOps", "patterns": {
+    "grafana": {"category": "DevOps", "vendor_type": "devops_tool", "patterns": {
         "html": [r"grafana", r"grafana-app"],
     }},
-    "kibana": {"category": "DevOps", "patterns": {
+    "kibana": {"category": "DevOps", "vendor_type": "devops_tool", "patterns": {
         "html": [r"kibana", r"kibana-app"],
     }},
 
     # Security
-    "recaptcha": {"category": "Security", "patterns": {
+    "recaptcha": {"category": "Security", "vendor_type": "security_tool", "patterns": {
         "html": [r"recaptcha", r"grecaptcha"],
     }},
-    "hcaptcha": {"category": "Security", "patterns": {
+    "hcaptcha": {"category": "Security", "vendor_type": "security_tool", "patterns": {
         "html": [r"hcaptcha"],
     }},
 }
@@ -306,6 +307,11 @@ class TechnologyIntelligenceScanner(EnhancedBaseScanner):
                 seen.add(key)
                 unique.append(t)
 
+        # Classify by vendor type
+        third_party = [t for t in unique if t.get("vendor_type") == "third_party_service"]
+        saas_platforms = [t for t in unique if t.get("vendor_type") == "saas_platform"]
+        first_party = [t for t in unique if t.get("vendor_type") == "first_party_infra"]
+
         return ScanResult(
             success=True,
             scanner=self.name,
@@ -314,9 +320,17 @@ class TechnologyIntelligenceScanner(EnhancedBaseScanner):
                 "hosts": {target: unique},
                 "technologies": unique,
                 "by_category": self._group_by_category(unique),
+                "by_vendor_type": {
+                    "third_party_services": third_party,
+                    "saas_platforms": saas_platforms,
+                    "first_party_infrastructure": first_party,
+                },
                 "summary": {
                     "total_detected": len(unique),
                     "categories": list(set(t["category"] for t in unique)),
+                    "third_party_count": len(third_party),
+                    "saas_count": len(saas_platforms),
+                    "first_party_count": len(first_party),
                 },
             },
             errors=errors,
@@ -363,6 +377,7 @@ class TechnologyIntelligenceScanner(EnhancedBaseScanner):
                 detected.append({
                     "name": name,
                     "category": fp["category"],
+                    "vendor_type": fp.get("vendor_type", "unknown"),
                     "confidence": confidence,
                     "detected_from": url,
                 })
