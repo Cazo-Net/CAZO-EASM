@@ -130,7 +130,7 @@ function ReplayContent() {
       <div className="page-container-lg">
         <PageHeader
           title="Exposure Replay"
-          description="Understand how your external attack surface evolved over time."
+          description="Your surface, before and after. See what changed between scans."
           icon={<History className="h-5 w-5" />}
         />
         <div className="flex items-center justify-center gap-2 py-24 text-sm text-muted-foreground">
@@ -146,7 +146,7 @@ function ReplayContent() {
       <div className="page-container-lg">
         <PageHeader
           title="Exposure Replay"
-          description="Understand how your external attack surface evolved over time."
+          description="Your surface, before and after. See what changed between scans."
           icon={<History className="h-5 w-5" />}
         />
         <div className="flex flex-col items-center gap-2 py-24 text-sm text-muted-foreground">
@@ -162,12 +162,12 @@ function ReplayContent() {
       <div className="page-container-lg">
         <PageHeader
           title="Exposure Replay"
-          description="Understand how your external attack surface evolved over time."
+          description="Your surface, before and after. See what changed between scans."
           icon={<History className="h-5 w-5" />}
         />
         <div className="flex flex-col items-center gap-2 py-24 text-center text-sm text-muted-foreground">
           <History className="h-6 w-6 text-muted-foreground/40" />
-          No completed scans found for your organization yet.
+          No completed scans yet. Run one to see how your surface changed.
         </div>
       </div>
     );
@@ -177,7 +177,7 @@ function ReplayContent() {
     <div className="page-container-lg">
       <PageHeader
         title="Exposure Replay"
-        description="Understand how your external attack surface evolved over time."
+        description="Your surface, before and after. See what changed between scans."
         icon={<History className="h-5 w-5" />}
         actions={
           <div className="flex items-center gap-2">

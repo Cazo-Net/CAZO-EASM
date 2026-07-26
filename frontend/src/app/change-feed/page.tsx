@@ -112,7 +112,7 @@ export default function ChangeFeedPage() {
     <div className="page-container-md">
       <PageHeader
         title="Change Feed"
-        description="Continuous stream of changes across your attack surface"
+        description="What's shifted since your last scan — new hosts, open ports, cert changes."
         icon={<Radio className="h-5 w-5" />}
         breadcrumbs={[{ label: "Change Feed" }]}
         actions={
@@ -169,8 +169,8 @@ export default function ChangeFeedPage() {
             title={orgId ? "No changes yet" : "No organization"}
             description={
               orgId
-                ? "Changes to your assets will appear here as scans run."
-                : "Join an organization to track changes across your attack surface."
+                ? "Changes show up here as scans run."
+                : "Join an organization to start tracking changes."
             }
           />
         ) : (

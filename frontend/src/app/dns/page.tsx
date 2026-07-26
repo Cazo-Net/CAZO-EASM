@@ -149,7 +149,7 @@ function DNSContent() {
       <div className="py-6">
         <PageHeader
           title="DNS Records"
-          description="All discovered DNS records across your attack surface."
+          description="Every DNS record we've found — A, AAAA, MX, TXT, CNAME, NS."
           icon={<Network className="h-5 w-5" />}
           breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "DNS Records" }]}
         />

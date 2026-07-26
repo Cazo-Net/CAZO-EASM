@@ -53,6 +53,7 @@ import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { cn } from "@/lib/utils";
 import { AuditLogViewer } from "@/components/AuditLogViewer";
+import { useChecklistAutoComplete } from "@/components/onboarding/GettingStartedChecklist";
 import type { User as UserType } from "@/types";
 
 /* ─── Sidebar navigation structure ─── */
@@ -79,7 +80,7 @@ const navSections: NavSection[] = [
   {
     label: "Security",
     items: [
-      { id: "security", label: "Password and authentication", icon: Shield },
+      { id: "security", label: "Password & MFA", icon: Shield },
       { id: "security-center", label: "Security Center", icon: ShieldCheck, href: "/security-center" },
       { id: "sessions", label: "Sessions", icon: History },
     ],
@@ -804,7 +805,7 @@ function SecurityTab(props: any) {
             <p className="text-sm text-muted-foreground">
               {recoveryCodes.length > 0
                 ? `${recoveryCodes.filter((c: any) => c.is_active).length} active recovery codes`
-                : "No recovery codes generated yet."}
+                : "No recovery codes. Generate a set before you enable MFA."}
             </p>
             <Button variant="outline" size="sm" onClick={handleGenerateRecoveryCodes} disabled={generatingCodes}
               className="h-8 border-border/50 text-xs">
@@ -964,7 +965,7 @@ function ApiKeysTab({ apiKeys, createdKey, newKeyName, setNewKeyName, creatingKe
               ))}
             </div>
           ) : !createdKey && (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">No API keys yet.</div>
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">No keys created.</div>
           )}
         </div>
 
@@ -987,6 +988,7 @@ function ApiKeysTab({ apiKeys, createdKey, newKeyName, setNewKeyName, creatingKe
    ============================================ */
 
 function NotificationsTab({ notifications, setNotifications, savingPrefs, handleSavePreferences }: any) {
+  const { markComplete } = useChecklistAutoComplete();
   const [notifPrefs, setNotifPrefs] = useState<any[]>([]);
   const [loadingPrefs, setLoadingPrefs] = useState(true);
 
@@ -1007,6 +1009,7 @@ function NotificationsTab({ notifications, setNotifications, savingPrefs, handle
     try {
       const { updateNotificationPreference } = await import("@/lib/api");
       await updateNotificationPreference(type, updates);
+      markComplete("notifications");
     } catch {
       setNotifPrefs((prev) =>
         prev.map((p) => p.notification_type === type ? {

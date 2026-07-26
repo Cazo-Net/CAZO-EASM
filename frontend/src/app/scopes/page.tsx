@@ -13,8 +13,10 @@ import {
   XCircle,
   Loader2,
   Info,
+  ExternalLink,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useChecklistAutoComplete } from "@/components/onboarding/GettingStartedChecklist";
 import api, {
   listScopes,
   createScope,
@@ -59,6 +61,7 @@ function ScopeIcon({ type, className }: { type: ScopeType; className?: string })
 }
 
 function ScopesContent() {
+  const { markComplete } = useChecklistAutoComplete();
   const [scopes, setScopes] = useState<AuthorizedScope[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +73,7 @@ function ScopesContent() {
   const [newNote, setNewNote] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [scopeAuthConfirmed, setScopeAuthConfirmed] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [checkValue, setCheckValue] = useState("");
@@ -114,9 +118,11 @@ function ScopesContent() {
     try {
       await createScope(newType, newValue.trim(), newNote.trim() || undefined);
       setCreateOpen(false);
+      markComplete("add_scope");
       setNewValue("");
       setNewNote("");
       setNewType("domain");
+      setScopeAuthConfirmed(false);
       await load();
     } catch (e: any) {
       setCreateError(
@@ -196,7 +202,7 @@ function ScopesContent() {
                 <ShieldCheck className="h-8 w-8 opacity-40" />
                 <p className="text-sm">
                   {scopes.length === 0
-                    ? "No authorized scopes yet. Add one to start discovering assets."
+                    ? "No scopes yet. Add a domain or IP to start discovering assets."
                     : "No scopes match your filter."}
                 </p>
               </div>
@@ -369,6 +375,30 @@ function ScopesContent() {
               />
             </div>
 
+            <div className="rounded-lg border border-phosphor/20 bg-phosphor/5 p-3">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={scopeAuthConfirmed}
+                  onChange={(e) => setScopeAuthConfirmed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-border bg-muted/30 text-phosphor focus:ring-phosphor/30"
+                />
+                <span className="text-sm text-muted-foreground">
+                  I confirm I have authorization to scan this target and have read
+                  the{" "}
+                  <a
+                    href="/legal/authorized-scanning"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-phosphor hover:underline"
+                  >
+                    Authorized Scanning Policy
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </span>
+              </label>
+            </div>
+
             {createError && (
               <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 <Info className="h-4 w-4 shrink-0" /> {createError}
@@ -380,7 +410,7 @@ function ScopesContent() {
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={creating}>
+            <Button onClick={handleCreate} disabled={creating || !scopeAuthConfirmed}>
               {creating ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (

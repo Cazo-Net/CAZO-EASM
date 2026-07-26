@@ -211,11 +211,10 @@ function ReportsContent() {
               </div>
             </div>
             <h3 className="text-xl font-semibold mb-2">
-              No reports generated yet
+              No reports yet
             </h3>
             <p className="text-sm text-muted-foreground max-w-sm mb-6">
-              Run a scan first, then generate a report from the scan results to
-              export your attack surface data.
+              Finish a scan, then generate a report from the results.
             </p>
             <button
               onClick={() => setDialogOpen(true)}

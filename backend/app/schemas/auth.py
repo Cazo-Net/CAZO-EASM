@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, field_validator
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 import re
 
@@ -40,6 +40,7 @@ class UserResponse(UserBase):
     is_active: bool
     email_verified: bool = False
     totp_enabled: bool = False
+    preferences: Optional[Dict[str, Any]] = None
     created_at: datetime
     last_login: Optional[datetime] = None
 

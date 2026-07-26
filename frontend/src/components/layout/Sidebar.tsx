@@ -27,6 +27,7 @@ import {
   BarChart3,
   MessagesSquare,
   Boxes,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -83,6 +84,12 @@ const navSections = [
     label: "COLLABORATION",
     items: [
       { href: "/collab-demo", label: "Team Comments", icon: MessagesSquare },
+    ],
+  },
+  {
+    label: "RESOURCES",
+    items: [
+      { href: "/docs", label: "Docs", icon: BookOpen },
     ],
   },
 ];

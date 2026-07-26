@@ -107,7 +107,7 @@ function ComparePageContent() {
       <div className="py-6 space-y-6">
         <PageHeader
           title="Compare Scans"
-          description="Diff two completed scans to see changes"
+          description="Pick two scans. See what changed between them."
           icon={<GitCompare className="h-5 w-5" />}
           breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Compare Scans" }]}
         />

@@ -158,7 +158,7 @@ function ScansContent() {
       <div className="py-6 space-y-6">
         <PageHeader
           title="Scans"
-          description="Manage your attack surface scans"
+          description="Every scan you've run — status, duration, and what it found."
           icon={<ScanSearch className="h-5 w-5" />}
           breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Scans" }]}
           actions={
@@ -274,12 +274,12 @@ function ScansContent() {
               </div>
             </div>
             <h3 className="text-lg font-semibold mb-1">
-              {searchQuery || statusFilter !== "all" ? "No matching scans" : "No scans yet"}
+              {searchQuery || statusFilter !== "all" ? "No matching scans" : "No scans on record"}
             </h3>
             <p className="text-sm text-muted-foreground max-w-sm mb-6">
               {searchQuery || statusFilter !== "all"
                 ? "Try adjusting your filters or search query"
-                : "Start your first attack surface scan to discover vulnerabilities"}
+                : "Start your first scan — results appear here as they resolve"}
             </p>
             {!searchQuery && statusFilter === "all" && (
               <Link href="/scan/new">

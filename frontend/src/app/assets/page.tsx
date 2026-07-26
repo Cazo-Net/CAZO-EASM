@@ -237,7 +237,7 @@ function AssetsContent() {
       <div className="py-6">
         <PageHeader
           title="Assets"
-          description="All discovered subdomains, ports, certificates, and technologies."
+          description="Every subdomain, port, certificate, and technology we've found."
           icon={<Globe className="h-5 w-5" />}
           breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Assets" }]}
           actions={
@@ -394,11 +394,10 @@ function AssetsContent() {
                 </div>
               </div>
               <h3 className="text-xl font-semibold mb-2">
-                No assets discovered yet
+                Your surface is empty
               </h3>
               <p className="text-sm text-muted-foreground max-w-sm mb-6">
-                Start a scan to discover subdomains, open ports, SSL
-                certificates, and technologies for your attack surface.
+                No assets found. A scan will map your subdomains, ports, certs, and services.
               </p>
               <a
                 href="/scan/new"

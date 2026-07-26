@@ -63,7 +63,7 @@ export default function LoginPage() {
             CAZO EASM
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Sign in to your account
+            Welcome back
           </p>
         </div>
 

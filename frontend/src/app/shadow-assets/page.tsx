@@ -16,6 +16,7 @@ import {
   Settings,
 } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { DocTooltip } from "@/components/common/DocTooltip";
 import { StatCard } from "@/components/common/StatCard";
 import { SectionCard } from "@/components/common/SectionCard";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -200,7 +201,12 @@ function ShadowAssetsContent() {
       )}
 
       <SectionCard
-        title="Possible Shadow Assets"
+        title={
+          <span className="flex items-center gap-2">
+            Possible Shadow Assets
+            <DocTooltip article="shadow-assets" />
+          </span>
+        }
         actions={
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -243,8 +249,8 @@ function ShadowAssetsContent() {
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Ghost className="h-8 w-8" />}
-            title="No shadow assets detected"
-            description="No discovered hosts currently share infrastructure with your confirmed inventory."
+            title="No shadow assets yet"
+            description="Shadow assets appear when we find infrastructure that's probably yours — shared certs, IPs, or ASNs you haven't confirmed yet."
           />
         ) : (
           <div className="divide-y divide-border">

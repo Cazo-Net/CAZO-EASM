@@ -48,6 +48,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { StatCard } from "@/components/common/StatCard";
 import { SeverityPill } from "@/components/common/SeverityPill";
+import { GettingStartedChecklist } from "@/components/onboarding/GettingStartedChecklist";
 import { StatusDot } from "@/components/common/StatusDot";
 import { SkeletonBlock, SkeletonStat } from "@/components/common/SkeletonBlock";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -299,8 +300,8 @@ function RecentScansTable({ scans, loading }: { scans: Scan[]; loading: boolean 
     return (
       <EmptyState
         icon={<ScanSearch className="h-6 w-6" />}
-        title="No scans yet"
-        description="Run your first domain scan to populate this feed."
+        title="Nothing here yet"
+        description="Point CAZO at a domain — results show up here as they resolve."
         action={
           <Link href="/scan/new">
             <Button size="sm" className="gradient-brand text-void font-mono text-xs font-semibold">
@@ -436,7 +437,7 @@ function DashboardContent() {
             Welcome back, <span className="gradient-text">{firstName}</span>
           </span>
         }
-        description={`${format(now, "EEEE, MMMM d")} · Surface posture updated just now`}
+        description={`${format(now, "EEEE, MMMM d")} · Surface status as of ${format(now, "h:mm a")}`}
         icon={<Radar className="h-5 w-5" />}
         breadcrumbs={[{ label: "Home" }, { label: "Dashboard" }]}
         actions={
@@ -447,6 +448,9 @@ function DashboardContent() {
           </Link>
         }
       />
+
+      {/* Getting Started Checklist */}
+      <GettingStartedChecklist />
 
       {/* Hero: Threat Exposure Score */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
@@ -517,7 +521,7 @@ function DashboardContent() {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.1 }}>
           <SectionCard
             title="Risk Trend"
-            description="Avg exposure over last 30 days"
+            description="30-day exposure trend"
             icon={<Activity className="h-4 w-4" />}
           >
             {loading ? <SkeletonBlock className="h-[260px]" /> : <RiskTrendChart scans={scans} />}
@@ -526,7 +530,7 @@ function DashboardContent() {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.15 }}>
           <SectionCard
             title="Asset Distribution"
-            description="Discovered surface coverage"
+            description="Surface coverage"
             icon={<LayoutGrid className="h-4 w-4" />}
           >
             {loading ? (
@@ -571,7 +575,7 @@ function DashboardContent() {
               <EmptyState
                 icon={<Activity className="h-6 w-6" />}
                 title="No recent activity"
-                description="Run your first scan to see activity here."
+                description="Scan results stream in here."
                 action={
                   <Link href="/scan/new">
                     <Button size="sm" className="gradient-brand text-void font-mono text-xs font-semibold">
@@ -666,7 +670,7 @@ function DashboardContent() {
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.3 }}>
         <SectionCard
           title="Recent Scans"
-          description="Your latest reconnaissance runs"
+          description="Recent scans"
           icon={<ScanLine className="h-4 w-4" />}
           actions={
             scans.length > 0 ? (

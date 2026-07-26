@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import api, { getErrorMessage } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DocTooltip } from "@/components/common/DocTooltip";
 
 type Profile = "quick" | "full" | "custom";
 
@@ -141,7 +142,7 @@ export function ScanForm() {
           <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
             Vulnerabilities are detected in pure Python: heuristic misconfig
             checks + version-based CVE correlation against a local NVD snapshot.
-            Findings are marked UNVERIFIED (no live exploit verification).
+            Findings are marked UNVERIFIED <DocTooltip article="unverified-cves" /> (no live exploit verification).
           </p>
 
           {/* Custom filter panel */}

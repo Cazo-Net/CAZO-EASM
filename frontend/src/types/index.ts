@@ -166,6 +166,14 @@ export interface User {
     ssl_expiry_alerts: boolean;
     weekly_reports: boolean;
     scan_complete_alerts: boolean;
+    onboarding?: {
+      completed: boolean;
+      first_scan_domain?: string;
+      first_scan_id?: string;
+      hints_seen?: string[];
+      checklist_dismissed?: boolean;
+      checklist_completed?: string[];
+    };
   } | null;
   created_at: string;
   last_login: string | null;

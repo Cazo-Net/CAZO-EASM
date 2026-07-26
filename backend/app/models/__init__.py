@@ -29,6 +29,7 @@ from app.models.feature_flag import FeatureFlag
 from app.models.role import Role
 from app.models.passkey import Passkey
 from app.models.comment import AssetComment
+from app.models.platform_log import PlatformLog
 
 __all__ = [
     "User", "Organization", "Project", "Scan", "ScanJob", "Subdomain",
@@ -41,4 +42,5 @@ __all__ = [
     "UserSession", "Invitation", "TrustedDevice", "RecoveryCode", "AuthAuditLog",
     "ApiKey",
     "FeatureFlag", "Role", "Passkey", "AssetComment",
+    "PlatformLog",
 ]

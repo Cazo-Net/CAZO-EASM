@@ -199,7 +199,7 @@ export default function SearchPage() {
           <EmptyState
             icon={<Network className="h-8 w-8" />}
             title="Search your attack surface"
-            description="Use Shodan-style filters to find exposed hosts. Combine free text with key:value pairs (port, asn, org, service, tech, hostname, severity)."
+            description="Use filters to find exposed hosts — combine free text with key:value pairs (port, asn, org, service, tech, hostname, severity)."
           />
         ) : results.length === 0 ? (
           <EmptyState

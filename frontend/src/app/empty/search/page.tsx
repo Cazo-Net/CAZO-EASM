@@ -9,14 +9,14 @@ export default function EmptySearchPage() {
     <div className="min-h-screen bg-background px-4 py-12">
       <div className="mx-auto max-w-lg">
         <EmptyState
-          title="No Results Found"
-          description="No results match your search query. Try adjusting your filters or search terms."
+          title="No results"
+          description="Nothing matched your query. Try a different search term or adjust your filters."
           icon={<Search className="h-7 w-7" />}
           action={{ label: "Clear Search", href: "/dashboard" }}
           tips={[
-            "Check for typos in your search terms",
-            "Try using fewer or different keywords",
-            "Clear any active filters and try again",
+            "Check for typos",
+            "Try broader keywords",
+            "Clear any active filters",
           ]}
         />
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api, { getErrorMessage } from "@/lib/api";
 import {
@@ -11,7 +11,7 @@ import {
   Flag, Lock, Clock, Terminal, Eye, Mail, Zap, Settings,
 } from "lucide-react";
 
-type Tab = "overview" | "users" | "orgs" | "scans" | "vulns" | "assets" | "sessions" | "audit" | "notifications" | "apikeys" | "flags" | "database" | "system";
+type Tab = "overview" | "users" | "orgs" | "scans" | "vulns" | "assets" | "sessions" | "audit" | "logs" | "notifications" | "apikeys" | "flags" | "database" | "system";
 
 const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "overview", label: "Overview", icon: BarChart3 },
@@ -22,6 +22,7 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "assets", label: "Assets", icon: Globe },
   { id: "sessions", label: "Sessions", icon: Fingerprint },
   { id: "audit", label: "Audit Log", icon: Clock },
+  { id: "logs", label: "Logs", icon: Terminal },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "apikeys", label: "API Keys", icon: Key },
   { id: "flags", label: "Feature Flags", icon: Flag },
@@ -45,6 +46,13 @@ export default function AdminPage() {
   const [assets, setAssets] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [auditEvents, setAuditEvents] = useState<any[]>([]);
+  const [platformLogs, setPlatformLogs] = useState<any[]>([]);
+  const [logSummary, setLogSummary] = useState<any>(null);
+  const [logCategory, setLogCategory] = useState("");
+  const [logSeverity, setLogSeverity] = useState("");
+  const [logSearch, setLogSearch] = useState("");
+  const [logHours, setLogHours] = useState<number | "">("");
+  const [expandedLog, setExpandedLog] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [featureFlags, setFeatureFlags] = useState<any[]>([]);
@@ -126,6 +134,22 @@ export default function AdminPage() {
     try { setAuditEvents((await api.get("/audit-events", { params: { limit: 200 } })).data); }
     catch (e: any) { setError(getErrorMessage(e)); }
   }, []);
+
+  const fetchLogSummary = useCallback(async () => {
+    try { setLogSummary((await api.get("/platform-logs/summary")).data); }
+    catch (e: any) { setError(getErrorMessage(e)); }
+  }, []);
+
+  const fetchPlatformLogs = useCallback(async () => {
+    try {
+      const p: any = { limit: 200 };
+      if (logCategory) p.category = logCategory;
+      if (logSeverity) p.severity = logSeverity;
+      if (logSearch) p.search = logSearch;
+      if (logHours) p.hours = logHours;
+      setPlatformLogs((await api.get("/platform-logs", { params: p })).data);
+    } catch (e: any) { setError(getErrorMessage(e)); }
+  }, [logCategory, logSeverity, logSearch, logHours]);
 
   const fetchNotifications = useCallback(async () => {
     try { setNotifications((await api.get("/notifications", { params: { limit: 200 } })).data); }
@@ -214,6 +238,7 @@ export default function AdminPage() {
     if (tab === "assets") fetchAssets();
     if (tab === "sessions") fetchSessions();
     if (tab === "audit") fetchAudit();
+    if (tab === "logs") { fetchLogSummary(); fetchPlatformLogs(); }
     if (tab === "notifications") fetchNotifications();
     if (tab === "apikeys") fetchApiKeys();
     if (tab === "flags") fetchFlags();
@@ -766,6 +791,186 @@ export default function AdminPage() {
         </div>
       )}
 
+      {/* ── PLATFORM LOGS ────────────────────────────────────── */}
+      {tab === "logs" && (
+        <div className="space-y-4">
+          {/* Summary cards */}
+          {logSummary && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <button onClick={() => { setLogSeverity("error"); fetchPlatformLogs(); }}
+                className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-left hover:border-red-500/30 transition-colors">
+                <p className="text-2xl font-bold text-red-400 font-mono">{logSummary.errors_24h}</p>
+                <p className="text-xs text-zinc-500">Errors (24h)</p>
+              </button>
+              <button onClick={() => { setLogCategory("security_event"); fetchPlatformLogs(); }}
+                className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 text-left hover:border-amber-500/30 transition-colors">
+                <p className="text-2xl font-bold text-amber-400 font-mono">{logSummary.security_24h}</p>
+                <p className="text-xs text-zinc-500">Security Events (24h)</p>
+              </button>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                <p className="text-2xl font-bold text-zinc-300 font-mono">{logSummary.total_24h}</p>
+                <p className="text-xs text-zinc-500">Total Logs (24h)</p>
+              </div>
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                <p className="text-2xl font-bold text-blue-400 font-mono">{logSummary.orgs_active_24h}</p>
+                <p className="text-xs text-zinc-500">Active Orgs (24h)</p>
+              </div>
+            </div>
+          )}
+
+          {/* Critical events banner */}
+          {logSummary?.critical_events?.length > 0 && (
+            <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+              <p className="text-sm font-medium text-red-400 mb-2">Critical Events (last 24h)</p>
+              <div className="space-y-1">
+                {logSummary.critical_events.map((e: any) => (
+                  <div key={e.id} className="flex items-center gap-2 text-xs">
+                    <span className="text-zinc-500">{fmtDate(e.created_at)}</span>
+                    <span className="text-red-400 font-mono">{e.category}</span>
+                    <span className="text-zinc-300 truncate">{e.message}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Top error types */}
+          {logSummary?.top_error_types?.length > 0 && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+              <p className="text-sm font-medium text-zinc-300 mb-2">Top Error Types (24h)</p>
+              <div className="space-y-1">
+                {logSummary.top_error_types.map((e: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-400 font-mono truncate max-w-md">{e.message}</span>
+                    <span className="text-zinc-500">{e.count}x</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => { fetchLogSummary(); fetchPlatformLogs(); }}
+              className="px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm hover:bg-zinc-700 flex items-center gap-1.5">
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </button>
+            <select value={logCategory} onChange={(e) => setLogCategory(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm text-zinc-300">
+              <option value="">All Categories</option>
+              <option value="application_error">Application Error</option>
+              <option value="scan_event">Scan Event</option>
+              <option value="auth_event">Auth Event</option>
+              <option value="security_event">Security Event</option>
+              <option value="notification">Notification</option>
+              <option value="api_request">API Request</option>
+              <option value="unexpected">Unexpected</option>
+            </select>
+            <select value={logSeverity} onChange={(e) => setLogSeverity(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm text-zinc-300">
+              <option value="">All Severity</option>
+              <option value="info">Info</option>
+              <option value="warning">Warning</option>
+              <option value="error">Error</option>
+              <option value="critical">Critical</option>
+            </select>
+            <select value={logHours} onChange={(e) => setLogHours(e.target.value ? Number(e.target.value) : "")}
+              className="px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm text-zinc-300">
+              <option value="">All Time</option>
+              <option value="1">Last 1h</option>
+              <option value="6">Last 6h</option>
+              <option value="24">Last 24h</option>
+              <option value="168">Last 7d</option>
+              <option value="720">Last 30d</option>
+            </select>
+            <input value={logSearch} onChange={(e) => setLogSearch(e.target.value)}
+              placeholder="Search messages..."
+              className="px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm text-zinc-300 w-48" />
+            <button onClick={fetchPlatformLogs}
+              className="px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-blue-400 hover:bg-blue-500/20">
+              Apply
+            </button>
+            {(logCategory || logSeverity || logSearch || logHours) && (
+              <button onClick={() => { setLogCategory(""); setLogSeverity(""); setLogSearch(""); setLogHours(""); }}
+                className="px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm text-zinc-500 hover:text-zinc-300">
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Log table */}
+          <div className="rounded-xl border border-zinc-800 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-800/50">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium w-2">Severity</th>
+                  <th className="text-left px-4 py-3 font-medium">Category</th>
+                  <th className="text-left px-4 py-3 font-medium">Message</th>
+                  <th className="text-left px-4 py-3 font-medium">Org</th>
+                  <th className="text-left px-4 py-3 font-medium">User</th>
+                  <th className="text-left px-4 py-3 font-medium">Request</th>
+                  <th className="text-left px-4 py-3 font-medium">Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {platformLogs.map((l) => (
+                  <React.Fragment key={l.id}>
+                    <tr onClick={() => setExpandedLog(expandedLog === l.id ? null : l.id)}
+                      className="border-t border-zinc-800 hover:bg-zinc-800/30 cursor-pointer">
+                      <td className="px-4 py-3">
+                        <span className={`inline-block h-2 w-2 rounded-full ${
+                          l.severity === "critical" ? "bg-red-500" :
+                          l.severity === "error" ? "bg-orange-500" :
+                          l.severity === "warning" ? "bg-amber-500" :
+                          "bg-blue-500"
+                        }`} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-0.5 rounded text-xs font-mono ${
+                          l.category === "unexpected" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                          l.category === "security_event" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" :
+                          l.category === "application_error" ? "bg-orange-500/10 text-orange-400 border border-orange-500/20" :
+                          "bg-zinc-800 border border-zinc-700 text-zinc-400"
+                        }`}>{l.category}</span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-zinc-300 max-w-md truncate">{l.message}</td>
+                      <td className="px-4 py-3 text-xs font-mono text-zinc-500">{l.organization_id?.slice(0, 8) || "—"}</td>
+                      <td className="px-4 py-3 text-xs font-mono text-zinc-500">{l.user_id?.slice(0, 8) || "—"}</td>
+                      <td className="px-4 py-3 text-xs font-mono text-zinc-500">{l.request_id?.slice(0, 8) || "—"}</td>
+                      <td className="px-4 py-3 text-xs text-zinc-500">{fmtDate(l.created_at)}</td>
+                    </tr>
+                    {expandedLog === l.id && (
+                      <tr className="border-t border-zinc-800 bg-zinc-900/50">
+                        <td colSpan={7} className="px-4 py-4">
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs mb-3">
+                            <div><span className="text-zinc-500">ID:</span> <span className="font-mono text-zinc-300">{l.id}</span></div>
+                            <div><span className="text-zinc-500">Client IP:</span> <span className="font-mono text-zinc-300">{l.client_ip || "—"}</span></div>
+                            <div><span className="text-zinc-500">Method:</span> <span className="font-mono text-zinc-300">{l.method || "—"}</span></div>
+                            <div><span className="text-zinc-500">Path:</span> <span className="font-mono text-zinc-300">{l.path || "—"}</span></div>
+                            <div><span className="text-zinc-500">Status:</span> <span className="font-mono text-zinc-300">{l.status_code || "—"}</span></div>
+                            <div><span className="text-zinc-500">Duration:</span> <span className="font-mono text-zinc-300">{l.duration_ms ? `${l.duration_ms}ms` : "—"}</span></div>
+                            <div><span className="text-zinc-500">Entity:</span> <span className="font-mono text-zinc-300">{l.related_entity_type ? `${l.related_entity_type}/${l.related_entity_id}` : "—"}</span></div>
+                          </div>
+                          {l.detail && Object.keys(l.detail).length > 0 && (
+                            <div className="rounded-lg bg-zinc-950 border border-zinc-800 p-3">
+                              <p className="text-xs text-zinc-500 mb-1">Detail</p>
+                              <pre className="text-xs text-zinc-400 font-mono overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">
+                                {JSON.stringify(l.detail, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+            {platformLogs.length === 0 && <div className="text-center py-8 text-zinc-500 text-sm">No logs found</div>}
+          </div>
+        </div>
+      )}
+
       {/* ── NOTIFICATIONS ────────────────────────────────────── */}
       {tab === "notifications" && (
         <div className="space-y-4">
@@ -898,7 +1103,7 @@ export default function AdminPage() {
               </button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-              {Object.entries(dbStats).sort(([, a], [b]) => (b as number) - (a as number)).map(([table, count]) => (
+              {Object.entries(dbStats).sort(([, a], [b]) => Number(b) - Number(a)).map(([table, count]) => (
                 <div key={table} className="flex items-center justify-between p-3 rounded-lg bg-zinc-800/50">
                   <span className="text-sm font-mono truncate mr-2">{table}</span>
                   <span className="px-2 py-0.5 rounded text-xs bg-zinc-800 border border-zinc-700 whitespace-nowrap">

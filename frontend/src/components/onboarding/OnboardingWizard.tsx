@@ -1,11 +1,21 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, Building, Loader2 } from "lucide-react";
-import { createOrganization } from "@/lib/api";
+import {
+  Check,
+  Building,
+  Loader2,
+  Shield,
+  Globe,
+  ExternalLink,
+} from "lucide-react";
+import { createOrganization, createScope } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Step {
   id: string;
@@ -20,26 +30,31 @@ interface OnboardingWizardProps {
 }
 
 const steps: Step[] = [
-  { id: "welcome", title: "Welcome to CAZO", description: "Let's get your attack surface monitoring set up." },
-  { id: "organization", title: "Create Your Organization", description: "Set up your team workspace to enable scanning and collaboration." },
-  { id: "scope", title: "Add Your First Scope", description: "Tell us what to monitor — a domain, IP, or CIDR range." },
-  { id: "security", title: "Secure Your Account", description: "Enable MFA and review your security settings." },
-  { id: "done", title: "You're All Set", description: "Your workspace is ready. Start your first scan!" },
+  { id: "welcome", title: "Welcome to CAZO", description: "Your external footprint, mapped. One domain to start — we'll show you what's out there." },
+  { id: "organization", title: "Create Your Organization", description: "Where your scans, findings, and team live. Name it after your team or project." },
+  { id: "scope", title: "Add Your First Scope", description: "One domain, IP, or CIDR. You can add more later — start with whatever you're most worried about." },
+  { id: "security", title: "Secure Your Account", description: "MFA takes 30 seconds and keeps your findings out of the wrong hands." },
+  { id: "done", title: "You're All Set", description: "Your workspace is live. Your first scan will start automatically." },
 ];
 
 export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: OnboardingWizardProps) {
+  const router = useRouter();
+  const { refreshUser, updateOnboardingState } = useAuth();
   const [currentStep, setCurrentStep] = React.useState(0);
   const [scope, setScope] = React.useState("");
+  const [scopeAuthConfirmed, setScopeAuthConfirmed] = React.useState(false);
   const [orgName, setOrgName] = React.useState("");
   const [creatingOrg, setCreatingOrg] = React.useState(false);
   const [orgError, setOrgError] = React.useState("");
+  const [savingScope, setSavingScope] = React.useState(false);
+  const [scopeError, setScopeError] = React.useState("");
 
   const step = steps[currentStep];
   const isLast = currentStep === steps.length - 1;
 
   const next = () => {
     if (isLast) {
-      onComplete?.();
+      router.push("/onboarding/first-scan");
     } else {
       setCurrentStep((s) => s + 1);
     }
@@ -56,15 +71,39 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
       onOrgCreated?.();
       next();
     } catch {
-      setOrgError("Failed to create organization. Please try again.");
+      setOrgError("Couldn't create organization. Check the name and try again.");
     } finally {
       setCreatingOrg(false);
     }
   }
 
+  async function handleSaveScopeAndContinue() {
+    if (!scope.trim() || !scopeAuthConfirmed) return;
+    setSavingScope(true);
+    setScopeError("");
+    try {
+      const result = await createScope("domain", scope.trim(), "Added during onboarding");
+      await updateOnboardingState({
+        first_scan_domain: scope.trim(),
+      });
+      next();
+    } catch (e: any) {
+      setScopeError(
+        e?.response?.data?.detail || "Couldn't save scope. Check the domain and try again."
+      );
+    } finally {
+      setSavingScope(false);
+    }
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/50 p-4">
-      <Card className="w-full max-w-2xl">
+    <div className="min-h-screen flex items-center justify-center bg-[#09090B] p-4">
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,212,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
+        <div className="absolute top-1/3 left-1/4 h-96 w-96 rounded-full bg-phosphor/5 blur-[128px]" />
+        <div className="absolute bottom-1/3 right-1/4 h-96 w-96 rounded-full bg-cyan-signal/5 blur-[128px]" />
+      </div>
+      <Card className="relative w-full max-w-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl shadow-black/20">
         <CardContent className="p-8">
           {/* Progress */}
           <div className="flex items-center justify-between mb-8">
@@ -100,25 +139,34 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
             <p className="text-muted-foreground">{step.description}</p>
           </div>
 
+          {step.id === "security" && (
+            <div className="mb-6 rounded-lg border border-phosphor/20 bg-phosphor/5 p-4 flex items-start gap-3">
+              <Shield className="h-5 w-5 text-phosphor mt-0.5 shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                You can set up MFA from <strong>Settings → Security</strong> after you sign in. It&apos;s quick — we recommend doing it before your first scan.
+              </p>
+            </div>
+          )}
+
           {step.id === "organization" && (
             <div className="mb-6 space-y-4">
-              <div className="rounded-lg border border-brand/20 bg-brand/5 p-4 flex items-start gap-3">
-                <Building className="h-5 w-5 text-brand mt-0.5 shrink-0" />
+              <div className="rounded-lg border border-phosphor/20 bg-phosphor/5 p-4 flex items-start gap-3">
+                <Building className="h-5 w-5 text-phosphor mt-0.5 shrink-0" />
                 <p className="text-sm text-muted-foreground">
-                  Creating an organization gives you the <strong>Owner</strong> role with full permissions to create scans and manage your attack surface.
+                  You&apos;ll be the <strong>Owner</strong> — full access to scans, settings, and team members.
                 </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-foreground block mb-2">
                   Organization Name
                 </label>
-                <input
+                <Input
                   type="text"
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleCreateOrg()}
-                  placeholder="My Security Team"
-                  className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  placeholder="acme-security"
+                  className="h-11 bg-muted/30 border-border/50 focus:border-phosphor/50 focus:ring-phosphor/20"
                 />
               </div>
               {orgError && (
@@ -128,17 +176,54 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
           )}
 
           {step.id === "scope" && (
-            <div className="mb-6">
-              <label className="text-sm font-medium text-foreground block mb-2">
-                Domain or IP to monitor
-              </label>
-              <input
-                type="text"
-                value={scope}
-                onChange={(e) => setScope(e.target.value)}
-                placeholder="example.com"
-                className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
+            <div className="mb-6 space-y-4">
+              <div className="rounded-lg border border-phosphor/20 bg-phosphor/5 p-4 flex items-start gap-3">
+                <Globe className="h-5 w-5 text-phosphor mt-0.5 shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  CAZO works from the outside — no agents, no VPNs. Just point it at a domain.
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground block mb-2">
+                  Domain or IP to monitor
+                </label>
+                <Input
+                  type="text"
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && scopeAuthConfirmed && handleSaveScopeAndContinue()}
+                  placeholder="example.com"
+                  className="h-11 bg-muted/30 border-border/50 focus:border-phosphor/50 focus:ring-phosphor/20"
+                />
+              </div>
+
+              <div className="rounded-lg border border-phosphor/20 bg-phosphor/5 p-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={scopeAuthConfirmed}
+                    onChange={(e) => setScopeAuthConfirmed(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-border bg-muted/30 text-phosphor focus:ring-phosphor/30"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    I confirm I have authorization to scan this target and have read
+                    the{" "}
+                    <a
+                      href="/legal/authorized-scanning"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-phosphor hover:underline"
+                    >
+                      Authorized Scanning Policy
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </span>
+                </label>
+              </div>
+
+              {scopeError && (
+                <p className="text-sm text-destructive">{scopeError}</p>
+              )}
             </div>
           )}
 
@@ -162,7 +247,17 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
                   {creatingOrg ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
                   ) : null}
-                  {creatingOrg ? "Creating..." : "Create Organization"}
+                  {creatingOrg ? "Creating..." : "Create & Continue"}
+                </Button>
+              ) : step.id === "scope" ? (
+                <Button
+                  onClick={handleSaveScopeAndContinue}
+                  disabled={savingScope || !scope.trim() || !scopeAuthConfirmed}
+                >
+                  {savingScope ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  ) : null}
+                  {savingScope ? "Saving..." : isLast ? "Go to Dashboard" : "Save Scope & Continue"}
                 </Button>
               ) : (
                 <Button onClick={next}>

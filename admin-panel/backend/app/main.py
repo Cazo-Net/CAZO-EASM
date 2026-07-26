@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session as DBSession
-from sqlalchemy import func, text
+from sqlalchemy import func, text, desc
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
@@ -1145,6 +1145,160 @@ async def broadcast_notification(
         ))
     db.commit()
     return {"message": f"Broadcast sent to {len(users)} users"}
+
+
+# ── Platform Logs ────────────────────────────────────────────────────
+class PlatformLogRow(BaseModel):
+    id: str
+    category: str
+    severity: str
+    message: str
+    detail: Optional[Dict[str, Any]] = None
+    organization_id: Optional[str] = None
+    user_id: Optional[str] = None
+    request_id: Optional[str] = None
+    client_ip: Optional[str] = None
+    path: Optional[str] = None
+    method: Optional[str] = None
+    status_code: Optional[int] = None
+    duration_ms: Optional[float] = None
+    related_entity_type: Optional[str] = None
+    related_entity_id: Optional[str] = None
+    created_at: str
+
+
+class LogSummary(BaseModel):
+    errors_24h: int = 0
+    security_24h: int = 0
+    total_24h: int = 0
+    orgs_active_24h: int = 0
+    top_error_types: List[Dict[str, Any]] = []
+    critical_events: List[Dict[str, Any]] = []
+
+
+@app.get("/platform-logs/summary", response_model=LogSummary)
+async def platform_log_summary(
+    db: DBSession = Depends(get_db), admin: str = Depends(require_admin),
+):
+    if "platform_logs" not in _table_names(db):
+        return LogSummary()
+    t = _get_table("platform_logs")
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=24)
+
+    base = db.query(t).filter(t.c.created_at >= cutoff)
+
+    errors_24h = base.filter(t.c.severity.in_(["error", "critical"])).count()
+    security_24h = base.filter(t.c.category == "security_event").count()
+    total_24h = base.count()
+
+    orgs_q = db.query(func.count(func.distinct(t.c.organization_id))).filter(
+        t.c.created_at >= cutoff, t.c.organization_id.isnot(None)
+    )
+    orgs_active_24h = orgs_q.scalar() or 0
+
+    top_errors = (
+        db.query(t.c.message, func.count(t.c.id).label("cnt"))
+        .filter(t.c.created_at >= cutoff, t.c.severity.in_(["error", "critical"]))
+        .group_by(t.c.message)
+        .order_by(desc("cnt"))
+        .limit(5)
+        .all()
+    )
+
+    critical_rows = (
+        db.query(t)
+        .filter(t.c.created_at >= cutoff, t.c.severity == "critical")
+        .order_by(desc(t.c.created_at))
+        .limit(10)
+        .all()
+    )
+
+    return LogSummary(
+        errors_24h=errors_24h,
+        security_24h=security_24h,
+        total_24h=total_24h,
+        orgs_active_24h=orgs_active_24h,
+        top_error_types=[{"message": m, "count": c} for m, c in top_errors],
+        critical_events=[
+            {"id": r.id, "category": r.category, "message": r.message, "created_at": str(r.created_at)}
+            for r in critical_rows
+        ],
+    )
+
+
+@app.get("/platform-logs", response_model=List[PlatformLogRow])
+async def list_platform_logs(
+    skip: int = 0, limit: int = 200,
+    category: Optional[str] = None,
+    severity: Optional[str] = None,
+    organization_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    search: Optional[str] = None,
+    hours: Optional[int] = None,
+    db: DBSession = Depends(get_db), admin: str = Depends(require_admin),
+):
+    if "platform_logs" not in _table_names(db):
+        return []
+    t = _get_table("platform_logs")
+    q = db.query(t)
+    if category:
+        q = q.filter(t.c.category == category)
+    if severity:
+        q = q.filter(t.c.severity == severity)
+    if organization_id:
+        q = q.filter(t.c.organization_id == organization_id)
+    if user_id:
+        q = q.filter(t.c.user_id == user_id)
+    if search:
+        q = q.filter(t.c.message.ilike(f"%{search}%"))
+    if hours:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        q = q.filter(t.c.created_at >= cutoff)
+    rows = q.order_by(desc(t.c.created_at)).offset(skip).limit(limit).all()
+    return [PlatformLogRow(
+        id=r.id, category=r.category, severity=r.severity, message=r.message,
+        detail=getattr(r, 'detail', None),
+        organization_id=getattr(r, 'organization_id', None),
+        user_id=getattr(r, 'user_id', None),
+        request_id=getattr(r, 'request_id', None),
+        client_ip=getattr(r, 'client_ip', None),
+        path=getattr(r, 'path', None),
+        method=getattr(r, 'method', None),
+        status_code=getattr(r, 'status_code', None),
+        duration_ms=getattr(r, 'duration_ms', None),
+        related_entity_type=getattr(r, 'related_entity_type', None),
+        related_entity_id=getattr(r, 'related_entity_id', None),
+        created_at=str(r.created_at),
+    ) for r in rows]
+
+
+@app.get("/platform-logs/{log_id}", response_model=PlatformLogRow)
+async def get_platform_log(
+    log_id: str,
+    db: DBSession = Depends(get_db), admin: str = Depends(require_admin),
+):
+    if "platform_logs" not in _table_names(db):
+        raise HTTPException(404, "Platform logs table not found")
+    t = _get_table("platform_logs")
+    r = db.query(t).filter(t.c.id == log_id).first()
+    if not r:
+        raise HTTPException(404, "Log entry not found")
+    return PlatformLogRow(
+        id=r.id, category=r.category, severity=r.severity, message=r.message,
+        detail=getattr(r, 'detail', None),
+        organization_id=getattr(r, 'organization_id', None),
+        user_id=getattr(r, 'user_id', None),
+        request_id=getattr(r, 'request_id', None),
+        client_ip=getattr(r, 'client_ip', None),
+        path=getattr(r, 'path', None),
+        method=getattr(r, 'method', None),
+        status_code=getattr(r, 'status_code', None),
+        duration_ms=getattr(r, 'duration_ms', None),
+        related_entity_type=getattr(r, 'related_entity_type', None),
+        related_entity_id=getattr(r, 'related_entity_id', None),
+        created_at=str(r.created_at),
+    )
 
 
 # ── Helpers ────────────────────────────────────────────────────────────

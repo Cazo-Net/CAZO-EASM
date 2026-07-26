@@ -17,6 +17,7 @@ import {
   Radio,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useChecklistAutoComplete } from "@/components/onboarding/GettingStartedChecklist";
 import {
   ReactFlow,
   Background,
@@ -488,6 +489,7 @@ function GraphCanvas({
 // ---------------------------------------------------------------------------
 
 function GraphContent() {
+  const { markComplete } = useChecklistAutoComplete();
   const [scans, setScans] = useState<Scan[]>([]);
   const [selectedScanId, setSelectedScanId] = useState<string>("");
   const [loadingScans, setLoadingScans] = useState(true);
@@ -521,6 +523,7 @@ function GraphContent() {
     try {
       const data = await getAssetGraph(scanId);
       setGraphData(data);
+      markComplete("attack_graph");
     } catch {
       setError("Failed to load graph data");
     } finally {

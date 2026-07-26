@@ -20,6 +20,7 @@ import {
   Copy,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useChecklistAutoComplete } from "@/components/onboarding/GettingStartedChecklist";
 import {
   Table,
   TableBody,
@@ -118,6 +119,7 @@ function copyToClipboard(text: string) {
 }
 
 function VulnContent() {
+  const { markComplete } = useChecklistAutoComplete();
   const [vulnerabilities, setVulnerabilities] = useState<Vulnerability[]>([]);
   const [summary, setSummary] = useState<VulnSummary>({
     total: 0,
@@ -170,6 +172,8 @@ function VulnContent() {
         next.delete(id);
       } else {
         next.add(id);
+        markComplete("review_findings");
+        markComplete("evidence_panel");
       }
       return next;
     });

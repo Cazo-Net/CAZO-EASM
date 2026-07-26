@@ -488,8 +488,8 @@ export default function OrganizationSettingsPage() {
             {members.length === 0 ? (
               <EmptyState
                 icon={<Users className="h-8 w-8" />}
-                title="No members"
-                description="Invite your team to start collaborating."
+            title="No members"
+            description="Invite your team to share scans and findings."
               />
             ) : (
               <div className="divide-y divide-border/40">

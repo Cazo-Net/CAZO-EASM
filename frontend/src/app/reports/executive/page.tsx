@@ -93,7 +93,7 @@ export default function ExecutiveReportPage() {
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <SectionCard title="Top Exposed Assets" description="By exposure score (desc)">
               {report.top_exposed_assets.length === 0 ? (
-                <EmptyState title="No exposure data" description="Run asset scoring to populate top exposed assets." />
+                <EmptyState title="No exposure data" description="Run a scan to surface your top exposed assets." />
               ) : (
                 <ul className="divide-y divide-border/50">
                   {report.top_exposed_assets.map((a) => (

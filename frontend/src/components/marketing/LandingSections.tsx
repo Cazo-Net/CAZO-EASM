@@ -1554,9 +1554,10 @@ const FOOTER_COLS: { title: string; links: { label: string; href: string }[] }[]
     {
       title: "Legal",
       links: [
-        { label: "Privacy", href: "/privacy" },
-        { label: "Terms", href: "/terms" },
-        { label: "Responsible use", href: "/responsible-use" },
+        { label: "Terms of Service", href: "/legal/terms" },
+        { label: "Authorized Scanning", href: "/legal/authorized-scanning" },
+        { label: "Privacy Policy", href: "/legal/privacy" },
+        { label: "Acceptable Use", href: "/legal/acceptable-use" },
       ],
     },
   ];

@@ -97,10 +97,24 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 # SECURITY: Global exception handler — strip stack traces and internal details
 # from 500 responses in production to prevent information leakage.
+# Also writes the full exception to platform_logs for admin analysis.
 # ---------------------------------------------------------------------------
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    try:
+        from app.services.platform_log import log_unexpected
+        log_unexpected(
+            f"Unhandled exception: {exc}",
+            exception=exc,
+            request_id=request.headers.get("x-request-id"),
+            client_ip=_client_ip(request),
+            path=request.url.path,
+            method=request.method,
+            status_code=500,
+        )
+    except Exception:  # noqa: BLE001
+        pass
     if is_production():
         return JSONResponse(
             status_code=500,
@@ -178,6 +192,25 @@ async def log_requests_middleware(request: Request, call_next):
             "client_ip": client_ip,
         },
     )
+
+    # Write non-2xx responses to platform_logs for admin analysis
+    if response.status_code >= 400:
+        try:
+            from app.services.platform_log import log_api_request, SEV_WARNING, SEV_ERROR
+            severity = SEV_ERROR if response.status_code >= 500 else SEV_WARNING
+            log_api_request(
+                f"{request.method} {request.url.path} → {response.status_code}",
+                severity=severity,
+                request_id=request_id,
+                client_ip=client_ip,
+                path=request.url.path,
+                method=request.method,
+                status_code=response.status_code,
+                duration_ms=duration_ms,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
     response.headers["X-Request-ID"] = request_id
     return response
 
@@ -216,6 +249,18 @@ async def rate_limit_middleware(request: Request, call_next):
     bucket = "auth" if is_auth_endpoint else "global"
 
     if not get_rate_limiter().is_allowed(f"{bucket}:{client_ip}", max_requests):
+        try:
+            from app.services.platform_log import log_security_event
+            log_security_event(
+                f"Rate limit exceeded ({bucket})",
+                detail={"bucket": bucket, "max_requests": max_requests},
+                client_ip=client_ip,
+                path=request.url.path,
+                method=request.method,
+                status_code=429,
+            )
+        except Exception:  # noqa: BLE001
+            pass
         return JSONResponse(
             status_code=429,
             content={"detail": "Rate limit exceeded. Try again later."}
@@ -257,7 +302,7 @@ async def readiness_check():
 
 
 # Import and include routers
-from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2  # noqa: E402
+from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2, logs  # noqa: E402
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(auth_google.router, prefix="/api/v1/auth", tags=["Google OAuth"])
@@ -291,6 +336,7 @@ app.include_router(shadow.router, prefix="/api/v1/shadow-assets", tags=["Shadow 
 app.include_router(search.router, prefix="/api/v1/search", tags=["Search"])
 app.include_router(osint.router, prefix="/api/v1/osint", tags=["OSINT Intelligence"])
 app.include_router(scanner_v2.router, prefix="/api/v1/scanner-v2", tags=["Scanner v2"])
+app.include_router(logs.router, prefix="/api/v1/logs", tags=["Platform Logs"])
 
 
 # API docs (only in debug mode)

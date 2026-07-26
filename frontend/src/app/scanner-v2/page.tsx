@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PageHeader } from "@/components/common/PageHeader";
+import { DocTooltip } from "@/components/common/DocTooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -47,11 +48,11 @@ const PIPELINE_STAGES = [
 ];
 
 function getRiskColor(score: number): string {
-  if (score >= 80) return "text-red-500 bg-red-500/10 border-red-500/20";
-  if (score >= 60) return "text-orange-500 bg-orange-500/10 border-orange-500/20";
-  if (score >= 40) return "text-yellow-500 bg-yellow-500/10 border-yellow-500/20";
-  if (score >= 20) return "text-blue-500 bg-blue-500/10 border-blue-500/20";
-  return "text-green-500 bg-green-500/10 border-green-500/20";
+  if (score >= 80) return "text-severity-critical bg-severity-critical/10 border-severity-critical/20";
+  if (score >= 60) return "text-severity-high bg-severity-high/10 border-severity-high/20";
+  if (score >= 40) return "text-severity-medium bg-severity-medium/10 border-severity-medium/20";
+  if (score >= 20) return "text-severity-low bg-severity-low/10 border-severity-low/20";
+  return "text-success bg-success/10 border-success/20";
 }
 
 function getRiskLabel(score: number): string {
@@ -187,7 +188,7 @@ export default function ScannerV2Page() {
         <div className="py-6">
           <PageHeader
             title="Scanner v2"
-            description="Enterprise EASM pipeline with real-time progress"
+            description="Deep recon pipeline — watch each stage resolve in real time"
             icon={<Radar className="h-5 w-5" />}
             breadcrumbs={[
               { label: "Home", href: "/dashboard" },
@@ -254,7 +255,7 @@ export default function ScannerV2Page() {
                   </Button>
                 </div>
                 {error && (
-                  <p className="mt-2 text-sm text-red-500">{error}</p>
+                  <p className="mt-2 text-sm text-signal-red">{error}</p>
                 )}
               </CardContent>
             </Card>
@@ -280,11 +281,11 @@ export default function ScannerV2Page() {
                         <div key={stage.id} className="flex items-center gap-3">
                           <div className="flex items-center gap-2 w-48">
                             {status === "complete" ? (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
+                              <CheckCircle className="h-4 w-4 text-success" />
                             ) : status === "error" ? (
-                              <XCircle className="h-4 w-4 text-red-500" />
+                              <XCircle className="h-4 w-4 text-signal-red" />
                             ) : isRunning ? (
-                              <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                              <Loader2 className="h-4 w-4 text-cyan-signal animate-spin" />
                             ) : (
                               <Icon className="h-4 w-4 text-muted-foreground" />
                             )}
@@ -319,7 +320,9 @@ export default function ScannerV2Page() {
                       <p className="mt-2 text-sm font-medium">
                         {getRiskLabel(riskScore)}
                       </p>
-                      <p className="text-xs text-muted-foreground">Risk Score</p>
+                      <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
+                        Risk Score <DocTooltip article="threat-score" />
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -407,7 +410,7 @@ export default function ScannerV2Page() {
                       <div className="space-y-1">
                         {health.registered_scanners.map((s) => (
                           <div key={s.name} className="flex items-center gap-2 text-xs">
-                            <CheckCircle className="h-3 w-3 text-green-500" />
+                            <CheckCircle className="h-3 w-3 text-success" />
                             <span>{s.name}</span>
                             <Badge variant="outline" className="ml-auto">
                               {s.category}
@@ -421,7 +424,7 @@ export default function ScannerV2Page() {
                       <div className="space-y-1">
                         {health.pipeline_stages.map((stage) => (
                           <div key={stage} className="flex items-center gap-2 text-xs">
-                            <CheckCircle className="h-3 w-3 text-green-500" />
+                            <CheckCircle className="h-3 w-3 text-success" />
                             <span>{stage}</span>
                           </div>
                         ))}

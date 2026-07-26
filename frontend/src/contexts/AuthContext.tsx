@@ -20,6 +20,7 @@ interface AuthContextType {
   loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  updateOnboardingState: (patch: Record<string, any>) => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
 }
@@ -135,6 +136,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateOnboardingState = async (patch: Record<string, any>) => {
+    try {
+      const currentPrefs = (user?.preferences as any) || {};
+      const currentOnboarding = currentPrefs.onboarding || {};
+      const updatedPrefs = {
+        ...currentPrefs,
+        onboarding: { ...currentOnboarding, ...patch },
+      };
+      await api.put("/users/me/preferences", updatedPrefs);
+      setUser((prev) =>
+        prev ? { ...prev, preferences: updatedPrefs as any } : prev
+      );
+    } catch (e) {
+      console.error("Failed to update onboarding state:", e);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -145,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithGoogle,
         logout,
         refreshUser,
+        updateOnboardingState,
         isAuthenticated: !!user,
         loading,
       }}

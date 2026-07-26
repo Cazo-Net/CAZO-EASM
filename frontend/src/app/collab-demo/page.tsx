@@ -38,7 +38,7 @@ export default function CollabDemoPage() {
     <div className="page-container-md">
       <PageHeader
         title="Team Collaboration Demo"
-        description="Comments and annotations on assets."
+        description="Discuss findings with your team. Tag assets, leave notes."
         icon={<MessagesSquare className="h-5 w-5" />}
       />
       <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>

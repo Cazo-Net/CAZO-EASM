@@ -61,7 +61,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(email, password, fullName || undefined);
-      router.push("/dashboard");
+      router.push("/onboarding");
     } catch (err: any) {
       setError(getErrorMessage(err, "Registration failed. Please try again."));
     } finally {
@@ -96,7 +96,7 @@ export default function RegisterPage() {
             CAZO EASM
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Create your account
+            Get started
           </p>
         </div>
 
@@ -121,7 +121,7 @@ export default function RegisterPage() {
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="text"
-                  placeholder="John Doe"
+                  placeholder="Jane Smith"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   autoComplete="name"

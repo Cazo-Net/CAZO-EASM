@@ -55,7 +55,7 @@ export default function Asset360IndexPage() {
         ) : assets.length === 0 ? (
           <EmptyState
             title="No assets yet"
-            description="Discovered assets will appear here once scans populate the inventory."
+            description="Discovered assets show up here after your first scan."
           />
         ) : (
           <ul className="divide-y divide-border/50">

@@ -178,7 +178,7 @@ export default function IntelPage() {
           <EmptyState
             icon={<Globe2 className="h-8 w-8" />}
             title="Investigate any target"
-            description="Enter a domain or company to gather live public intelligence — discovered subdomains, TLS certificates, exposed ports with service banners, and known CVEs."
+            description="Enter a domain or company to gather live public intelligence — subdomains, certs, exposed ports, and known CVEs."
           />
         ) : (
           <div className="space-y-4">
@@ -278,7 +278,7 @@ export default function IntelPage() {
               {/* Subdomains */}
               <SectionCard title="Discovered Subdomains" icon={<Network className="h-4 w-4" />}>
                 {data.subdomains.length === 0 ? (
-                  <EmptyState icon={<Network className="h-8 w-8" />} title="No subdomains" />
+                  <EmptyState icon={<Network className="h-8 w-8" />} title="Nothing returned" />
                 ) : (
                   <ul className="space-y-1.5">
                     {data.subdomains.map((s, i) => (
