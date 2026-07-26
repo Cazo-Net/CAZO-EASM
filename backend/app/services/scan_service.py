@@ -80,6 +80,7 @@ class ScanService:
         project_id: Optional[str] = None,
         organization_id: Optional[str] = None,
         request_id: Optional[str] = None,
+        engine: str = "v1",
     ) -> Scan:
         """Create a new scan.
 
@@ -124,6 +125,7 @@ class ScanService:
             created_by=user_id,
             project_id=project_id,
             organization_id=organization_id,
+            engine=engine,
             status="pending"
         )
         self.db.add(scan)

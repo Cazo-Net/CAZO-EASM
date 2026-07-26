@@ -32,31 +32,50 @@ PAGE_W, PAGE_H = A4  # 595.27 x 841.89 pt
 # LOGO  —  vector shield + crosshair drawn in ReportLab
 # ══════════════════════════════════════════════════════════════════════
 
-def draw_logo(size: float = 36) -> Group:
-    """Return a Group containing the CAZO shield logo scaled to *size* pt."""
-    s = size / 200  # SVG viewBox is 200x200
+def draw_logo(size: float = 36) -> Drawing:
+    """Return a Drawing containing the CAZO shield logo scaled to *size* pt."""
+    s = size / 200  # viewBox is 200x200
+    d = Drawing(size, size)
     g = Group()
 
-    # Shield body
-    g.add(_path("M100,38 140,58 140,108 Q140,138 100,160 60,138 60,108 60,58 Z",
-               fill=DARK, stroke=BLUE, stroke_w=2.5 * s))
+    # Shield body polygon
+    shield_pts = [
+        100,38, 140,58, 140,108, 136,127, 122,145,
+        100,160, 78,145, 64,127, 60,108, 60,58,
+    ]
+    g.add(_polygon(shield_pts, fill=DARK, stroke=BLUE, stroke_w=2.5))
     # Inner accent
-    g.add(_path("M100,48 132,64 132,104 Q132,130 100,148 68,130 68,104 68,64 Z",
-               fill=None, stroke=BLUE, stroke_w=0.8 * s, opacity=0.3))
+    accent_pts = [
+        100,48, 132,64, 132,104, 129,120, 118,135,
+        100,148, 82,135, 71,120, 68,104, 68,64,
+    ]
+    g.add(_polygon(accent_pts, fill=None, stroke=BLUE, stroke_w=0.8, opacity=0.3))
     # Crosshair lines
     for x1, y1, x2, y2 in [(100,70,100,85),(100,115,100,130),(80,100,95,100),(105,100,120,100)]:
-        g.add(Line(x1*s, y1*s, x2*s, y2*s, strokeColor=RED, strokeWidth=1.5*s, strokeOpacity=0.85))
+        g.add(Line(x1, y1, x2, y2, strokeColor=RED, strokeWidth=1.5, strokeOpacity=0.85))
     # Target circles
-    g.add(Circle(100*s, 100*s, 12*s, fillColor=None, strokeColor=RED, strokeWidth=1.5*s, strokeOpacity=0.7))
-    g.add(Circle(100*s, 100*s, 6*s, fillColor=None, strokeColor=RED, strokeWidth=1*s, strokeOpacity=0.5))
-    g.add(Circle(100*s, 100*s, 2*s, fillColor=RED, strokeColor=None, fillOpacity=0.9))
+    g.add(Circle(100, 100, 12, fillColor=None, strokeColor=RED, strokeWidth=1.5, strokeOpacity=0.7))
+    g.add(Circle(100, 100, 6, fillColor=None, strokeColor=RED, strokeWidth=1, strokeOpacity=0.5))
+    g.add(Circle(100, 100, 2, fillColor=RED, strokeColor=None, fillOpacity=0.9))
 
     g.transform = (s, 0, 0, s, 0, 0)
-    return g
+    d.add(g)
+    return d
+
+
+def _polygon(points, fill=None, stroke=None, stroke_w=1, opacity=1):
+    """Draw a closed polygon from a flat list of [x1,y1,x2,y2,...] coordinates."""
+    from reportlab.graphics.shapes import Polygon
+    p = Polygon(points=points,
+                fillColor=fill, strokeColor=stroke or fill, strokeWidth=stroke_w)
+    if opacity != 1:
+        p.fillOpacity = opacity
+        p.strokeOpacity = opacity
+    return p
 
 
 def _path(d: str, fill=None, stroke=None, stroke_w=1, opacity=1):
-    """Minimal SVG-path-to-ReportLab shim for the shield shapes."""
+    """Minimal SVG-path-to-ReportLab shim — only supports M/L/Z (no curves)."""
     from reportlab.graphics.shapes import Path
     p = Path(d, fillColor=fill, strokeColor=stroke or fill, strokeWidth=stroke_w)
     if opacity != 1:
@@ -69,61 +88,97 @@ def _path(d: str, fill=None, stroke=None, stroke_w=1, opacity=1):
 # COMPANY SEAL  —  circular, drawn entirely in ReportLab
 # ══════════════════════════════════════════════════════════════════════
 
-def draw_seal(size: float = 120) -> Drawing:
-    """Return a Drawing of the CAZO circular seal."""
-    d = Drawing(size, size)
-    cx, cy = size / 2, size / 2
+def draw_seal(canvas, cx: float, cy: float, size: float = 110):
+    """Draw the CAZO circular seal directly onto *canvas* centered at (cx, cy)."""
     r_outer = size / 2 - 2
     r_inner = r_outer - 8
 
     # Outer ring
-    d.add(Circle(cx, cy, r_outer, fillColor=None, strokeColor=BLUE, strokeWidth=2))
-    d.add(Circle(cx, cy, r_inner, fillColor=None, strokeColor=BLUE, strokeWidth=0.5, strokeOpacity=0.4))
+    canvas.saveState()
+    canvas.setStrokeColor(BLUE)
+    canvas.setLineWidth(2)
+    canvas.circle(cx, cy, r_outer, fill=0, stroke=1)
+    canvas.setLineWidth(0.5)
+    canvas.setStrokeAlpha(0.4)
+    canvas.circle(cx, cy, r_inner, fill=0, stroke=1)
+    canvas.restoreState()
 
-    # Shield mini in center
-    sc = size / 200
-    shield_g = Group()
-    shield_g.add(_path("M100,55 128,68 128,100 Q128,120 100,132 72,120 72,100 72,68 Z",
-                       fill=DARK, stroke=BLUE, stroke_w=1.5))
+    # Shield mini in center (drawn with canvas primitives)
+    sc = (size / 200) * 0.55
+    sx = cx - 100 * sc
+    sy = cy - 100 * sc
+
+    shield_pts = [
+        (100,55), (128,68), (128,100), (125,112), (115,123),
+        (100,132), (85,123), (75,112), (72,100), (72,68),
+    ]
+    canvas.saveState()
+    canvas.setFillColor(DARK)
+    canvas.setStrokeColor(BLUE)
+    canvas.setLineWidth(1.5)
+    path = canvas.beginPath()
+    path.moveTo(sx + shield_pts[0][0] * sc, sy + shield_pts[0][1] * sc)
+    for px, py in shield_pts[1:]:
+        path.lineTo(sx + px * sc, sy + py * sc)
+    path.close()
+    canvas.drawPath(path, fill=1, stroke=1)
+    canvas.restoreState()
+
     # Mini crosshair
-    shield_g.add(Line(100, 78, 100, 88, strokeColor=RED, strokeWidth=1))
-    shield_g.add(Line(100, 112, 100, 122, strokeColor=RED, strokeWidth=1))
-    shield_g.add(Line(88, 100, 98, 100, strokeColor=RED, strokeWidth=1))
-    shield_g.add(Line(102, 100, 112, 100, strokeColor=RED, strokeWidth=1))
-    shield_g.add(Circle(100, 100, 8, fillColor=None, strokeColor=RED, strokeWidth=1, strokeOpacity=0.7))
-    shield_g.add(Circle(100, 100, 3, fillColor=RED, strokeColor=None))
-    shield_g.transform = (sc * 0.55, 0, 0, sc * 0.55,
-                           cx - 100 * sc * 0.55, cy - 100 * sc * 0.55)
-    d.add(shield_g)
+    canvas.saveState()
+    canvas.setStrokeColor(RED)
+    canvas.setLineWidth(1)
+    canvas.line(cx, cy - 22 * sc, cx, cy - 12 * sc)
+    canvas.line(cx, cy + 12 * sc, cx, cy + 22 * sc)
+    canvas.line(cx - 12 * sc, cy, cx - 2 * sc, cy)
+    canvas.line(cx + 2 * sc, cy, cx + 12 * sc, cy)
+    canvas.setStrokeAlpha(0.7)
+    canvas.circle(cx, cy, 8 * sc, fill=0, stroke=1)
+    canvas.setFillColor(RED)
+    canvas.circle(cx, cy, 3 * sc, fill=1, stroke=0)
+    canvas.restoreState()
 
     # Curved text — outer ring top: "CAZO SECURITY"
-    _add_arc_text(d, "CAZO SECURITY", cx, cy, r_outer - 14, start_deg=150, font_size=max(7, size / 18))
+    _draw_arc_text_on_canvas(canvas, "CAZO SECURITY", cx, cy, r_outer - 14,
+                             start_deg=150, font_size=max(7, size / 18))
     # Curved text — outer ring bottom: "ATTACK SURFACE REPORT"
-    _add_arc_text(d, "ATTACK SURFACE REPORT", cx, cy, r_outer - 14, start_deg=330, font_size=max(5.5, size / 24), reverse=True)
+    _draw_arc_text_on_canvas(canvas, "ATTACK SURFACE REPORT", cx, cy, r_outer - 14,
+                             start_deg=330, font_size=max(5.5, size / 24), bottom=True)
 
-    return d
 
-
-def _add_arc_text(drawing, text, cx, cy, radius, start_deg=90, font_size=8, reverse=False):
-    """Place characters along a circular arc."""
-    from reportlab.graphics.shapes import String
+def _draw_arc_text_on_canvas(canvas, text, cx, cy, radius, start_deg=90, font_size=8, bottom=False):
+    """Draw rotated text along a circular arc directly on canvas."""
     n = len(text)
     if n == 0:
         return
-    span = min(140, n * (font_size * 0.7))  # total angular span in degrees
+    span = min(140, n * (font_size * 0.7))
+    canvas.saveState()
+    canvas.setFillColor(BLUE)
+    canvas.setFont("Helvetica-Bold", font_size)
     for i, ch in enumerate(text):
-        if reverse:
-            angle = math.radians(start_deg - (i / max(n - 1, 1)) * span)
+        if bottom:
+            # Bottom arc: text reads left-to-right, characters face inward
+            angle = start_deg + (i / max(n - 1, 1)) * span
+            rad = math.radians(angle)
+            x = cx + radius * math.cos(rad)
+            y = cy + radius * math.sin(rad)
+            canvas.saveState()
+            canvas.translate(x, y)
+            canvas.rotate(angle + 90)
+            canvas.drawCentredString(0, -font_size * 0.3, ch)
+            canvas.restoreState()
         else:
-            angle = math.radians(start_deg - (i / max(n - 1, 1)) * span)
-        x = cx + radius * math.cos(angle)
-        y = cy + radius * math.sin(angle)
-        s = String(x, y, ch, fontSize=font_size, fillColor=BLUE,
-                   textAnchor="middle", fontName="Helvetica-Bold")
-        # Rotate character to follow the arc
-        deg = math.degrees(angle) - 90
-        s.angle = deg
-        drawing.add(s)
+            # Top arc: text reads left-to-right, characters face outward
+            angle = start_deg - (i / max(n - 1, 1)) * span
+            rad = math.radians(angle)
+            x = cx + radius * math.cos(rad)
+            y = cy + radius * math.sin(rad)
+            canvas.saveState()
+            canvas.translate(x, y)
+            canvas.rotate(angle - 90)
+            canvas.drawCentredString(0, -font_size * 0.3, ch)
+            canvas.restoreState()
+    canvas.restoreState()
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -258,8 +313,7 @@ def draw_cover_page(canvas, doc, domain: str, scan_type: str, status: str,
         canvas.drawString(x, meta_y, value)
 
     # ── Company seal (bottom-right) ───────────────────────────────────
-    seal = draw_seal(110)
-    renderPDF.draw(seal, canvas, PAGE_W - 170, 60)
+    draw_seal(canvas, PAGE_W - 115, 115, size=110)
 
     # ── Confidentiality notice (bottom-left) ──────────────────────────
     canvas.setFont("Helvetica-Bold", 8)

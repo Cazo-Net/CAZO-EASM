@@ -157,6 +157,21 @@ async def run_scan_v2(
     network intelligence → technology fingerprinting → certificate analysis →
     risk evaluation → graph mapping.
     """
+    from app.core.scope import check_target_authorized
+
+    if current_user.organization_id:
+        match = check_target_authorized(db, current_user.organization_id, request.domain)
+        if not match.authorized:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Target '{request.domain}' is not within an authorized scope. {match.reason}",
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You must belong to an organization with configured authorized scopes to scan.",
+        )
+
     from app.scanners.v2.runner import EnhancedScanRunner
 
     runner = EnhancedScanRunner()
@@ -181,9 +196,10 @@ async def run_scan_v2(
                 excluded_scanners=set(request.excluded_scanners) if request.excluded_scanners else None,
             )
     except Exception as e:
+        log.exception("Scan failed for domain %s", request.domain)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Scan failed: {str(e)}",
+            detail="Scan failed",
         )
 
     return ScanV2Response(
@@ -322,7 +338,7 @@ async def scan_stream_v2(websocket: WebSocket):
 
     except Exception as e:
         try:
-            await websocket.send_json({"type": "error", "message": str(e)})
+            await websocket.send_json({"type": "error", "message": "Scan failed"})
         except Exception:
             pass
     finally:

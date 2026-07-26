@@ -420,7 +420,7 @@ async def setup_2fa(current_user: User = Depends(get_current_user), db: Session 
     provisioning_uri = pyotp.totp.TOTP(secret).provisioning_uri(
         name=current_user.email, issuer_name="CAZO"
     )
-    return TOTPSetup(secret=secret, provisioning_uri=provisioning_uri)
+    return TOTPSetup(provisioning_uri=provisioning_uri)
 
 
 @router.post("/2fa/enable")

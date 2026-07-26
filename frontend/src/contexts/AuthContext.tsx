@@ -148,8 +148,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser((prev) =>
         prev ? { ...prev, preferences: updatedPrefs as any } : prev
       );
-    } catch (e) {
-      console.error("Failed to update onboarding state:", e);
+    } catch {
+      // silently fail
     }
   };
 

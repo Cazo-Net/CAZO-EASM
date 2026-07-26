@@ -67,7 +67,6 @@ export default function IntelPage() {
       const res = await osintLookup(trimmed);
       setData(res);
     } catch (e: any) {
-      console.error("OSINT lookup error:", e);
       const detail = e?.response?.data?.detail;
       setError(typeof detail === "string" ? detail : e?.message || "Intelligence lookup failed.");
     } finally {

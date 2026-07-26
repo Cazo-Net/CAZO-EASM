@@ -11,6 +11,7 @@ from app.models.port import Port
 from app.models.ssl import SSLCertificate
 from app.models.technology import Technology
 from app.models.risk import RiskScore
+from app.models.vulnerability import Vulnerability
 from app.database import SessionLocal
 from app.services.audit import log_event
 from app.services.notification_service import dispatch_notification
@@ -158,15 +159,16 @@ class ScanServiceV2:
                 continue
             existing = db.query(Subdomain).filter(
                 Subdomain.scan_id == scan.id,
-                Subdomain.name == subdomain_str,
+                Subdomain.hostname == subdomain_str,
             ).first()
             if existing:
                 subdomain_map[subdomain_str] = existing
                 continue
             obj = Subdomain(
                 scan_id=scan.id,
-                name=subdomain_str,
-                domain=domain,
+                hostname=subdomain_str,
+                ip_addresses=[],
+                is_alive=True,
             )
             subdomain_objects.append(obj)
             subdomain_map[subdomain_str] = obj
@@ -254,6 +256,32 @@ class ScanServiceV2:
                 factors=risk_data.get("recommendations", []),
             ))
 
+        vuln_payload = results.get("vulnerabilities", [])
+        vuln_list = vuln_payload if isinstance(vuln_payload, list) else list(vuln_payload.values())
+        vuln_objects = []
+        for vuln in vuln_list:
+            if not isinstance(vuln, dict):
+                continue
+            host = vuln.get("host") or vuln.get("matched_at") or domain
+            subdomain = subdomain_map.get(host)
+            vuln_objects.append(Vulnerability(
+                scan_id=scan.id,
+                subdomain_id=subdomain.id if subdomain else None,
+                template_id=vuln.get("template_id", ""),
+                name=vuln.get("name", ""),
+                severity=vuln.get("severity", "unknown"),
+                vuln_type=vuln.get("type") or vuln.get("vuln_type") or "",
+                host=vuln.get("host", host),
+                matched_at=vuln.get("matched_at", ""),
+                description=vuln.get("description", ""),
+                reference=vuln.get("reference", []),
+                tags=vuln.get("tags", []),
+                curl_command=vuln.get("curl_command", ""),
+                extracted_results=vuln.get("extracted_results", []),
+            ))
+        if vuln_objects:
+            db.add_all(vuln_objects)
+
         db.commit()
 
         try:
@@ -261,6 +289,13 @@ class ScanServiceV2:
             backfill_from_scan(db, scan)
         except Exception as exc:
             logger.error("Asset backfill failed for scan %s: %s", scan.id, exc)
+
+        try:
+            from app.services.change_detector import detect_changes
+            if organization_id := getattr(scan, "organization_id", None):
+                detect_changes(db, organization_id, scan.id)
+        except Exception as exc:
+            logger.error("Change detection failed for scan %s: %s", scan.id, exc)
 
     def _generate_notifications(self, db: Session, scan: Scan, results: Dict[str, Any]) -> None:
         """Generate notifications for completed scan."""

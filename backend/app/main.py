@@ -11,6 +11,10 @@ from app.config import settings, is_production
 from app.database import init_db, write_engine
 from app.core.rate_limit import get_rate_limiter
 from app.core.logging import configure_logging
+from app.services.platform_log import (
+    log_unexpected, log_api_request, log_security_event,
+    SEV_WARNING, SEV_ERROR,
+)
 
 logger = logging.getLogger("app.main")
 
@@ -103,7 +107,6 @@ app = FastAPI(
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
     try:
-        from app.services.platform_log import log_unexpected
         log_unexpected(
             f"Unhandled exception: {exc}",
             exception=exc,
@@ -115,14 +118,10 @@ async def global_exception_handler(request: Request, exc: Exception):
         )
     except Exception:  # noqa: BLE001
         pass
-    if is_production():
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "Internal server error"},
-        )
+    # Always return generic error — never leak exception details
     return JSONResponse(
         status_code=500,
-        content={"detail": str(exc), "type": type(exc).__name__},
+        content={"detail": "Internal server error"},
     )
 
 # CORS
@@ -196,7 +195,6 @@ async def log_requests_middleware(request: Request, call_next):
     # Write non-2xx responses to platform_logs for admin analysis
     if response.status_code >= 400:
         try:
-            from app.services.platform_log import log_api_request, SEV_WARNING, SEV_ERROR
             severity = SEV_ERROR if response.status_code >= 500 else SEV_WARNING
             log_api_request(
                 f"{request.method} {request.url.path} → {response.status_code}",
@@ -250,7 +248,6 @@ async def rate_limit_middleware(request: Request, call_next):
 
     if not get_rate_limiter().is_allowed(f"{bucket}:{client_ip}", max_requests):
         try:
-            from app.services.platform_log import log_security_event
             log_security_event(
                 f"Rate limit exceeded ({bucket})",
                 detail={"bucket": bucket, "max_requests": max_requests},
@@ -288,7 +285,7 @@ async def health_check():
 async def readiness_check():
     """Readiness probe — dependencies (database) are reachable."""
     try:
-        with engine.connect() as conn:
+        with write_engine.connect() as conn:
             from sqlalchemy import text
             conn.execute(text("SELECT 1"))
         return {"status": "ready", "database": "ok"}

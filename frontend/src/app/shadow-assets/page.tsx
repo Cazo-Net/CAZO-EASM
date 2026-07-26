@@ -94,7 +94,6 @@ function ShadowAssetsContent() {
       setDiscoveredCount(data.discovered_count);
     } catch (err: any) {
       const detail = err?.response?.data?.detail || err?.message || "Failed to load shadow assets.";
-      console.error("shadow load failed:", err);
       setLoadError(detail);
     }
     try {
@@ -126,7 +125,6 @@ function ShadowAssetsContent() {
         err?.response?.data?.detail ||
         err?.message ||
         "Failed to apply review. Please try again.";
-      console.error("shadow review failed:", err);
       setReviewError(`${action} failed: ${detail}`);
     } finally {
       setPending(null);

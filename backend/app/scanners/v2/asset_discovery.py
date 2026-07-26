@@ -56,18 +56,23 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
         source_counts: Dict[str, int] = {}
         errors: List[str] = []
 
-        # Run DNS brute-force + all external sources concurrently
-        tasks = {
-            "dns_bruteforce": self._dns_bruteforce(target),
-            "crtsh": asyncio.wait_for(self._crtsh(target), timeout=10),
-            "rapiddns": asyncio.wait_for(self._rapiddns(target), timeout=10),
-            "urlscan": asyncio.wait_for(self._urlscan(target), timeout=12),
-            "hackertarget": asyncio.wait_for(self._hackertarget(target), timeout=10),
-        }
+        # Shared HTTP client with connection pooling for all sources
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(20.0, connect=5.0),
+            follow_redirects=True,
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+        ) as client:
+            tasks = {
+                "dns_bruteforce": self._dns_bruteforce(target),
+                "crtsh": asyncio.wait_for(self._crtsh(target, client), timeout=15),
+                "rapiddns": asyncio.wait_for(self._rapiddns(target, client), timeout=15),
+                "urlscan": asyncio.wait_for(self._urlscan(target, client), timeout=18),
+                "hackertarget": asyncio.wait_for(self._hackertarget(target, client), timeout=15),
+            }
 
-        results = await asyncio.gather(
-            *tasks.values(), return_exceptions=True
-        )
+            results = await asyncio.gather(
+                *tasks.values(), return_exceptions=True
+            )
 
         for source_name, result in zip(tasks.keys(), results):
             if isinstance(result, (set, list)):
@@ -100,76 +105,71 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
     def validate_target(self, target: str) -> bool:
         return bool(re.match(r'^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$', target))
 
-    async def _crtsh(self, domain: str) -> List[str]:
+    async def _crtsh(self, domain: str, client: httpx.AsyncClient) -> List[str]:
         """Query crt.sh Certificate Transparency logs."""
         url = f"https://crt.sh/?q=%.{domain}&output=json"
         subdomains = set()
         try:
-            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
-                    import json
-                    entries = json.loads(resp.text)
-                    for entry in entries:
-                        name = entry.get("name_value", "")
-                        for line in name.split("\n"):
-                            line = line.strip().lower()
-                            if line.endswith(f".{domain}") or line == domain:
-                                if "*" not in line:
-                                    subdomains.add(line)
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                import json
+                entries = json.loads(resp.text)
+                for entry in entries:
+                    name = entry.get("name_value", "")
+                    for line in name.split("\n"):
+                        line = line.strip().lower()
+                        if line.endswith(f".{domain}") or line == domain:
+                            if "*" not in line:
+                                subdomains.add(line)
         except Exception as e:
             logger.warning("crt.sh failed for %s: %s", domain, e)
             raise
         return list(subdomains)
 
-    async def _rapiddns(self, domain: str) -> List[str]:
+    async def _rapiddns(self, domain: str, client: httpx.AsyncClient) -> List[str]:
         """Query RapidDNS for subdomains."""
         url = f"https://rapiddns.io/subdomain/{domain}"
         subdomains = set()
         try:
-            async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
-                    # Parse HTML table
-                    for match in re.finditer(r'<td>([a-zA-Z0-9._-]+\.' + re.escape(domain) + r')</td>', resp.text):
-                        subdomains.add(match.group(1).lower())
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                for match in re.finditer(r'<td>([a-zA-Z0-9._-]+\.' + re.escape(domain) + r')</td>', resp.text):
+                    subdomains.add(match.group(1).lower())
         except Exception as e:
             logger.warning("RapidDNS failed for %s: %s", domain, e)
             raise
         return list(subdomains)
 
-    async def _urlscan(self, domain: str) -> List[str]:
+    async def _urlscan(self, domain: str, client: httpx.AsyncClient) -> List[str]:
         """Query URLScan.io for subdomains."""
         url = f"https://urlscan.io/api/v1/search/?q=domain:{domain}"
         subdomains = set()
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    for result in data.get("results", []):
-                        page = result.get("page", {})
-                        domain_found = page.get("domain", "")
-                        if domain_found.endswith(f".{domain}") or domain_found == domain:
-                            subdomains.add(domain_found.lower())
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                data = resp.json()
+                for result in data.get("results", []):
+                    page = result.get("page", {})
+                    domain_found = page.get("domain", "")
+                    if domain_found.endswith(f".{domain}") or domain_found == domain:
+                        subdomains.add(domain_found.lower())
         except Exception as e:
             logger.warning("URLScan failed for %s: %s", domain, e)
             raise
         return list(subdomains)
 
-    async def _hackertarget(self, domain: str) -> List[str]:
+    async def _hackertarget(self, domain: str, client: httpx.AsyncClient) -> List[str]:
         """Query HackerTarget for subdomains."""
         url = f"https://api.hackertarget.com/hostsearch/?q={domain}"
         subdomains = set()
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
-                    for line in resp.text.strip().split("\n"):
-                        if "," in line:
-                            hostname = line.split(",")[0].strip().lower()
-                            if hostname.endswith(f".{domain}") or hostname == domain:
-                                subdomains.add(hostname)
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                for line in resp.text.strip().split("\n"):
+                    if "," in line:
+                        hostname = line.split(",")[0].strip().lower()
+                        if hostname.endswith(f".{domain}") or hostname == domain:
+                            subdomains.add(hostname)
         except Exception as e:
             logger.warning("HackerTarget failed for %s: %s", domain, e)
             raise

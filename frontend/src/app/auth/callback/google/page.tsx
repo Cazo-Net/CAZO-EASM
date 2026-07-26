@@ -12,7 +12,20 @@ function GoogleCallbackContent() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const credential = searchParams.get("credential");
+    // Accept credential from query (legacy) or from hidden form POST
+    let credential = searchParams.get("credential");
+
+    // If no query param, check for form-posted credential in session
+    if (!credential) {
+      try {
+        const pending = sessionStorage.getItem("_g_credential");
+        if (pending) {
+          credential = pending;
+          sessionStorage.removeItem("_g_credential");
+        }
+      } catch {}
+    }
+
     if (!credential) {
       setError("No credential received from Google");
       return;

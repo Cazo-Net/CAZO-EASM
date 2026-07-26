@@ -24,20 +24,15 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught:", error, errorInfo);
-
-    // Fire-and-forget: POST client error to backend for admin visibility
+    // Fire-and-forget: POST sanitized error to backend — no stack traces, no URLs, no user-agent
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) return;
       fetch(`${apiUrl}/api/v1/logs/client-error`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: `${error.name}: ${error.message}`,
-          stack: error.stack || undefined,
-          component_stack: errorInfo.componentStack || undefined,
-          url: typeof window !== "undefined" ? window.location.href : undefined,
-          user_agent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
         }),
       }).catch(() => {});
     } catch {

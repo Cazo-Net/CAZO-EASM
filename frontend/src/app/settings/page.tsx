@@ -175,8 +175,8 @@ function SettingsContent() {
       if (response.data.preferences) {
         setNotifications(response.data.preferences);
       }
-    } catch (error) {
-      console.error("Failed to fetch user:", error);
+    } catch {
+      // silently fail
     } finally {
       setLoading(false);
     }
@@ -234,7 +234,6 @@ function SettingsContent() {
         setUser({ ...user, email: emailValue });
       }
     } catch (error: any) {
-      console.error("Failed to save profile:", error);
       setSaveMessage("error");
     } finally {
       setSaving(false);

@@ -55,7 +55,8 @@ async def generate_report(
         file_path = service.generate_report(scan_id, format)
         file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Report generation failed: {str(e)}")
+        log.exception("Report generation failed for scan %s", scan_id)
+        raise HTTPException(status_code=500, detail="Report generation failed")
 
     report = Report(
         scan_id=scan_id,

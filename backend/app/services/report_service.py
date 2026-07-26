@@ -79,19 +79,19 @@ class ReportService:
                 "risk_score": data["risk_score"].overall_score if data["risk_score"] else None,
             },
             "subdomains": [
-                {"hostname": s.hostname, "ip_addresses": s.ip_addresses, "is_alive": s.is_alive}
+                {"hostname": s.hostname or "unknown", "ip_addresses": s.ip_addresses or [], "is_alive": s.is_alive}
                 for s in data["subdomains"]
             ],
             "ports": [
-                {"hostname": p.subdomain.hostname, "port": p.port_number, "state": p.state, "service": p.service, "version": p.version}
+                {"hostname": (p.subdomain.hostname if p.subdomain else "unknown") or "unknown", "port": p.port_number, "state": p.state, "service": p.service, "version": p.version}
                 for p in data["ports"]
             ],
             "ssl_certificates": [
-                {"hostname": c.subdomain.hostname, "issuer": c.issuer, "grade": c.grade, "not_after": c.not_after.isoformat() if c.not_after else None, "is_valid": c.is_valid}
+                {"hostname": (c.subdomain.hostname if c.subdomain else "unknown") or "unknown", "issuer": c.issuer, "grade": c.grade, "not_after": c.not_after.isoformat() if c.not_after else None, "is_valid": c.is_valid}
                 for c in data["ssl_certificates"]
             ],
             "technologies": [
-                {"hostname": t.subdomain.hostname, "name": t.name, "category": t.category, "version": t.version}
+                {"hostname": (t.subdomain.hostname if t.subdomain else "unknown") or "unknown", "name": t.name, "category": t.category, "version": t.version}
                 for t in data["technologies"]
             ],
             "vulnerabilities": [
@@ -133,28 +133,28 @@ class ReportService:
             writer.writerow(["SUBDOMAINS"])
             writer.writerow(["Hostname", "IP Addresses", "Alive"])
             for s in data["subdomains"]:
-                writer.writerow([s.hostname, "; ".join(s.ip_addresses or []), s.is_alive])
+                writer.writerow([s.hostname or "unknown", "; ".join((s.ip_addresses or [])), s.is_alive])
             writer.writerow([])
             
             # Ports
             writer.writerow(["OPEN PORTS"])
             writer.writerow(["Hostname", "Port", "State", "Service", "Version"])
             for p in data["ports"]:
-                writer.writerow([p.subdomain.hostname, p.port_number, p.state, p.service, p.version])
+                writer.writerow([(p.subdomain.hostname if p.subdomain else "unknown") or "unknown", p.port_number, p.state, p.service, p.version])
             writer.writerow([])
             
             # SSL
             writer.writerow(["SSL CERTIFICATES"])
             writer.writerow(["Hostname", "Issuer", "Grade", "Valid", "Expires"])
             for c in data["ssl_certificates"]:
-                writer.writerow([c.subdomain.hostname, c.issuer, c.grade, c.is_valid, c.not_after])
+                writer.writerow([(c.subdomain.hostname if c.subdomain else "unknown") or "unknown", c.issuer, c.grade, c.is_valid, c.not_after])
             writer.writerow([])
             
             # Technologies
             writer.writerow(["TECHNOLOGIES"])
             writer.writerow(["Hostname", "Name", "Category", "Version"])
             for t in data["technologies"]:
-                writer.writerow([t.subdomain.hostname, t.name, t.category, t.version])
+                writer.writerow([(t.subdomain.hostname if t.subdomain else "unknown") or "unknown", t.name, t.category, t.version])
             writer.writerow([])
             
             # Vulnerabilities
@@ -216,7 +216,7 @@ class ReportService:
         elements = []
 
         # ── Cover page (empty flowable triggers onFirstPage) ──────────
-        elements.append(Spacer(1, PAGE_H - 60))  # push past cover
+        elements.append(Spacer(1, PAGE_H - 120))  # push past cover (fit within frame)
         elements.append(PageBreak())
 
         # ── Section: Executive Summary ─────────────────────────────────
@@ -299,7 +299,7 @@ class ReportService:
             sub_rows = [sub_header]
             for s in data["subdomains"][:80]:
                 sub_rows.append([
-                    s.hostname[:45],
+                    (s.hostname or "unknown")[:45],
                     "; ".join(s.ip_addresses or [])[:45],
                     "Yes" if s.is_alive else "No",
                 ])
@@ -318,7 +318,7 @@ class ReportService:
             port_rows = [port_header]
             for p in data["ports"][:80]:
                 port_rows.append([
-                    p.subdomain.hostname[:35],
+                    ((p.subdomain.hostname if p.subdomain else "unknown") or "unknown")[:35],
                     str(p.port_number),
                     p.state or "",
                     p.service or "",
@@ -339,7 +339,7 @@ class ReportService:
             tech_rows = [tech_header]
             for t in data["technologies"][:80]:
                 tech_rows.append([
-                    t.subdomain.hostname[:35],
+                    ((t.subdomain.hostname if t.subdomain else "unknown") or "unknown")[:35],
                     t.name or "",
                     t.category or "",
                     t.version or "",
@@ -359,7 +359,7 @@ class ReportService:
             ssl_rows = [ssl_header]
             for c in data["ssl_certificates"][:50]:
                 ssl_rows.append([
-                    c.subdomain.hostname[:35],
+                    ((c.subdomain.hostname if c.subdomain else "unknown") or "unknown")[:35],
                     c.issuer or "",
                     c.grade or "",
                     "Yes" if c.is_valid else "No",

@@ -82,12 +82,10 @@ async def review_asset(
             actor_id=current_user.id, note=payload.note,
         )
     except ValueError as e:
-        # Distinguish "asset missing" (404) from a bad action (400) so the
-        # client gets a precise, non-crashing error.
         if "not found" in str(e).lower():
             logger.warning("shadow review: asset %s not found for org %s", asset_id, org_id)
-            raise HTTPException(status_code=404, detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=404, detail="Asset not found")
+        raise HTTPException(status_code=400, detail="Invalid action")
 
     return ShadowReviewResponse(
         asset_id=asset.id,

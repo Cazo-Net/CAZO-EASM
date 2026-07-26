@@ -114,13 +114,17 @@ class TestTwoFactorAuth:
     def test_setup_2fa(self, client, auth_headers):
         resp = client.post("/api/v1/auth/2fa/setup", headers=auth_headers)
         assert resp.status_code == 200
-        assert "secret" in resp.json()
-        assert "provisioning_uri" in resp.json()
+        data = resp.json()
+        assert "provisioning_uri" in data
+        assert "secret" not in data  # secret must NOT be returned in response
 
-    def test_enable_2fa_with_valid_code(self, client, auth_headers):
+    def test_enable_2fa_with_valid_code(self, client, auth_headers, db_session):
         import pyotp
-        setup = client.post("/api/v1/auth/2fa/setup", headers=auth_headers).json()
-        totp = pyotp.TOTP(setup["secret"])
+        client.post("/api/v1/auth/2fa/setup", headers=auth_headers)
+        # Secret is stored server-side, retrieve from DB
+        from app.models.user import User
+        user = db_session.query(User).filter(User.email == "test@test.com").first()
+        totp = pyotp.TOTP(user.totp_secret)
         resp = client.post("/api/v1/auth/2fa/enable", json={"code": totp.now()}, headers=auth_headers)
         assert resp.status_code == 200
 
@@ -129,18 +133,22 @@ class TestTwoFactorAuth:
         resp = client.post("/api/v1/auth/2fa/enable", json={"code": "000000"}, headers=auth_headers)
         assert resp.status_code == 400
 
-    def test_disable_2fa(self, client, auth_headers):
+    def test_disable_2fa(self, client, auth_headers, db_session):
         import pyotp
-        setup = client.post("/api/v1/auth/2fa/setup", headers=auth_headers).json()
-        totp = pyotp.TOTP(setup["secret"])
+        client.post("/api/v1/auth/2fa/setup", headers=auth_headers)
+        from app.models.user import User
+        user = db_session.query(User).filter(User.email == "test@test.com").first()
+        totp = pyotp.TOTP(user.totp_secret)
         client.post("/api/v1/auth/2fa/enable", json={"code": totp.now()}, headers=auth_headers)
         resp = client.post("/api/v1/auth/2fa/disable", json={"code": totp.now()}, headers=auth_headers)
         assert resp.status_code == 200
 
-    def test_disable_2fa_not_enabled(self, client, auth_headers):
+    def test_disable_2fa_not_enabled(self, client, auth_headers, db_session):
         import pyotp
-        setup = client.post("/api/v1/auth/2fa/setup", headers=auth_headers).json()
-        totp = pyotp.TOTP(setup["secret"])
+        client.post("/api/v1/auth/2fa/setup", headers=auth_headers)
+        from app.models.user import User
+        user = db_session.query(User).filter(User.email == "test@test.com").first()
+        totp = pyotp.TOTP(user.totp_secret)
         resp = client.post("/api/v1/auth/2fa/disable", json={"code": totp.now()}, headers=auth_headers)
         assert resp.status_code == 400
 

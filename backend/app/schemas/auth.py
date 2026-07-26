@@ -88,7 +88,6 @@ class PasswordReset(BaseModel):
 
 
 class TOTPSetup(BaseModel):
-    secret: str
     provisioning_uri: str
 
 

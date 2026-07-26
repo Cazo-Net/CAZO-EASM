@@ -77,15 +77,24 @@ async def osint_lookup(
         result_dict = osint.intel_to_dict(result)
     except Exception as e:
         log.exception("OSINT lookup failed for %s", domain)
-        raise HTTPException(status_code=500, detail=f"Lookup failed: {type(e).__name__}: {e}")
+        raise HTTPException(status_code=500, detail="Lookup failed")
 
-    # Persist to cache
-    try:
-        _set_cache(domain, result_dict, db)
-        db.commit()
-    except Exception as e:
-        log.warning("Cache write failed for %s: %s", domain, e)
-        db.rollback()
+    # Only cache results that have meaningful data (not empty/partial)
+    has_data = (
+        result_dict.get("subdomains")
+        or result_dict.get("ports")
+        or result_dict.get("technologies")
+        or result_dict.get("dns_records")
+    )
+    if has_data:
+        try:
+            _set_cache(domain, result_dict, db)
+            db.commit()
+        except Exception as e:
+            log.warning("Cache write failed for %s: %s", domain, e)
+            db.rollback()
+    else:
+        log.info("Skipping cache for %s — no meaningful data found", domain)
 
     result_dict["from_cache"] = False
     return result_dict

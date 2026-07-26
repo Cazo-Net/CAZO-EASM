@@ -67,7 +67,11 @@ export function GoogleButton({ mode = "login", onError }: GoogleButtonProps) {
 
   function handleCredentialResponse(response: { credential: string }) {
     setLoading(false);
-    window.location.href = `/auth/callback/google?credential=${encodeURIComponent(response.credential)}`;
+    // Store credential in sessionStorage (in-memory, not in URL/history)
+    try {
+      sessionStorage.setItem("_g_credential", response.credential);
+    } catch {}
+    window.location.href = "/auth/callback/google";
   }
 
   function handleClick() {

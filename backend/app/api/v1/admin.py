@@ -21,8 +21,6 @@ class AdminUserResponse(BaseModel):
     is_active: bool
     email_verified: bool
     totp_enabled: bool
-    failed_login_attempts: int
-    locked_until: Optional[str] = None
     created_at: str
     last_login: Optional[str] = None
 
@@ -67,8 +65,7 @@ async def list_users(
         AdminUserResponse(
             id=u.id, email=u.email, full_name=u.full_name, role=u.role,
             is_active=u.is_active, email_verified=u.email_verified,
-            totp_enabled=u.totp_enabled, failed_login_attempts=u.failed_login_attempts or 0,
-            locked_until=str(u.locked_until) if u.locked_until else None,
+            totp_enabled=u.totp_enabled,
             created_at=str(u.created_at), last_login=str(u.last_login) if u.last_login else None,
         )
         for u in users

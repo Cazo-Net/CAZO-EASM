@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const API_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+if (!process.env.BACKEND_URL && !process.env.NEXT_PUBLIC_API_URL) {
+  console.warn("[CAZO] BACKEND_URL or NEXT_PUBLIC_API_URL not set — using localhost fallback (dev only)");
+}
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },

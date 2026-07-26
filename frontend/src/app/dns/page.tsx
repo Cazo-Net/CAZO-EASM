@@ -95,8 +95,8 @@ function DNSContent() {
       try {
         const data = await listDNSRecords();
         setRecords(data);
-      } catch (error) {
-        console.error("Failed to fetch DNS records:", error);
+      } catch {
+        // silently fail
       } finally {
         setLoading(false);
       }

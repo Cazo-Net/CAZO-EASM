@@ -46,7 +46,7 @@ async def create_scan(
     """
     service = ScanService(db)
     request_id = request.headers.get("x-request-id")
-    engine = request.headers.get("x-scan-engine", "v1").lower()
+    engine = request.headers.get("x-scan-engine", "v2").lower()
 
     try:
         scan = await service.create_scan(
@@ -57,6 +57,7 @@ async def create_scan(
             project_id=scan_data.project_id,
             organization_id=current_user.organization_id,
             request_id=request_id,
+            engine=engine,
         )
     except PermissionError as exc:
         raise HTTPException(
@@ -330,8 +331,13 @@ async def rerun_scan(
         scan_options=stored_options,
         project_id=scan.project_id,
         organization_id=current_user.organization_id,
+        engine=getattr(scan, 'engine', 'v1'),
     )
 
-    dispatch_scan(new_scan.id, background_tasks)
+    if getattr(scan, 'engine', 'v1') == "v2":
+        from app.services.scan_dispatch import dispatch_scan_v2
+        dispatch_scan_v2(new_scan.id, background_tasks)
+    else:
+        dispatch_scan(new_scan.id, background_tasks)
 
     return new_scan

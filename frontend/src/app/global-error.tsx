@@ -11,7 +11,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("[GlobalError]", error);
+    // No console.error in production — leaks error details
   }, [error]);
 
   return (
@@ -27,14 +27,8 @@ export default function GlobalError({
           <h1 className="mt-8 text-7xl font-black tracking-tighter sm:text-8xl">500</h1>
           <h2 className="mt-4 text-2xl font-bold tracking-tight">Unexpected System Error</h2>
           <p className="mt-4 max-w-lg text-sm leading-relaxed text-gray-400">
-            A critical error occurred while rendering this page. Our team has been automatically notified.
+            A critical error occurred. Please try refreshing the page.
           </p>
-
-          {error.digest && (
-            <p className="mt-4 rounded-lg border border-white/10 bg-white/5 px-4 py-2 font-mono text-xs text-gray-500">
-              Error ID: {error.digest}
-            </p>
-          )}
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <button

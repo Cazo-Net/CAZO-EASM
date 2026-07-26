@@ -32,8 +32,8 @@ export default function SecurityCenterPage() {
       if (sessionsRes.status === "fulfilled") setSessions(sessionsRes.value);
       if (devicesRes.status === "fulfilled") setDevices(devicesRes.value);
       if (historyRes.status === "fulfilled") setLoginHistory(historyRes.value);
-    } catch (err) {
-      console.error("Failed to fetch security data:", err);
+    } catch {
+      // silently fail
     } finally {
       setLoading(false);
     }
@@ -47,8 +47,8 @@ export default function SecurityCenterPage() {
     try {
       await revokeSecurityCenterSession(sessionId);
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-    } catch (err) {
-      console.error("Failed to revoke session:", err);
+    } catch {
+      // silently fail
     }
   };
 
@@ -57,8 +57,8 @@ export default function SecurityCenterPage() {
     try {
       await revokeAllSecurityCenterSessions();
       setSessions([]);
-    } catch (err) {
-      console.error("Failed to revoke all sessions:", err);
+    } catch {
+      // silently fail
     }
   };
 
@@ -66,8 +66,8 @@ export default function SecurityCenterPage() {
     try {
       await removeSecurityCenterDevice(deviceId);
       setDevices((prev) => prev.filter((d) => d.id !== deviceId));
-    } catch (err) {
-      console.error("Failed to remove device:", err);
+    } catch {
+      // silently fail
     }
   };
 

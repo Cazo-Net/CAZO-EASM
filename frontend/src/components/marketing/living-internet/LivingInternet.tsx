@@ -53,8 +53,7 @@ export function LivingInternet({
           return;
         }
         engineRef.current = engine;
-      } catch (err) {
-        console.warn("LivingInternet: WebGL init failed, using fallback", err);
+      } catch {
         setFailed(true);
       }
     })();

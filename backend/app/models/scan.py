@@ -28,6 +28,7 @@ class Scan(Base):
     progress = Column(Integer, default=0)
     scan_type = Column(String(20), default="full")
     scan_options_raw = Column("scan_options", Text, nullable=True)
+    engine = Column(String(20), default="v1", nullable=False, server_default="v1")
     started_at = Column(DateTime(timezone=True))
     completed_at = Column(DateTime(timezone=True))
     created_by = Column(String(36), ForeignKey("users.id"))

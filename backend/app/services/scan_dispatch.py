@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 SCAN_ENGINE_URL = os.environ.get("SCAN_ENGINE_URL", "")
 SCAN_ENGINE_SECRET = os.environ.get("SCAN_ENGINE_SECRET", "")
 
-# Scanner engine version: "v1" (default) or "v2" (enterprise EASM pipeline)
-SCAN_ENGINE_VERSION = os.environ.get("SCAN_ENGINE", "v1").lower()
+# Scanner engine version: "v1" (legacy) or "v2" (enterprise EASM pipeline)
+SCAN_ENGINE_VERSION = os.environ.get("SCAN_ENGINE", "v2").lower()
 
 
 def dispatch_scan(scan_id: str, background_tasks: Optional[BackgroundTasks] = None) -> None:

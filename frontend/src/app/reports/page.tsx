@@ -82,8 +82,8 @@ function ReportsContent() {
     try {
       const response = await api.get("/reports");
       setReports(response.data);
-    } catch (error) {
-      console.error("Failed to fetch reports:", error);
+    } catch {
+      // silently fail
     } finally {
       setLoading(false);
     }
@@ -93,8 +93,8 @@ function ReportsContent() {
     try {
       const response = await api.get("/scans", { params: { limit: 50 } });
       setScans(response.data);
-    } catch (error) {
-      console.error("Failed to fetch scans:", error);
+    } catch {
+      // silently fail
     }
   };
 
@@ -111,8 +111,8 @@ function ReportsContent() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Failed to download report:", error);
+    } catch {
+      // silently fail
     }
   };
 
@@ -120,8 +120,8 @@ function ReportsContent() {
     try {
       await api.delete(`/reports/${reportId}`);
       setReports(reports.filter((r) => r.id !== reportId));
-    } catch (error) {
-      console.error("Failed to delete report:", error);
+    } catch {
+      // silently fail
     }
   };
 
@@ -136,8 +136,8 @@ function ReportsContent() {
       setDialogOpen(false);
       setSelectedScan("");
       setSelectedFormat("json");
-    } catch (error) {
-      console.error("Failed to generate report:", error);
+    } catch {
+      // silently fail
     } finally {
       setGenerating(false);
     }

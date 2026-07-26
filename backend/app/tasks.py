@@ -27,6 +27,23 @@ def execute_scan_task(self, scan_id: str):
         db.close()
 
 
+@celery_app.task(bind=True, max_retries=2, default_retry_delay=30, name="app.tasks.execute_scan_v2")
+def execute_scan_task_v2(self, scan_id: str):
+    """Run a full scan using the v2 enterprise scanner pipeline in a Celery worker."""
+    logger.info("Starting v2 scan task for scan_id=%s", scan_id)
+    db = SessionLocal()
+    try:
+        from app.services.scan_service_v2 import ScanServiceV2
+        service = ScanServiceV2(db)
+        asyncio.run(service.execute_scan(scan_id))
+        logger.info("V2 scan task completed for scan_id=%s", scan_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("V2 scan task failed for scan_id=%s", scan_id)
+        raise self.retry(exc=exc)
+    finally:
+        db.close()
+
+
 @celery_app.task(name="app.tasks.check_ssl_expiry")
 def check_ssl_expiry():
     """Check all monitored hosts for SSL certificates expiring within 30 days."""

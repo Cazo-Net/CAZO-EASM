@@ -90,8 +90,8 @@ function AssetsContent() {
         setPorts(portRes.data);
         setSslCerts(sslRes.data);
         setTechnologies(techRes.data);
-      } catch (error) {
-        console.error("Failed to fetch assets:", error);
+      } catch {
+        // silently fail
       } finally {
         setLoading(false);
       }
