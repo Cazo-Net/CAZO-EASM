@@ -202,20 +202,42 @@ async def run_scan_v2(
             detail="Scan failed",
         )
 
+    # Extract subdomains — handle both list and dict formats
+    subs_raw = result.get("assets", {}).get("subdomains", [])
+    if isinstance(subs_raw, dict):
+        subdomains = subs_raw.get("discovered_subdomains", sorted(subs_raw.keys()))
+    elif isinstance(subs_raw, list):
+        subdomains = subs_raw
+    else:
+        subdomains = []
+
+    # Extract scanner status from pipeline stages
+    pipeline_data = result.get("pipeline", {})
+    scanner_status = {}
+    stages = pipeline_data.get("stages", {}) if isinstance(pipeline_data, dict) else {}
+    for stage_name, stage_data in stages.items():
+        if isinstance(stage_data, dict):
+            total = stage_data.get("total_scanners", 0)
+            succeeded = stage_data.get("successful", 0)
+            failed = stage_data.get("failed", 0)
+            if total == 0:
+                scanner_status[stage_name] = "skipped"
+            elif failed == 0:
+                scanner_status[stage_name] = "ok"
+            else:
+                scanner_status[stage_name] = f"partial ({succeeded}/{total})"
+
     return ScanV2Response(
         success=True,
         domain=request.domain,
-        subdomains=result.get("assets", {}).get("subdomains", {}).get("discovered_subdomains", [])
-            if isinstance(result.get("assets", {}).get("subdomains"), dict)
-            else [],
+        subdomains=subdomains,
         risk_score=result.get("risk_score", {}),
         graph=result.get("graph", {}),
-        scanner_status=result.get("pipeline", {}).get("summary", {})
-            if isinstance(result.get("pipeline"), dict) else {},
-        pipeline_summary=result.get("pipeline", {}).get("summary", {})
-            if isinstance(result.get("pipeline"), dict) else {},
-        errors=result.get("pipeline", {}).get("errors", [])
-            if isinstance(result.get("pipeline"), dict) else [],
+        scanner_status=scanner_status,
+        pipeline_summary=pipeline_data.get("summary", {})
+            if isinstance(pipeline_data, dict) else {},
+        errors=pipeline_data.get("errors", [])
+            if isinstance(pipeline_data, dict) else [],
     )
 
 

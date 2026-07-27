@@ -94,6 +94,7 @@ class StageResult:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "stage": self.stage.value,
+            "success": self.successful > 0 or self.total_scanners == 0,
             "duration_ms": round(self.duration_ms, 2),
             "total_scanners": self.total_scanners,
             "successful": self.successful,

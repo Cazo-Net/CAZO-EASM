@@ -43,10 +43,10 @@ class NmapIntelligenceScanner(EnhancedBaseScanner):
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
-        self.timeout = float((self.config or {}).get("timeout", getattr(settings, "NMAP_TIMEOUT", 180)))
+        self.timeout = float((self.config or {}).get("timeout", getattr(settings, "NMAP_TIMEOUT", 30)))
         self.max_concurrency = int((self.config or {}).get("max_concurrency", getattr(settings, "NMAP_MAX_CONCURRENCY", 3)))
         self.os_detection = bool((self.config or {}).get("os_detection", getattr(settings, "NMAP_OS_DETECTION", False)))
-        self.top_ports = int((self.config or {}).get("top_ports", getattr(settings, "NMAP_TOP_PORTS", 1000)))
+        self.top_ports = int((self.config or {}).get("top_ports", getattr(settings, "NMAP_TOP_PORTS", 100)))
         if NmapIntelligenceScanner._binary is None:
             NmapIntelligenceScanner._binary = _resolve_nmap()
         self.binary = NmapIntelligenceScanner._binary
@@ -77,7 +77,7 @@ class NmapIntelligenceScanner(EnhancedBaseScanner):
         port_arg = self._port_arg(port_list, scan_type)
         opts = [
             "-oX", "-", "-Pn", "-sV", "-T4", "--open",
-            "--host-timeout", "180s", "--max-rtt-timeout", "1000ms",
+            "--host-timeout", "30s", "--max-rtt-timeout", "1000ms",
             "--max-retries", "2", "-p", port_arg,
         ]
         if os_detection:

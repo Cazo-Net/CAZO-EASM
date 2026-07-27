@@ -204,7 +204,7 @@ class CloudBucketScanner(EnhancedBaseScanner):
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
-        self.timeout = self.config.get("timeout", 60)
+        self.timeout = self.config.get("timeout", 10)
         self._max_concurrent = self.config.get("max_concurrent", 20)
 
     def validate_target(self, target: str) -> bool:
@@ -219,7 +219,7 @@ class CloudBucketScanner(EnhancedBaseScanner):
         found: List[Dict[str, Any]] = []
 
         async with httpx.AsyncClient(
-            timeout=10,
+            timeout=5,
             follow_redirects=True,
             headers={"User-Agent": "CAZO-EASM/1.0 (Security Scanner)"},
         ) as client:

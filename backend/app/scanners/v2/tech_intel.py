@@ -281,7 +281,7 @@ class TechnologyIntelligenceScanner(EnhancedBaseScanner):
         for url in urls:
             try:
                 async with httpx.AsyncClient(
-                    timeout=10, follow_redirects=True, verify=False
+                    timeout=5, follow_redirects=True, verify=False
                 ) as client:
                     resp = await client.get(url)
                     headers = dict(resp.headers)

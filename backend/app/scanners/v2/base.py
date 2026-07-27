@@ -199,8 +199,8 @@ class EnhancedBaseScanner(ABC):
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
-        self.timeout: float = self.config.get("timeout", 30)
-        self.max_retries: int = self.config.get("max_retries", 2)
+        self.timeout: float = self.config.get("timeout", 10)
+        self.max_retries: int = self.config.get("max_retries", 1)
         self.retry_base_delay: float = self.config.get("retry_base_delay", 0.5)
         self.metrics = ScannerMetrics()
         self._circuit = CircuitBreaker(

@@ -58,8 +58,8 @@ class NetworkIntelligenceScanner(EnhancedBaseScanner):
 
     def __init__(self, config=None):
         super().__init__(config)
-        self.connect_timeout = self.config.get("connect_timeout", 1.5)
-        self.banner_timeout = self.config.get("banner_timeout", 2.0)
+        self.connect_timeout = self.config.get("connect_timeout", 1.0)
+        self.banner_timeout = self.config.get("banner_timeout", 1.5)
         self.max_concurrency = self.config.get("max_concurrency", 200)
         self.top_ports = self.config.get("top_ports", TOP_PORTS)
 
@@ -231,7 +231,7 @@ class NetworkIntelligenceScanner(EnhancedBaseScanner):
         url = f"{scheme}://{host}:{port}/"
 
         try:
-            async with httpx.AsyncClient(timeout=5, follow_redirects=False, verify=False) as client:
+            async with httpx.AsyncClient(timeout=3, follow_redirects=False, verify=False) as client:
                 resp = await client.get(url)
                 server = resp.headers.get("server", "")
                 powered_by = resp.headers.get("x-powered-by", "")

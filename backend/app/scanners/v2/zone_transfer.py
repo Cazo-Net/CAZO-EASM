@@ -53,7 +53,7 @@ class ZoneTransferScanner(EnhancedBaseScanner):
 
         for ns_ip in ns_ips:
             try:
-                zone = await asyncio.wait_for(self._attempt_transfer(ns_ip, target), timeout=5)
+                zone = await asyncio.wait_for(self._attempt_transfer(ns_ip, target), timeout=3)
                 records = self._extract_records(zone, target)
                 for hostname, rdtype_map in records.items():
                     if hostname not in all_records:

@@ -45,6 +45,8 @@ const routeTitles: Record<string, string> = {
   "/scan/new": "New Scan",
   "/compare": "Compare Scans",
   "/canvas": "Intelligence Canvas",
+  "/blockchain": "Blockchain Intelligence",
+  "/darkweb": "Dark Web Intelligence",
 };
 
 interface TopBarProps {

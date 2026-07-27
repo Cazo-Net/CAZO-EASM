@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Search,
   Loader2,
@@ -34,7 +34,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { osintLookup, osintImport, type OsintResult } from "@/lib/api";
+import { osintImport, type OsintResult } from "@/lib/api";
+import { useIntelStore } from "@/lib/intelStore";
 
 function sevVariant(sev: string | null): "destructive" | "warning" | "secondary" {
   if (!sev) return "secondary";
@@ -43,37 +44,15 @@ function sevVariant(sev: string | null): "destructive" | "warning" | "secondary"
   return "warning";
 }
 
-export default function IntelPage() {
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [data, setData] = useState<OsintResult | null>(null);
+function IntelContent() {
+  const { query: q, loading, error, data, elapsed, run, reset } = useIntelStore();
+  const [localQuery, setLocalQuery] = useState(q);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
-  const [elapsed, setElapsed] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const run = useCallback(async (q: string) => {
-    const trimmed = q.trim();
-    if (!trimmed) return;
-    setLoading(true);
-    setError("");
-    setData(null);
-    setImportResult(null);
-    setElapsed(0);
-    const t0 = Date.now();
-    timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - t0) / 1000)), 1000);
-    try {
-      const res = await osintLookup(trimmed);
-      setData(res);
-    } catch (e: any) {
-      const detail = e?.response?.data?.detail;
-      setError(typeof detail === "string" ? detail : e?.message || "Intelligence lookup failed.");
-    } finally {
-      if (timerRef.current) clearInterval(timerRef.current);
-      setLoading(false);
-    }
-  }, []);
+  useEffect(() => {
+    setLocalQuery(q);
+  }, [q]);
 
   const handleImport = useCallback(async () => {
     if (!data?.query) return;
@@ -92,6 +71,12 @@ export default function IntelPage() {
     }
   }, [data]);
 
+  const handleSearch = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    setImportResult(null);
+    run(localQuery);
+  }, [localQuery, run]);
+
   return (
     <div className="page-container-lg">
       <PageHeader
@@ -102,18 +87,15 @@ export default function IntelPage() {
       />
 
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          run(query);
-        }}
+        onSubmit={handleSearch}
         className="relative"
       >
         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           autoFocus
           placeholder="example.com"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={localQuery}
+          onChange={(e) => setLocalQuery(e.target.value)}
           className="h-12 pl-11 pr-24 font-mono text-sm bg-surface-2/50 border-border/60 focus:border-brand/40 focus:ring-brand/20"
         />
         <Button
@@ -756,5 +738,13 @@ export default function IntelPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function IntelPage() {
+  return (
+    <ProtectedRoute>
+      <IntelContent />
+    </ProtectedRoute>
   );
 }

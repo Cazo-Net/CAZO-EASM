@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Default pipeline-level timeout (seconds). Prevents a single hung scanner
 # from blocking the entire pipeline indefinitely.
-_PIPELINE_TIMEOUT = 1800  # 30 minutes
+_PIPELINE_TIMEOUT = 300  # 5 minutes
 
 
 class EnhancedScanRunner:
@@ -103,7 +103,7 @@ class EnhancedScanRunner:
     ) -> Dict[str, Any]:
         """Execute a lightweight quick scan."""
         quick_config = {
-            "timeout": 15,
+            "timeout": 10,
             "max_retries": 1,
             "top_ports": [80, 443, 8080, 8443],
             "scanner_concurrency": 5,

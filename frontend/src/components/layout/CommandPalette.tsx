@@ -20,6 +20,8 @@ import {
   Moon,
   LogOut,
   Shield,
+  Wallet,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -77,6 +79,22 @@ export function CommandPalette({
       icon: Radar,
       keywords: ["easm", "enterprise"],
       action: () => router.push("/scanner-v2"),
+    },
+    {
+      id: "nav-blockchain",
+      label: "Go to Blockchain Intelligence",
+      group: "Navigation",
+      icon: Wallet,
+      keywords: ["wallet", "ethereum", "on-chain"],
+      action: () => router.push("/blockchain"),
+    },
+    {
+      id: "nav-darkweb",
+      label: "Go to Dark Web Intelligence",
+      group: "Navigation",
+      icon: Eye,
+      keywords: ["dark", "onion", "tor", "credential"],
+      action: () => router.push("/darkweb"),
     },
     {
       id: "nav-newscan",

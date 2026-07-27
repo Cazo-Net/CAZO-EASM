@@ -28,6 +28,8 @@ import {
   MessagesSquare,
   Boxes,
   BookOpen,
+  Wallet,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -60,6 +62,8 @@ const navSections = [
       { href: "/scanner-v2", label: "Scanner v2", icon: Radar },
       { href: "/search", label: "Search", icon: Search },
       { href: "/intel", label: "Intelligence", icon: Zap },
+      { href: "/blockchain", label: "Blockchain Intel", icon: Wallet },
+      { href: "/darkweb", label: "Dark Web Intel", icon: Eye },
       { href: "/assets", label: "Assets", icon: Globe },
       { href: "/shadow-assets", label: "Shadow Assets", icon: Ghost },
       { href: "/vulnerabilities", label: "Vulnerabilities", icon: Bug },

@@ -59,11 +59,11 @@ class Settings(BaseSettings):
     # service/version fingerprinting + optional -O OS detection). When false
     # or nmap is unavailable, the pure-Python connect scanner is used.
     USE_NMAP: bool = os.getenv("USE_NMAP", "true").lower() in ("1", "true", "yes")
-    NMAP_TIMEOUT: int = int(os.getenv("NMAP_TIMEOUT", "300"))
+    NMAP_TIMEOUT: int = int(os.getenv("NMAP_TIMEOUT", "30"))
     NMAP_MAX_CONCURRENCY: int = int(os.getenv("NMAP_MAX_CONCURRENCY", "20"))
     NMAP_OS_DETECTION: bool = os.getenv("NMAP_OS_DETECTION", "false").lower() in ("1", "true", "yes")
-    NMAP_TOP_PORTS: int = int(os.getenv("NMAP_TOP_PORTS", "1000"))
-    SCAN_TIMEOUT: int = 30
+    NMAP_TOP_PORTS: int = int(os.getenv("NMAP_TOP_PORTS", "100"))
+    SCAN_TIMEOUT: int = 15
     MAX_CONCURRENT_SCANS: int = 5
 
     # Scan profiles/settings

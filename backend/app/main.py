@@ -299,7 +299,7 @@ async def readiness_check():
 
 
 # Import and include routers
-from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2, logs  # noqa: E402
+from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2, logs, blockchain  # noqa: E402
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(auth_google.router, prefix="/api/v1/auth", tags=["Google OAuth"])
@@ -334,6 +334,7 @@ app.include_router(search.router, prefix="/api/v1/search", tags=["Search"])
 app.include_router(osint.router, prefix="/api/v1/osint", tags=["OSINT Intelligence"])
 app.include_router(scanner_v2.router, prefix="/api/v1/scanner-v2", tags=["Scanner v2"])
 app.include_router(logs.router, prefix="/api/v1/logs", tags=["Platform Logs"])
+app.include_router(blockchain.router, prefix="/api/v1/blockchain", tags=["Blockchain Intelligence"])
 
 
 # API docs (only in debug mode)

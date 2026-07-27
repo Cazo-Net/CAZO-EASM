@@ -99,7 +99,7 @@ class CertificateIntelligenceScanner(EnhancedBaseScanner):
             ctx.verify_mode = ssl.CERT_NONE
 
             # Capture all supported protocols and ciphers
-            sock = socket.create_connection((host, port), timeout=5)
+            sock = socket.create_connection((host, port), timeout=3)
             ssl_sock = ctx.wrap_socket(sock, server_hostname=host)
 
             cert = ssl_sock.getpeercert(binary_form=False)
@@ -154,7 +154,7 @@ class CertificateIntelligenceScanner(EnhancedBaseScanner):
     async def _check_ct_logs(self, domain: str) -> Dict[str, Any]:
         """Check Certificate Transparency logs for recent certificates."""
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
+            async with httpx.AsyncClient(timeout=5) as client:
                 resp = await client.get(
                     f"https://crt.sh/?q=%.{domain}&output=json"
                 )

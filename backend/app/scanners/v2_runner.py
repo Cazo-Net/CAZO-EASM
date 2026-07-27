@@ -138,11 +138,20 @@ class V2ScanRunner:
         status = {}
         stages = pipeline.get("stages", {})
         for stage_name, stage_data in stages.items():
-            if isinstance(stage_data, dict):
-                if stage_data.get("success"):
-                    status[stage_name] = "ok"
-                else:
-                    status[stage_name] = f"failed: {stage_data.get('error', 'unknown')}"
-            else:
+            if not isinstance(stage_data, dict):
                 status[stage_name] = "unknown"
+                continue
+            total = stage_data.get("total_scanners", 0)
+            succeeded = stage_data.get("successful", 0)
+            failed = stage_data.get("failed", 0)
+            if total == 0:
+                status[stage_name] = "skipped"
+            elif succeeded > 0 and failed == 0:
+                status[stage_name] = "ok"
+            elif succeeded > 0 and failed > 0:
+                status[stage_name] = f"partial ({succeeded}/{total} scanners succeeded)"
+            elif failed > 0:
+                status[stage_name] = f"failed ({failed}/{total} scanners failed)"
+            else:
+                status[stage_name] = "ok"
         return status

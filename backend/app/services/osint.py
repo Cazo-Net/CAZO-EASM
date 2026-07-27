@@ -37,7 +37,7 @@ except Exception:  # pragma: no cover - cryptography is a hard dep of FastAPI st
 _USER_AGENT = {
     "User-Agent": "Mozilla/5.0 (compatible; CAZO-EASM-OSINT/1.0; +https://cazo.io)",
 }
-_TIMEOUT = 10
+_TIMEOUT = 5
 
 # Common ports probed for the Shodan-style "ports/services/tech" view.
 _PROBE_PORTS = [80, 443, 22, 8080, 8443]
@@ -49,7 +49,7 @@ _MAX_DNS_RESOLUTIONS = 20
 _MAX_PORT_PROBE_HOSTS = 3
 
 # Hard overall timeout for the entire lookup (seconds).
-_OVERALL_TIMEOUT = 90
+_OVERALL_TIMEOUT = 140
 
 _CVE_PRODUCT_KEYWORDS = [
     "nginx", "apache", "iis", "openssl", "wordpress", "drupal", "joomla",
