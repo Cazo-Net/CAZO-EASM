@@ -1,0 +1,1 @@
+"""Blockchain labels package."""

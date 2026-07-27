@@ -102,6 +102,14 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
     RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
 
+    # Blockchain Intelligence
+    ETHERSCAN_API_KEY: str = os.getenv("ETHERSCAN_API_KEY", "")
+
+    # Neo4j (Phase 2: graph analytics)
+    NEO4J_URI: str = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+    NEO4J_USER: str = os.getenv("NEO4J_USER", "neo4j")
+    NEO4J_PASSWORD: str = os.getenv("NEO4J_PASSWORD", "")
+
     # Frontend base URL (for links in emails, invitations, etc.)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 

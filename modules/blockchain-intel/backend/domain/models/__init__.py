@@ -1,1 +1,0 @@
-"""Blockchain Intelligence domain models."""

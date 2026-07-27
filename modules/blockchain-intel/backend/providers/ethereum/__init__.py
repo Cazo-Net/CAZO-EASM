@@ -1,1 +1,0 @@
-"""Ethereum chain provider."""

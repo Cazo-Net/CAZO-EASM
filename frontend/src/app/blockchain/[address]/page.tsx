@@ -15,6 +15,11 @@ import {
   Loader2,
   Shield,
   Building2,
+  Network,
+  Link2,
+  Activity,
+  AlertTriangle,
+  Brain,
 } from "lucide-react";
 import Link from "next/link";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -36,12 +41,17 @@ function getRiskColor(score: number): string {
 function AddressDetailContent() {
   const params = useParams();
   const address = params.address as string;
-  const chain = "ethereum";
+  const chain: string = "ethereum";
 
   const [wallet, setWallet] = useState<any>(null);
   const [attribution, setAttribution] = useState<any>(null);
   const [risk, setRisk] = useState<any>(null);
   const [transactions, setTransactions] = useState<any>(null);
+  const [cluster, setCluster] = useState<any>(null);
+  const [bridges, setBridges] = useState<any>(null);
+  const [graph, setGraph] = useState<any>(null);
+  const [anomaly, setAnomaly] = useState<any>(null);
+  const [intel, setIntel] = useState<any>(null);
   const [txPage, setTxPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [txLoading, setTxLoading] = useState(false);
@@ -51,14 +61,35 @@ function AddressDetailContent() {
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(
-          `${API_BASE}/api/v1/blockchain/wallet/${address}?chain=${chain}`
-        );
-        if (res.ok) {
-          const data = await res.json();
+        const [walletRes, clusterRes, bridgesRes, graphRes, anomalyRes, intelRes] = await Promise.allSettled([
+          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}?chain=${chain}`),
+          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/cluster?chain=${chain}`),
+          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/bridges?chain=${chain}`),
+          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/graph?chain=${chain}&depth=1`),
+          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/anomaly?chain=${chain}`),
+          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/intel?chain=${chain}`),
+        ]);
+
+        if (walletRes.status === "fulfilled" && walletRes.value.ok) {
+          const data = await walletRes.value.json();
           setWallet(data.wallet);
           setAttribution(data.attribution);
           setRisk(data.risk);
+        }
+        if (clusterRes.status === "fulfilled" && clusterRes.value.ok) {
+          setCluster(await clusterRes.value.json());
+        }
+        if (bridgesRes.status === "fulfilled" && bridgesRes.value.ok) {
+          setBridges(await bridgesRes.value.json());
+        }
+        if (graphRes.status === "fulfilled" && graphRes.value.ok) {
+          setGraph(await graphRes.value.json());
+        }
+        if (anomalyRes.status === "fulfilled" && anomalyRes.value.ok) {
+          setAnomaly(await anomalyRes.value.json());
+        }
+        if (intelRes.status === "fulfilled" && intelRes.value.ok) {
+          setIntel(await intelRes.value.json());
         }
       } catch {
         // ignore
@@ -145,7 +176,7 @@ function AddressDetailContent() {
             <div>
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-medium">
-                  {attribution?.entity || "Unknown Entity"}
+                  {attribution?.entity_name || "Unknown Entity"}
                 </h2>
                 {attribution && (
                   <Badge variant="outline" className="text-xs">
@@ -296,17 +327,17 @@ function AddressDetailContent() {
                       key={i}
                       className="flex items-center justify-between text-xs border border-border rounded p-2"
                     >
-                      <span>{f.name}</span>
+                      <span>{f.label || f.name}</span>
                       <span
                         className={
-                          f.score >= 70
+                          (f.contribution || f.score || 0) >= 70
                             ? "text-red-400"
-                            : f.score >= 40
+                            : (f.contribution || f.score || 0) >= 40
                             ? "text-yellow-400"
                             : "text-green-400"
                         }
                       >
-                        {f.score}
+                        {f.contribution || f.score || 0}
                       </span>
                     </div>
                   ))}
@@ -351,6 +382,149 @@ function AddressDetailContent() {
                 </a>
               </div>
             </SectionCard>
+
+            {/* Phase 2: ML Anomaly Score */}
+            {anomaly && anomaly.anomaly_score > 0 && (
+              <SectionCard title="ML Anomaly Score" icon={<Brain className="h-4 w-4" />}>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">Anomaly Score</span>
+                    <span className={`text-sm font-bold ${
+                      anomaly.anomaly_score > 0.7 ? "text-red-400" :
+                      anomaly.anomaly_score > 0.4 ? "text-yellow-400" :
+                      "text-green-400"
+                    }`}>
+                      {(anomaly.anomaly_score * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  {anomaly.explanation && (
+                    <p className="text-xs text-muted-foreground">{anomaly.explanation}</p>
+                  )}
+                  {anomaly.feature_importances && Object.keys(anomaly.feature_importances).length > 0 && (
+                    <div className="space-y-1">
+                      {Object.entries(anomaly.feature_importances)
+                        .sort(([,a]: any, [,b]: any) => b - a)
+                        .slice(0, 5)
+                        .map(([feature, score]: any) => (
+                          <div key={feature} className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">{feature.replace(/_/g, " ")}</span>
+                            <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary rounded-full"
+                                style={{ width: `${Math.min(score * 100, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+            )}
+
+            {/* Phase 2: Clustering */}
+            {cluster && cluster.heuristics?.length > 0 && (
+              <SectionCard title="Clustering Analysis" icon={<Network className="h-4 w-4" />}>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Confidence</span>
+                    <span className="font-medium">{(cluster.confidence * 100).toFixed(0)}%</span>
+                  </div>
+                  {cluster.heuristics.map((h: any, i: number) => (
+                    <div key={i} className="text-xs border border-border rounded p-2">
+                      <div className="font-medium">{h.type.replace(/_/g, " ")}</div>
+                      <div className="text-muted-foreground mt-0.5">{h.description}</div>
+                      <div className="text-muted-foreground mt-0.5">
+                        Confidence: {(h.confidence * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
+
+            {/* Phase 2: Bridge Interactions */}
+            {bridges && (bridges.is_known_bridge || bridges.interactions?.length > 0) && (
+              <SectionCard title="Bridge Activity" icon={<Link2 className="h-4 w-4" />}>
+                <div className="space-y-2">
+                  {bridges.is_known_bridge && (
+                    <div className="text-xs bg-blue-500/10 border border-blue-500/20 rounded p-2">
+                      This is a known bridge contract: {bridges.bridge_info?.name}
+                    </div>
+                  )}
+                  {bridges.interactions?.map((ix: any, i: number) => (
+                    <div key={i} className="text-xs border border-border rounded p-2">
+                      <div className="font-medium">{ix.bridge_name}</div>
+                      <div className="text-muted-foreground mt-0.5">
+                        {ix.value} ETH → {ix.dest_chain}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
+
+            {/* Phase 2: Graph Summary */}
+            {graph && graph.summary && (
+              <SectionCard title="Network Graph" icon={<Activity className="h-4 w-4" />}>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <div className="text-muted-foreground">Nodes</div>
+                      <div className="font-medium">{graph.summary.nodes}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Edges</div>
+                      <div className="font-medium">{graph.summary.edges}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Components</div>
+                      <div className="font-medium">{graph.summary.components}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Density</div>
+                      <div className="font-medium">{graph.summary.density?.toFixed(4)}</div>
+                    </div>
+                  </div>
+                  {graph.pagerank?.length > 0 && (
+                    <div className="mt-2">
+                      <div className="text-xs text-muted-foreground mb-1">Top Connected Addresses</div>
+                      {graph.pagerank.slice(0, 3).map((pr: any, i: number) => (
+                        <div key={i} className="text-xs font-mono truncate">
+                          {pr.address?.slice(0, 10)}... (score: {pr.score?.toFixed(4)})
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+            )}
+
+            {/* Phase 2: External Intel */}
+            {intel && (
+              <SectionCard title="External Intelligence" icon={<AlertTriangle className="h-4 w-4" />}>
+                <div className="space-y-2">
+                  {intel.sanctioned && (
+                    <div className="text-xs bg-red-500/10 border border-red-500/20 rounded p-2 font-medium text-red-400">
+                      OFAC SANCTIONS MATCH: {intel.ofac?.entity_name}
+                    </div>
+                  )}
+                  {intel.ofac && !intel.sanctioned && (
+                    <div className="text-xs text-muted-foreground">
+                      OFAC: Not sanctioned
+                    </div>
+                  )}
+                  {intel.etherscan_labels?.length > 0 && (
+                    <div className="text-xs">
+                      <div className="text-muted-foreground">Labels:</div>
+                      {intel.etherscan_labels.map((l: any, i: number) => (
+                        <div key={i} className="font-mono">{l.label} ({l.address?.slice(0, 10)}...)</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+            )}
           </div>
         </div>
       </div>

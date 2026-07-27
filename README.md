@@ -6,11 +6,26 @@ External Attack Surface Management (EASM) platform for authorized security asses
 
 ```
 easm-platform/
-├── backend/          # FastAPI (port 8000) — 46 models, 36 API routers
+├── backend/          # FastAPI (port 8000) — 46+ models, 36+ API routers
+│   └── app/
+│       ├── services/blockchain/   # Blockchain Intelligence (consolidated)
+│       │   ├── providers/         # ChainProvider ABC + ETH/BTC providers
+│       │   ├── labels/            # Curated labels (13 entities)
+│       │   ├── clustering/        # Address clustering heuristics
+│       │   ├── graph/             # NetworkX graph analytics
+│       │   ├── ml/                # IsolationForest anomaly scoring
+│       │   ├── monitoring/        # Watch lists + alert dispatch
+│       │   ├── copilot/           # NL query copilot
+│       │   ├── cases/             # Case management
+│       │   ├── security.py        # RBAC, rate limits, audit logs
+│       │   ├── intel.py           # OFAC/Etherscan external intel
+│       │   ├── bridges.py         # Cross-chain bridge tracking
+│       │   ├── attribution.py     # Entity attribution service
+│       │   └── risk.py            # Risk scoring engine
+│       └── schemas/blockchain.py  # 30+ Pydantic models (single source of truth)
 ├── frontend/         # Next.js (port 3000) — user-facing dashboard
-├── modules/          # Standalone intelligence modules
-│   ├── blockchain-intel/  # Blockchain Intelligence (reference implementation)
-│   └── darkweb-intel/     # Dark Web Intelligence (domain models)
+├── modules/
+│   └── darkweb-intel/             # Dark Web Intelligence (domain models)
 ├── admin-panel/      # Standalone admin console (port 9000/3001)
 │   ├── backend/      # FastAPI admin API (port 9000)
 │   └── frontend/     # Next.js admin UI (port 3001)
@@ -30,7 +45,20 @@ easm-platform/
 - **OSINT Intelligence** — Cached OSINT data aggregation
 - **Multi-tenant** — Organization, project, and role-based access
 - **Scanner V2** — Multi-stage pipeline: Asset Discovery → DNS Intelligence → Network Intelligence → Technology Fingerprint → Certificate Analysis → Risk Evaluation → Graph Mapping. Supports partial success reporting, cloud bucket scanning, vendor-type tagging, and 15-risky-port alignment.
-- **Blockchain Intelligence** — On-chain analytics for Ethereum (Etherscan API) and Bitcoin (Blockstream API). Features: wallet summary, transaction history with pagination, contract detection, token balances, entity attribution (curated labels for exchanges, DeFi protocols, sanctioned addresses), multi-factor risk scoring engine, and search.
+- **Blockchain Intelligence** — On-chain analytics for Ethereum (Etherscan API) and Bitcoin (Blockstream API).
+  - **Core**: Wallet summary, transaction history with pagination, contract detection, token balances
+  - **Attribution**: 13 curated entity labels (exchanges, DeFi, stablecoins, sanctioned addresses)
+  - **Risk Engine**: Multi-factor risk scoring with sanctions-aware escalation
+  - **Clustering**: Common-input ownership, change-address detection, deployer-reuse, gas-payer heuristics
+  - **Bridge Tracking**: 8 known bridge contracts, cross-chain hop tracing, aggregate volume stats
+  - **Graph Analytics**: NetworkX-powered PageRank, betweenness centrality, Louvain community detection
+  - **ML Anomaly Detection**: IsolationForest with 11 behavioral features and explainable outputs
+  - **Monitoring**: Watch lists, alert dispatch (new tx, risk threshold, sanctions match)
+  - **Copilot**: Natural language query → structured investigation
+  - **Case Management**: Investigation cases, annotations, member assignments, audit trail
+  - **External Intel**: OFAC SDN sanctions list, Etherscan labels, Chainalysis placeholder
+  - **Enterprise Hardening**: Per-endpoint rate limiting, RBAC (admin/analyst/viewer), audit logging
+  - **28 API endpoints** covering all capabilities
 - **Dark Web Intelligence** — Dark web monitoring framework with domain models for mentions, onion services, credential exposures, threat actors, and monitoring targets. Frontend search UI with threat-level badges and source icons.
 - **WebAuthn Passkeys** — Passwordless authentication support
 - **REST API** — Full API with JWT + API key authentication
@@ -64,6 +92,8 @@ easm-platform/
 | Task Queue | Celery + Redis |
 | Scanners | subfinder, dnspython, nmap, wappalyzer, nuclei, httpx |
 | Blockchain | Etherscan API, Blockstream.info API |
+| Graph | NetworkX (in-memory), Neo4j (optional) |
+| ML | scikit-learn (IsolationForest), pandas, numpy |
 | PDF | fpdf2 |
 
 ## Quick Start
@@ -187,12 +217,13 @@ docker-compose up -d
 | `/api/v1/findings` | Evidence center |
 | `/api/v1/shadow-assets` | Shadow asset detection |
 | `/api/v1/osint` | OSINT intelligence |
-| `/api/v1/blockchain` | Blockchain intelligence (wallet, tx, contracts, risk) |
+| `/api/v1/blockchain` | Blockchain intelligence (28 endpoints) |
 
 #### Blockchain Intelligence Endpoints
 
 | Endpoint | Purpose |
 |----------|---------|
+| **Core** | |
 | `GET /chains` | List supported blockchains |
 | `GET /wallet/{address}` | Wallet summary + attribution + risk score |
 | `GET /wallet/{address}/transactions` | Paginated transaction history |
@@ -202,6 +233,31 @@ docker-compose up -d
 | `GET /wallet/{address}/risk` | Detailed risk assessment |
 | `GET /wallet/{address}/attribution` | Entity attribution |
 | `GET /search` | Search addresses, entities, contracts |
+| **Phase 2: Analytics** | |
+| `GET /wallet/{address}/cluster` | Clustering heuristics (common-input, deployer-reuse, etc.) |
+| `GET /wallet/{address}/bridges` | Bridge interaction detection |
+| `GET /wallet/{address}/bridge-volume` | Aggregate bridge volume |
+| `GET /bridges/known` | List known bridge contracts |
+| `GET /wallet/{address}/graph` | Graph analytics (PageRank, communities, centrality) |
+| `GET /wallet/{address}/anomaly` | ML anomaly score with explainability |
+| `GET /wallet/{address}/intel` | External intel (OFAC, Etherscan labels) |
+| `GET /wallet/{address}/sanctions` | OFAC sanctions check |
+| **Phase 2: Monitoring** | |
+| `POST /watches` | Create address watch |
+| `GET /watches` | List watches |
+| `DELETE /watches/{id}` | Delete watch |
+| `GET /alerts` | List alerts |
+| `POST /alerts/{id}/acknowledge` | Acknowledge alert |
+| `GET /alerts/stats` | Alert statistics |
+| **Phase 2: Investigation** | |
+| `POST /copilot/ask` | Natural language investigation query |
+| `POST /cases` | Create investigation case |
+| `GET /cases` | List cases |
+| `GET /cases/{id}` | Get case with annotations, members, audit |
+| `PUT /cases/{id}` | Update case |
+| `POST /cases/{id}/annotations` | Add annotation |
+| `POST /cases/{id}/members` | Add team member |
+| `GET /cases/stats` | Case statistics |
 
 ### Admin Panel API (port 9000)
 
