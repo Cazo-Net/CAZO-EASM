@@ -42,11 +42,6 @@ const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   poweredByHeader: false,
-  sentry: {
-    hideSourceMaps: true,
-    disableLogger: true,
-    tunnelRoute: "/api/sentry", // bypass ad-blockers
-  },
   async rewrites() {
     return [
       {
@@ -73,6 +68,10 @@ module.exports = withSentryConfig(nextConfig, {
   silent: true,
   widenClientFileUpload: true,
   hideSourceMaps: true,
-  disableLogger: true,
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
   tunnelRoute: "/api/sentry",
 });

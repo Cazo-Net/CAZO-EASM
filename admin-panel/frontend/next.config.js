@@ -2,11 +2,6 @@ const { withSentryConfig } = require("@sentry/nextjs");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  sentry: {
-    hideSourceMaps: true,
-    disableLogger: true,
-    tunnelRoute: "/api/sentry",
-  },
   async rewrites() {
     return [
       { source: "/api/:path*", destination: "http://localhost:9000/:path*" },
@@ -20,6 +15,10 @@ module.exports = withSentryConfig(nextConfig, {
   silent: true,
   widenClientFileUpload: true,
   hideSourceMaps: true,
-  disableLogger: true,
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
   tunnelRoute: "/api/sentry",
 });

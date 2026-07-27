@@ -16,9 +16,6 @@ Sentry.init({
   // Don't send PII
   sendDefaultPii: false,
 
-  // Enable automatic session tracking
-  enableTracing: true,
-
   // Disable in development to avoid noisy logs
   enabled:
     process.env.NODE_ENV === "production" ||
