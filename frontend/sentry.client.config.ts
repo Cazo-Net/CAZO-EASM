@@ -20,7 +20,4 @@ Sentry.init({
   enabled:
     process.env.NODE_ENV === "production" ||
     !!process.env.NEXT_PUBLIC_SENTRY_DSN,
-
-  // Allow Sentry to be disabled via env
-  autoSessionTracking: true,
 });

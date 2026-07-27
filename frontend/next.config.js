@@ -63,15 +63,8 @@ const nextConfig = {
 module.exports = withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
-
-  // Automatically tree-shake Sentry SDK bundle to reduce bundle size
   silent: true,
   widenClientFileUpload: true,
   hideSourceMaps: true,
-  webpack: {
-    treeshake: {
-      removeDebugLogging: true,
-    },
-  },
   tunnelRoute: "/api/sentry",
 });
