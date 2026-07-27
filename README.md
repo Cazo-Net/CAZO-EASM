@@ -6,8 +6,11 @@ External Attack Surface Management (EASM) platform for authorized security asses
 
 ```
 easm-platform/
-├── backend/          # FastAPI (port 8000) — 44 models, 34 API routers
+├── backend/          # FastAPI (port 8000) — 46 models, 36 API routers
 ├── frontend/         # Next.js (port 3000) — user-facing dashboard
+├── modules/          # Standalone intelligence modules
+│   ├── blockchain-intel/  # Blockchain Intelligence (reference implementation)
+│   └── darkweb-intel/     # Dark Web Intelligence (domain models)
 ├── admin-panel/      # Standalone admin console (port 9000/3001)
 │   ├── backend/      # FastAPI admin API (port 9000)
 │   └── frontend/     # Next.js admin UI (port 3001)
@@ -26,7 +29,9 @@ easm-platform/
 - **Shadow Asset Detection** — Unknown/suspected assets for review
 - **OSINT Intelligence** — Cached OSINT data aggregation
 - **Multi-tenant** — Organization, project, and role-based access
-- **Scanner V2** — WebSocket-based real-time scan engine with scheduled monitoring
+- **Scanner V2** — Multi-stage pipeline: Asset Discovery → DNS Intelligence → Network Intelligence → Technology Fingerprint → Certificate Analysis → Risk Evaluation → Graph Mapping. Supports partial success reporting, cloud bucket scanning, vendor-type tagging, and 15-risky-port alignment.
+- **Blockchain Intelligence** — On-chain analytics for Ethereum (Etherscan API) and Bitcoin (Blockstream API). Features: wallet summary, transaction history with pagination, contract detection, token balances, entity attribution (curated labels for exchanges, DeFi protocols, sanctioned addresses), multi-factor risk scoring engine, and search.
+- **Dark Web Intelligence** — Dark web monitoring framework with domain models for mentions, onion services, credential exposures, threat actors, and monitoring targets. Frontend search UI with threat-level badges and source icons.
 - **WebAuthn Passkeys** — Passwordless authentication support
 - **REST API** — Full API with JWT + API key authentication
 
@@ -57,7 +62,8 @@ easm-platform/
 | ORM | SQLAlchemy 2.0 + Alembic |
 | Auth | JWT + API Keys + WebAuthn Passkeys + TOTP MFA |
 | Task Queue | Celery + Redis |
-| Scanners | subfinder, dnspython, nmap, wappalyzer, nuclei |
+| Scanners | subfinder, dnspython, nmap, wappalyzer, nuclei, httpx |
+| Blockchain | Etherscan API, Blockstream.info API |
 | PDF | fpdf2 |
 
 ## Quick Start
@@ -181,6 +187,21 @@ docker-compose up -d
 | `/api/v1/findings` | Evidence center |
 | `/api/v1/shadow-assets` | Shadow asset detection |
 | `/api/v1/osint` | OSINT intelligence |
+| `/api/v1/blockchain` | Blockchain intelligence (wallet, tx, contracts, risk) |
+
+#### Blockchain Intelligence Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /chains` | List supported blockchains |
+| `GET /wallet/{address}` | Wallet summary + attribution + risk score |
+| `GET /wallet/{address}/transactions` | Paginated transaction history |
+| `GET /transaction/{tx_hash}` | Transaction detail |
+| `GET /contract/{address}` | Contract details |
+| `GET /wallet/{address}/tokens` | Token balances |
+| `GET /wallet/{address}/risk` | Detailed risk assessment |
+| `GET /wallet/{address}/attribution` | Entity attribution |
+| `GET /search` | Search addresses, entities, contracts |
 
 ### Admin Panel API (port 9000)
 
