@@ -1,0 +1,23 @@
+# Railway ignore file
+.git
+.github
+node_modules
+__pycache__
+*.pyc
+.env
+.env.*
+!.env.example
+data/*.db
+uploads/
+reports/
+*.log
+admin-panel/
+docs/
+modules/
+nginx/
+scripts/
+scan-engine/
+docker-compose*.yml
+*.md
+.vscode/
+.idea/

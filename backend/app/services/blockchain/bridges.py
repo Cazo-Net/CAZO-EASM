@@ -23,7 +23,7 @@ from app.services.blockchain.labels.curated import lookup_address
 
 logger = logging.getLogger(__name__)
 
-ETHERSCAN_BASE = "https://api.etherscan.io/api"
+ETHERSCAN_BASE = "https://api.etherscan.io/v2/api"
 BLOCKSTREAM_BASE = "https://blockstream.info/api"
 
 
@@ -134,8 +134,11 @@ async def detect_bridge_interactions(
     interactions: list[dict[str, Any]] = []
 
     if chain == Chain.ETHEREUM:
+        from app.config import settings
+        if not settings.ETHERSCAN_API_KEY:
+            logger.debug("No Etherscan API key — skipping bridge detection")
+            return []
         try:
-            from app.config import settings
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.get(ETHERSCAN_BASE, params={
                     "module": "account",
@@ -146,6 +149,7 @@ async def detect_bridge_interactions(
                     "page": "1",
                     "offset": str(limit),
                     "sort": "desc",
+                    "chainid": "1",
                     "apikey": settings.ETHERSCAN_API_KEY,
                 })
                 resp.raise_for_status()

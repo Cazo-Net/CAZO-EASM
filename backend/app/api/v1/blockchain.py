@@ -76,6 +76,7 @@ async def get_wallet(
         "wallet": wallet.model_dump(mode="json"),
         "attribution": attribution.model_dump(mode="json") if attribution and not isinstance(attribution, Exception) else None,
         "risk": risk.model_dump(mode="json") if risk and not isinstance(risk, Exception) else None,
+        "mock_mode": provider._needs_key() if hasattr(provider, '_needs_key') else False,
     }
 
 

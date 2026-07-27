@@ -90,6 +90,13 @@ function BlockchainContent() {
           icon={<Wallet className="h-5 w-5" />}
         />
 
+        <div className="mt-4 border border-yellow-500/30 bg-yellow-500/5 rounded-lg p-3 flex items-center gap-3">
+          <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0" />
+          <p className="text-xs text-muted-foreground">
+            Running in <span className="text-yellow-300 font-medium">simulated mode</span>. Add <code className="text-xs">ETHERSCAN_API_KEY</code> to your backend <code className="text-xs">.env</code> for live blockchain data.
+          </p>
+        </div>
+
         {/* Search */}
         <SectionCard title="Wallet Lookup" icon={<Search className="h-4 w-4" />} className="mt-6">
           <form onSubmit={handleSearch} className="flex gap-3">

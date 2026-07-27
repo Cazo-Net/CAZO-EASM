@@ -1,3 +1,5 @@
+const { withSentryConfig } = require("@sentry/nextjs");
+
 /** @type {import('next').NextConfig} */
 const API_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 if (!process.env.BACKEND_URL && !process.env.NEXT_PUBLIC_API_URL) {
@@ -23,11 +25,11 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://apis.google.com https://browser.sentry-cdn.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
+      "img-src 'self' data: blob: https://*.sentry.io",
       "font-src 'self' data:",
-      "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com",
+      "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://*.sentry.io https://sentry.io",
       "frame-src 'self' https://accounts.google.com https://accounts.google.com",
       "base-uri 'self'",
       "form-action 'self'",
@@ -40,6 +42,11 @@ const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   poweredByHeader: false,
+  sentry: {
+    hideSourceMaps: true,
+    disableLogger: true,
+    tunnelRoute: "/api/sentry", // bypass ad-blockers
+  },
   async rewrites() {
     return [
       {
@@ -58,4 +65,14 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+
+  // Automatically tree-shake Sentry SDK bundle to reduce bundle size
+  silent: true,
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+  tunnelRoute: "/api/sentry",
+});

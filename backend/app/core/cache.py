@@ -91,12 +91,59 @@ class RedisCache(_BaseCache):
             logger.warning("Redis set failed, ignoring cache: %s", exc)
 
 
+class UpstashCache(_BaseCache):
+    """Cache backend using Upstash Redis REST API (no TCP connection needed)."""
+
+    def __init__(self, url: str, token: str) -> None:
+        self._url = url.rstrip("/")
+        self._token = token
+        self._available = True
+
+    async def _exec(self, *args: str) -> Optional[str]:
+        """Execute an Upstash Redis command via REST API."""
+        if not self._available:
+            return None
+        try:
+            import httpx
+            # Build command array for Upstash REST
+            pipeline = "\n".join(args)
+            async with httpx.AsyncClient(timeout=3) as client:
+                r = await client.post(
+                    f"{self._url}/pipeline",
+                    headers={
+                        "Authorization": f"Bearer {self._token}",
+                        "Content-Type": "application/json",
+                    },
+                    json={"commands": [args]},
+                )
+                if r.status_code == 200:
+                    data = r.json()
+                    results = data.get("results", [None])
+                    return results[0] if results else None
+        except Exception as exc:
+            logger.debug("Upstash cache exec failed: %s", exc)
+            self._available = False
+        return None
+
+    async def get(self, key: str) -> Optional[str]:
+        result = await self._exec("GET", key)
+        return result if isinstance(result, str) else None
+
+    async def set(self, key: str, value: str, ttl: int) -> None:
+        await self._exec("SETEX", key, str(ttl), value)
+
+
 _cache_backend: Optional[_BaseCache] = None
 
 
 def get_cache_backend() -> Optional[_BaseCache]:
     global _cache_backend
     if _cache_backend is not None:
+        return _cache_backend
+    # Priority: Upstash Redis > local Redis > in-memory
+    upstash_url = getattr(settings, "UPSTASH_REDIS_URL", None)
+    if upstash_url:
+        _cache_backend = UpstashCache(upstash_url, getattr(settings, "UPSTASH_REDIS_TOKEN", ""))
         return _cache_backend
     redis_url = getattr(settings, "REDIS_URL", None)
     if redis_url:

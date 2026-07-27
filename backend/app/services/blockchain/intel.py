@@ -22,7 +22,7 @@ from app.schemas.blockchain import (
 
 logger = logging.getLogger(__name__)
 
-ETHERSCAN_BASE = "https://api.etherscan.io/api"
+ETHERSCAN_BASE = "https://api.etherscan.io/v2/api"
 
 
 # ── OFAC Sanctions ──────────────────────────────────────────────────────────
@@ -103,6 +103,7 @@ async def fetch_etherscan_labels(
                 "page": "1",
                 "offset": "1",
                 "sort": "desc",
+                "chainid": "1",
                 "apikey": key,
             })
             resp.raise_for_status()

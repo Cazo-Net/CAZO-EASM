@@ -9,10 +9,39 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Use Google DNS as fallback when system DNS fails
+_GOOGLE_DNS = ["8.8.8.8", "8.8.4.4"]
+
+
+def _get_resolver():
+    """Return a dns.resolver.Resolver with Google DNS fallback."""
+    import dns.resolver
+    try:
+        r = dns.resolver.Resolver()
+        r.lifetime = 5
+        r.resolve("google.com", "A")
+        return r
+    except Exception:
+        r = dns.resolver.Resolver()
+        r.nameservers = _GOOGLE_DNS
+        r.lifetime = 5
+        return r
+
+
+_resolver = None
+
+
+def _ensure_resolver():
+    global _resolver
+    if _resolver is None:
+        _resolver = _get_resolver()
+    return _resolver
+
 
 def _resolve_sync(target: str, record_type: str):
     """Synchronous DNS resolve — runs in a thread."""
-    return dns.resolver.resolve(target, record_type)
+    resolver = _ensure_resolver()
+    return resolver.resolve(target, record_type)
 
 
 def _resolve_dmarc_sync(target: str):

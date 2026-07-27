@@ -1,4 +1,12 @@
-"""V2 DNS Intelligence Scanner — comprehensive record analysis with DMARC/DKIM/SPF."""
+"""V2 DNS Intelligence Scanner — comprehensive record analysis with CAA, HTTPS/SVCB, TLSA, DNSSEC.
+
+Upgraded from v1 with:
+- CAA records (Certificate Authority Authorization)
+- HTTPS and SVCB records (HTTP DNS / service binding)
+- TLSA records (DANE certificate pinning)
+- DNSSEC validation (DNSKEY + RRSIG presence check)
+- All queries run in parallel for speed
+"""
 from __future__ import annotations
 
 import re
@@ -15,7 +23,12 @@ from app.scanners.v2.registry import register_scanner, ScannerCategory
 
 logger = logging.getLogger(__name__)
 
-RECORD_TYPES = ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA", "SRV"]
+# Standard record types
+RECORD_TYPES = ["A", "AAAA", "MX", "NS", "TXT", "CNAME", "SOA", "SRV", "CAA"]
+
+# Additional record types for modern DNS
+MODERN_RECORD_TYPES = ["HTTPS", "SVCB", "TLSA"]
+
 DKIM_SELECTORS = [
     "default", "selector1", "selector2", "google", "k1",
     "mandrill", "everlytickey1", "dkim", "s1", "s2",
@@ -23,20 +36,24 @@ DKIM_SELECTORS = [
 
 
 def _resolve_sync(target: str, record_type: str):
+    """Synchronous DNS resolve — runs in a thread."""
     return dns.resolver.resolve(target, record_type)
 
 
 @register_scanner(
     name="dns-intelligence",
     category=ScannerCategory.DNS,
-    version="2.0.0",
+    version="3.0.0",
     priority=ScannerPriority.HIGH,
-    description="DNS record analysis (A/AAAA/CNAME/MX/TXT/NS/SOA/SRV) + DMARC/DKIM/SPF",
-    capabilities=["dns_records", "dmarc", "dkim", "spf", "reverse_dns"],
+    description="DNS record analysis (A/AAAA/CNAME/MX/TXT/NS/SOA/SRV/CAA/HTTPS/SVCB/TLSA) + DMARC/DKIM/SPF + DNSSEC",
+    capabilities=[
+        "dns_records", "dmarc", "dkim", "spf", "caa",
+        "https_dns", "svcb", "tlsa", "dnssec", "reverse_dns",
+    ],
 )
 class DNSIntelligenceScanner(EnhancedBaseScanner):
     name = "dns-intelligence"
-    version = "2.0.0"
+    version = "3.0.0"
     category = ScannerCategory.DNS
     priority = ScannerPriority.HIGH
 
@@ -55,8 +72,9 @@ class DNSIntelligenceScanner(EnhancedBaseScanner):
         ips: List[str] = []
         errors: List[str] = []
 
-        # Parallel: all record types
-        tasks = [self._query_one(target, rt) for rt in RECORD_TYPES]
+        # ── Standard + CAA record queries (parallel) ──
+        all_types = RECORD_TYPES + MODERN_RECORD_TYPES
+        tasks = [asyncio.to_thread(self._query_one, target, rt) for rt in all_types]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for item in results:
@@ -73,7 +91,7 @@ class DNSIntelligenceScanner(EnhancedBaseScanner):
             if err:
                 errors.append(err)
 
-        # DMARC
+        # ── DMARC ──
         try:
             dmarc_records = await asyncio.wait_for(
                 asyncio.to_thread(self._resolve_dmarc, target), timeout=3,
@@ -83,7 +101,7 @@ class DNSIntelligenceScanner(EnhancedBaseScanner):
         except Exception:
             pass
 
-        # DKIM
+        # ── DKIM (parallel across selectors) ──
         dkim_tasks = [
             asyncio.to_thread(self._resolve_dkim, f"{sel}._domainkey.{target}")
             for sel in DKIM_SELECTORS
@@ -93,7 +111,7 @@ class DNSIntelligenceScanner(EnhancedBaseScanner):
             if isinstance(item, list) and item:
                 records[f"DKIM_{sel}"] = item
 
-        # SPF (from TXT records)
+        # ── SPF (from TXT records) ──
         spf_records = []
         for txt in records.get("TXT", []):
             val = txt.get("value", "")
@@ -102,11 +120,14 @@ class DNSIntelligenceScanner(EnhancedBaseScanner):
         if spf_records:
             records["SPF"] = spf_records
 
-        # Reverse DNS for each IP
+        # ── DNSSEC validation ──
+        dnssec_info = await self._check_dnssec(target)
+
+        # ── Reverse DNS for each IP (parallel) ──
         reverse_dns: Dict[str, List[str]] = {}
         unique_ips = sorted(set(ips))[:20]
         if unique_ips:
-            rdns_tasks = [self._reverse_dns(ip) for ip in unique_ips]
+            rdns_tasks = [asyncio.to_thread(self._reverse_dns, ip) for ip in unique_ips]
             rdns_results = await asyncio.gather(*rdns_tasks, return_exceptions=True)
             for ip, hostnames in zip(unique_ips, rdns_results):
                 if isinstance(hostnames, list) and hostnames:
@@ -123,12 +144,18 @@ class DNSIntelligenceScanner(EnhancedBaseScanner):
                 "dmarc": "DMARC" in records,
                 "dkim": any(k.startswith("DKIM_") for k in records),
                 "spf": bool(spf_records),
+                "caa": "CAA" in records,
+                "https_dns": "HTTPS" in records,
+                "svcb": "SVCB" in records,
+                "tlsa": "TLSA" in records,
+                "dnssec": dnssec_info,
                 "record_types_found": list(records.keys()),
             },
             errors=errors,
         )
 
     def _query_one(self, target: str, record_type: str):
+        """Query a single record type in a thread."""
         try:
             answers = dns.resolver.resolve(target, record_type)
             ttl = int(answers.ttl) if getattr(answers, "ttl", None) is not None else None
@@ -137,11 +164,14 @@ class DNSIntelligenceScanner(EnhancedBaseScanner):
             for rdata in answers:
                 rec: Dict[str, Any] = {"type": record_type, "ttl": ttl}
                 if record_type == "A":
-                    rec["value"] = str(rdata); ips.append(str(rdata))
+                    rec["value"] = str(rdata)
+                    ips.append(str(rdata))
                 elif record_type == "AAAA":
-                    rec["value"] = str(rdata); ips.append(str(rdata))
+                    rec["value"] = str(rdata)
+                    ips.append(str(rdata))
                 elif record_type == "MX":
-                    rec["value"] = str(rdata.exchange); rec["priority"] = rdata.preference
+                    rec["value"] = str(rdata.exchange)
+                    rec["priority"] = rdata.preference
                 elif record_type == "CNAME":
                     rec["value"] = str(rdata)
                 elif record_type == "NS":
@@ -149,10 +179,43 @@ class DNSIntelligenceScanner(EnhancedBaseScanner):
                 elif record_type == "TXT":
                     rec["value"] = str(rdata)
                 elif record_type == "SOA":
-                    rec["value"] = {"mname": str(rdata.mname), "rname": str(rdata.rname), "serial": rdata.serial}
+                    rec["value"] = {
+                        "mname": str(rdata.mname),
+                        "rname": str(rdata.rname),
+                        "serial": rdata.serial,
+                    }
                 elif record_type == "SRV":
-                    rec["value"] = {"target": str(rdata.target), "port": rdata.port,
-                                    "priority": rdata.priority, "weight": rdata.weight}
+                    rec["value"] = {
+                        "target": str(rdata.target),
+                        "port": rdata.port,
+                        "priority": rdata.priority,
+                        "weight": rdata.weight,
+                    }
+                elif record_type == "CAA":
+                    rec["value"] = {
+                        "flags": rdata.flags,
+                        "tag": rdata.tag,
+                        "value": rdata.value,
+                    }
+                elif record_type == "HTTPS":
+                    rec["value"] = {
+                        "priority": rdata.priority,
+                        "target": str(rdata.target),
+                        "params": dict(rdata.params) if rdata.params else {},
+                    }
+                elif record_type == "SVCB":
+                    rec["value"] = {
+                        "priority": rdata.priority,
+                        "target": str(rdata.target),
+                        "params": dict(rdata.params) if rdata.params else {},
+                    }
+                elif record_type == "TLSA":
+                    rec["value"] = {
+                        "usage": rdata.usage,
+                        "selector": rdata.selector,
+                        "matching_type": rdata.mtype,
+                        "cert_data": rdata.cert.hex() if hasattr(rdata.cert, 'hex') else str(rdata.cert),
+                    }
                 recs.append(rec)
             return record_type, recs, ips, None
         except dns.resolver.NoAnswer:
@@ -187,3 +250,29 @@ class DNSIntelligenceScanner(EnhancedBaseScanner):
             return [str(rdata) for rdata in answers]
         except Exception:
             return []
+
+    async def _check_dnssec(self, target: str) -> Dict[str, Any]:
+        """Check DNSSEC: look for DNSKEY and RRSIG records."""
+        result = {"enabled": False, "dnskey": False, "rrsig": False}
+
+        def _check():
+            try:
+                # DNSKEY check
+                dns.resolver.resolve(target, "DNSKEY")
+                result["dnskey"] = True
+            except Exception:
+                pass
+            try:
+                # RRSIG check (on the A record, most common)
+                answer = dns.resolver.resolve(target, "A")
+                if hasattr(answer, "rrset") and answer.rrset:
+                    for rdata in answer.rrset:
+                        if hasattr(rdata, "algorithm"):  # RRSIG has algorithm field
+                            result["rrsig"] = True
+                            break
+            except Exception:
+                pass
+
+        await asyncio.to_thread(_check)
+        result["enabled"] = result["dnskey"] and result["rrsig"]
+        return result

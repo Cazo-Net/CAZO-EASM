@@ -2,10 +2,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 
-COPY . .
+COPY frontend/ .
 
 # Backend URL used by Next.js rewrites (baked at build time).
 # Override with: --build-arg BACKEND_URL=http://backend:8000

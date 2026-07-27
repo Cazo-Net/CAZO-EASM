@@ -13,6 +13,7 @@ Exposes the v2 scanner framework via REST API + WebSocket streaming:
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -25,6 +26,8 @@ from app.models.user import User
 from app.core.permissions import require_permission, Permission
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 # ── Request / Response schemas ──
@@ -196,7 +199,7 @@ async def run_scan_v2(
                 excluded_scanners=set(request.excluded_scanners) if request.excluded_scanners else None,
             )
     except Exception as e:
-        log.exception("Scan failed for domain %s", request.domain)
+        logger.exception("Scan failed for domain %s", request.domain)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Scan failed",

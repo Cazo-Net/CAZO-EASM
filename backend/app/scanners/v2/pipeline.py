@@ -281,7 +281,13 @@ class ScanPipeline:
         async def _run_plugin(plugin: ScannerPlugin) -> tuple[str, ScanResult]:
             async with semaphore:
                 instance = plugin.instantiate(config)
-                return plugin.name, await instance.run(target, context=context)
+                # Pass scan_type and port_list from config to scanners
+                extra = {}
+                if "scan_type" in config:
+                    extra["scan_type"] = config["scan_type"]
+                if "top_ports" in config:
+                    extra["port_list"] = config["top_ports"]
+                return plugin.name, await instance.run(target, context=context, **extra)
 
         tasks = [_run_plugin(p) for p in plugins]
         outcomes = await asyncio.gather(*tasks, return_exceptions=True)

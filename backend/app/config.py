@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     NMAP_MAX_CONCURRENCY: int = int(os.getenv("NMAP_MAX_CONCURRENCY", "20"))
     NMAP_OS_DETECTION: bool = os.getenv("NMAP_OS_DETECTION", "false").lower() in ("1", "true", "yes")
     NMAP_TOP_PORTS: int = int(os.getenv("NMAP_TOP_PORTS", "100"))
+    # Fast port scanner settings (replaces nmap for port discovery)
+    FAST_SCAN_CONCURRENCY: int = int(os.getenv("FAST_SCAN_CONCURRENCY", "2000"))
+    FAST_SCAN_CONNECT_TIMEOUT: float = float(os.getenv("FAST_SCAN_CONNECT_TIMEOUT", "0.5"))
+    FAST_SCAN_BANNER_TIMEOUT: float = float(os.getenv("FAST_SCAN_BANNER_TIMEOUT", "1.0"))
+    # RDAP (modern WHOIS replacement)
+    RDAP_BASE_URL: str = os.getenv("RDAP_BASE_URL", "https://rdap.org")
     SCAN_TIMEOUT: int = 15
     MAX_CONCURRENT_SCANS: int = 5
 
@@ -117,6 +123,25 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
 
     PASSWORD_EXPIRY_DAYS: int = int(os.getenv("PASSWORD_EXPIRY_DAYS", "90"))
+
+    # Sentry
+    SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
+    SENTRY_TRACES_SAMPLE_RATE: float = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))
+    SENTRY_PROFILES_SAMPLE_RATE: float = float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.1"))
+
+    # Upstash Redis
+    UPSTASH_REDIS_URL: str = os.getenv("UPSTASH_REDIS_URL", "")
+    UPSTASH_REDIS_TOKEN: str = os.getenv("UPSTASH_REDIS_TOKEN", "")
+
+    # Upstash QStash
+    QSTASH_CURRENT_SIGNING_KEY: str = os.getenv("QSTASH_CURRENT_SIGNING_KEY", "")
+    QSTASH_NEXT_SIGNING_KEY: str = os.getenv("QSTASH_NEXT_SIGNING_KEY", "")
+    QSTASH_TOKEN: str = os.getenv("QSTASH_TOKEN", "")
+
+    # Upstash Kafka
+    UPSTASH_KAFKA_URL: str = os.getenv("UPSTASH_KAFKA_URL", "")
+    UPSTASH_KAFKA_USERNAME: str = os.getenv("UPSTASH_KAFKA_USERNAME", "")
+    UPSTASH_KAFKA_PASSWORD: str = os.getenv("UPSTASH_KAFKA_PASSWORD", "")
 
     class Config:
         env_file = ".env"

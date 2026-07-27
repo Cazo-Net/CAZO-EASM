@@ -52,6 +52,7 @@ function AddressDetailContent() {
   const [graph, setGraph] = useState<any>(null);
   const [anomaly, setAnomaly] = useState<any>(null);
   const [intel, setIntel] = useState<any>(null);
+  const [mockMode, setMockMode] = useState(false);
   const [txPage, setTxPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [txLoading, setTxLoading] = useState(false);
@@ -75,6 +76,7 @@ function AddressDetailContent() {
           setWallet(data.wallet);
           setAttribution(data.attribution);
           setRisk(data.risk);
+          setMockMode(data.mock_mode || false);
         }
         if (clusterRes.status === "fulfilled" && clusterRes.value.ok) {
           setCluster(await clusterRes.value.json());
@@ -169,6 +171,18 @@ function AddressDetailContent() {
           description={address}
           icon={<Wallet className="h-5 w-5" />}
         />
+
+        {mockMode && (
+          <div className="mt-4 border border-yellow-500/30 bg-yellow-500/5 rounded-lg p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-yellow-300">Simulated Data</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                No Etherscan API key configured. Showing simulated data. Add <code>ETHERSCAN_API_KEY</code> to your environment for live data.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Wallet Header Card */}
         <div className="mt-6 border border-border rounded-lg p-6">

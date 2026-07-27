@@ -178,9 +178,12 @@ async def _get_eth_txs(address: str, api_key: str = "") -> list[dict[str, Any]]:
     """Fetch recent transactions for an Ethereum address via Etherscan."""
     from app.config import settings
     key = api_key or settings.ETHERSCAN_API_KEY
+    if not key:
+        logger.debug("No Etherscan API key — skipping ETH clustering")
+        return []
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get("https://api.etherscan.io/api", params={
+            resp = await client.get("https://api.etherscan.io/v2/api", params={
                 "module": "account",
                 "action": "txlist",
                 "address": address,
@@ -189,6 +192,7 @@ async def _get_eth_txs(address: str, api_key: str = "") -> list[dict[str, Any]]:
                 "page": "1",
                 "offset": "50",
                 "sort": "desc",
+                "chainid": "1",
                 "apikey": key,
             })
             resp.raise_for_status()

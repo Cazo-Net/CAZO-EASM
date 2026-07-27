@@ -18,6 +18,56 @@ from app.services.platform_log import (
 
 logger = logging.getLogger("app.main")
 
+
+# ---------------------------------------------------------------------------
+# Sentry — init before FastAPI for proper auto-instrumentation
+# ---------------------------------------------------------------------------
+def _init_sentry() -> None:
+    """Initialize Sentry SDK if a DSN is configured."""
+    if not settings.SENTRY_DSN:
+        return
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.logging import LoggingIntegration
+
+        sentry_sdk.init(
+            dsn=settings.SENTRY_DSN,
+            environment=settings.ENVIRONMENT,
+            release=f"easm@{settings.APP_VERSION}",
+            traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
+            profiles_sample_rate=settings.SENTRY_PROFILES_SAMPLE_RATE,
+            integrations=[
+                FastApiIntegration(
+                    enable_style_propagation=False,
+                    request_hook=_sentry_request_hook,
+                ),
+                LoggingIntegration(
+                    level=logging.INFO,
+                    event_level=logging.ERROR,
+                ),
+            ],
+            send_default_pii=False,
+            attach_stacktrace=True,
+            _experiments={"record_sql_params": True},
+        )
+        logger.info("Sentry initialized (dsn=%s…)", settings.SENTRY_DSN[:12])
+    except Exception as exc:
+        logger.warning("Sentry init failed: %s", exc)
+
+
+def _sentry_request_hook(scope, hint):
+    """Redact sensitive headers before sending to Sentry."""
+    if "request" in scope:
+        headers = scope["request"].get("headers", {})
+        for sensitive in ("authorization", "cookie", "x-api-key"):
+            if sensitive in headers:
+                headers[sensitive] = "[redacted]"
+    return scope
+
+
+_init_sentry()
+
 # Paths that must never be throttled (orchestrator liveness/readiness probes).
 _PROBE_PATHS = {"/health", "/ready"}
 
@@ -36,6 +86,7 @@ async def lifespan(app: FastAPI):
     init_db()
     get_rate_limiter()
     _reap_stuck_scans()
+    _configure_dns()
 
     # Start scan scheduler
     from app.services.scan_scheduler import scan_scheduler
@@ -47,6 +98,17 @@ async def lifespan(app: FastAPI):
     # Stop scan scheduler
     await scan_scheduler.stop()
     logger.info("Application shutting down")
+
+
+def _configure_dns() -> None:
+    """Configure dnspython to always use Google DNS first (system DNS has gaps)."""
+    import dns.resolver
+    default = dns.resolver.get_default_resolver()
+    system_ns = list(default.nameservers)
+    # Google DNS first, then system as fallback
+    default.nameservers = ["8.8.8.8", "8.8.4.4"] + system_ns
+    default.lifetime = 5
+    logger.info("DNS configured: Google DNS primary, system fallback (%s)", system_ns)
 
 
 def _reap_stuck_scans() -> None:
@@ -106,6 +168,12 @@ app = FastAPI(
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    # Capture in Sentry before returning generic error
+    try:
+        import sentry_sdk
+        sentry_sdk.capture_exception(exc)
+    except Exception:
+        pass
     try:
         log_unexpected(
             f"Unhandled exception: {exc}",
@@ -148,12 +216,6 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     response.headers["X-Download-Options"] = "noopen"
-    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
-    response.headers["Permissions-Policy"] = (
-        "geolocation=(), microphone=(), camera=(), payment=(), "
-        "usb=(), interest-cohort=()"
-    )
     if is_production():
         response.headers["Strict-Transport-Security"] = (
             "max-age=31536000; includeSubDomains; preload"
@@ -299,7 +361,7 @@ async def readiness_check():
 
 
 # Import and include routers
-from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2, logs, blockchain  # noqa: E402
+from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2, logs, blockchain, darkweb  # noqa: E402
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(auth_google.router, prefix="/api/v1/auth", tags=["Google OAuth"])
@@ -335,6 +397,7 @@ app.include_router(osint.router, prefix="/api/v1/osint", tags=["OSINT Intelligen
 app.include_router(scanner_v2.router, prefix="/api/v1/scanner-v2", tags=["Scanner v2"])
 app.include_router(logs.router, prefix="/api/v1/logs", tags=["Platform Logs"])
 app.include_router(blockchain.router, prefix="/api/v1/blockchain", tags=["Blockchain Intelligence"])
+app.include_router(darkweb.router, prefix="/api/v1/darkweb", tags=["Dark Web Intelligence"])
 
 
 # API docs (only in debug mode)

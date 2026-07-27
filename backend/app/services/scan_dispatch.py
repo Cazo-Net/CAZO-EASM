@@ -3,7 +3,8 @@
 Priority:
 1. SCAN_ENGINE_URL set → HTTP POST to the scan engine service (production)
 2. USE_CELERY=true → Celery task queue (legacy production)
-3. Otherwise → FastAPI BackgroundTasks (local development)
+3. QSTASH_TOKEN set → Upstash QStash serverless queue (production)
+4. Otherwise → FastAPI BackgroundTasks (local development)
 
 Supports v2 scanner engine via SCAN_ENGINE=v2 environment variable.
 """
@@ -53,7 +54,27 @@ def dispatch_scan(scan_id: str, background_tasks: Optional[BackgroundTasks] = No
         except Exception:  # noqa: BLE001
             logger.exception("Failed to dispatch scan %s to Celery; falling back", scan_id)
 
-    # Tier 3: FastAPI BackgroundTasks (dev)
+    # Tier 3: QStash (serverless queue)
+    if settings.QSTASH_TOKEN:
+        try:
+            from app.services.upstash import publish_task
+            import asyncio
+
+            callback_url = f"{settings.FRONTEND_URL.rstrip('/')}/api/v1/scans/{scan_id}/callback"
+            asyncio.get_event_loop().run_until_complete(
+                publish_task(
+                    url=callback_url,
+                    payload={"scan_id": scan_id, "engine": "v1"},
+                    retries=2,
+                    retry_delay="60s",
+                )
+            )
+            logger.info("Dispatched scan %s to QStash", scan_id)
+            return
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to dispatch scan %s to QStash; falling back", scan_id)
+
+    # Tier 4: FastAPI BackgroundTasks (dev)
     if background_tasks is not None:
         from app.database import SessionLocal
         from app.services.scan_service import ScanService
@@ -91,7 +112,27 @@ def dispatch_scan_v2(scan_id: str, background_tasks: Optional[BackgroundTasks] =
         except Exception:  # noqa: BLE001
             logger.exception("Failed to dispatch scan %s to Celery v2; falling back", scan_id)
 
-    # Tier 3: FastAPI BackgroundTasks (dev)
+    # Tier 3: QStash (serverless queue)
+    if settings.QSTASH_TOKEN:
+        try:
+            from app.services.upstash import publish_task
+            import asyncio
+
+            callback_url = f"{settings.FRONTEND_URL.rstrip('/')}/api/v1/scans/{scan_id}/callback"
+            asyncio.get_event_loop().run_until_complete(
+                publish_task(
+                    url=callback_url,
+                    payload={"scan_id": scan_id, "engine": "v2"},
+                    retries=2,
+                    retry_delay="60s",
+                )
+            )
+            logger.info("Dispatched scan %s to QStash (v2)", scan_id)
+            return
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to dispatch scan %s to QStash v2; falling back", scan_id)
+
+    # Tier 4: FastAPI BackgroundTasks (dev)
     if background_tasks is not None:
         from app.database import SessionLocal
 

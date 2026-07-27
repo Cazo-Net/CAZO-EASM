@@ -25,6 +25,11 @@ class RateLimiter:
         self._init_redis()
 
     def _init_redis(self):
+        # Priority: Upstash Redis > local Redis > in-memory
+        upstash = self._try_upstash()
+        if upstash:
+            self._redis = upstash
+            return
         if not settings.REDIS_URL:
             return
         try:
@@ -37,6 +42,28 @@ class RateLimiter:
         except Exception as exc:  # noqa: BLE001
             logger.warning("Redis unavailable for rate limiting (%s); using in-memory", exc)
             self._redis = None
+
+    def _try_upstash(self):
+        """Try Upstash Redis for rate limiting."""
+        if not settings.UPSTASH_REDIS_URL:
+            return None
+        try:
+            import httpx
+            # Upstash REST API — lightweight ping
+            r = httpx.get(
+                f"{settings.UPSTASH_REDIS_URL}/ping",
+                headers={"Authorization": f"Bearer {settings.UPSTASH_REDIS_TOKEN}"},
+                timeout=3,
+            )
+            if r.status_code == 200:
+                # Use the upstash-redis SDK client
+                from upstash_redis import Redis
+                client = Redis(url=settings.UPSTASH_REDIS_URL, token=settings.UPSTASH_REDIS_TOKEN)
+                logger.info("Rate limiter using Upstash Redis backend")
+                return client
+        except Exception as exc:
+            logger.debug("Upstash Redis unavailable for rate limiting: %s", exc)
+        return None
 
     def reset(self) -> None:
         """Clear all rate-limit state (used by tests and admin tooling)."""

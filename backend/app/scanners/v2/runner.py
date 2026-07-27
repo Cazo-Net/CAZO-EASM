@@ -47,6 +47,7 @@ class EnhancedScanRunner:
     ) -> Dict[str, Any]:
         """Execute a full scan pipeline and return comprehensive results."""
         cfg = {**self.config, **(config or {})}
+        cfg.setdefault("scan_type", "full")
         start_time = time.monotonic()
         pipeline_timeout = cfg.get("pipeline_timeout", _PIPELINE_TIMEOUT)
 
@@ -105,8 +106,10 @@ class EnhancedScanRunner:
         quick_config = {
             "timeout": 10,
             "max_retries": 1,
+            "scan_type": "quick",
             "top_ports": [80, 443, 8080, 8443],
             "scanner_concurrency": 5,
+            "max_concurrency": 500,
             **(config or {}),
         }
 
