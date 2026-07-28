@@ -1,6 +1,7 @@
 """Bitcoin provider using Blockstream.info public API."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Any
@@ -33,20 +34,55 @@ BLOCKSTREAM_BASE = "https://blockstream.info/api"
 class BitcoinProvider(ChainProvider):
     chain = Chain.BITCOIN
 
+    def __init__(self) -> None:
+        self._last_request = 0.0
+
     def is_available(self) -> bool:
         return True
 
-    async def _get(self, path: str) -> Any:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(f"{BLOCKSTREAM_BASE}{path}")
-            resp.raise_for_status()
-            return resp.json()
+    async def _throttle(self) -> None:
+        """Rate-limit requests to ~3 per second."""
+        now = asyncio.get_event_loop().time()
+        elapsed = now - self._last_request
+        if elapsed < 0.33:
+            await asyncio.sleep(0.33 - elapsed)
+        self._last_request = asyncio.get_event_loop().time()
 
-    async def _get_raw(self, path: str) -> str:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(f"{BLOCKSTREAM_BASE}{path}")
-            resp.raise_for_status()
-            return resp.text
+    async def _get(self, path: str) -> Any:
+        await self._throttle()
+        last_error: Exception | None = None
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=30) as client:
+                    resp = await client.get(f"{BLOCKSTREAM_BASE}{path}")
+                    resp.raise_for_status()
+                    return resp.json()
+            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
+                last_error = exc
+                if attempt < 2:
+                    await asyncio.sleep(0.5 * (attempt + 1))
+                continue
+            except Exception as exc:
+                last_error = exc
+                break
+        raise last_error  # type: ignore[misc]
+
+    async def _get_first_tx_time(self, address: str) -> datetime | None:
+        """Fetch the earliest transaction time for an address."""
+        try:
+            txs = await self._get(f"/address/{address}/txs")
+            if not isinstance(txs, list) or not txs:
+                return None
+            timestamps = []
+            for tx in txs:
+                bt = tx.get("status", {}).get("block_time")
+                if bt:
+                    timestamps.append(bt)
+            if timestamps:
+                return datetime.fromtimestamp(min(timestamps), tz=timezone.utc)
+        except Exception:
+            pass
+        return None
 
     # ── Wallet ───────────────────────────────────────────────────────────
 
@@ -57,20 +93,30 @@ class BitcoinProvider(ChainProvider):
             return WalletSummary(address=address, chain=Chain.BITCOIN)
 
         stats = addr_info.get("chain_stats", {})
+        mempool = addr_info.get("mempool_stats", {})
         funded = stats.get("funded_txo_sum", 0)
         spent = stats.get("spent_txo_sum", 0)
         balance_sat = funded - spent
         tx_count = stats.get("tx_count", 0)
-        funded_txo_count = stats.get("funded_txo_count", 0)
-        spent_txo_count = stats.get("spent_txo_count", 0)
 
         wallet_type = WalletType.UNKNOWN
-        if stats.get("p2pkh", 0) + stats.get("p2sh", 0) + stats.get("bech32", 0) > 0:
+        if stats.get("p2pkh", 0) + stats.get("p2sh", 0) + stats.get("bech32", 0) + stats.get("p2tr", 0) > 0:
             wallet_type = WalletType.EOA
 
         first_seen = None
-        if stats.get("funded_txo_count", 0) > 0:
-            first_seen = None
+        last_active = None
+
+        try:
+            txs = await self._get(f"/address/{address}/txs")
+            if isinstance(txs, list) and txs:
+                confirmed_txs = [tx for tx in txs if tx.get("status", {}).get("confirmed")]
+                if confirmed_txs:
+                    timestamps = [tx["status"]["block_time"] for tx in confirmed_txs if tx.get("status", {}).get("block_time")]
+                    if timestamps:
+                        first_seen = datetime.fromtimestamp(min(timestamps), tz=timezone.utc)
+                        last_active = datetime.fromtimestamp(max(timestamps), tz=timezone.utc)
+        except Exception:
+            pass
 
         return WalletSummary(
             address=address,
@@ -79,7 +125,7 @@ class BitcoinProvider(ChainProvider):
             balance=str(balance_sat / 10**8),
             tx_count=tx_count,
             first_seen=first_seen,
-            last_active=None,
+            last_active=last_active,
             inbound_volume=str(funded / 10**8),
             outbound_volume=str(spent / 10**8),
             net_flow=str((funded - spent) / 10**8),
@@ -104,12 +150,6 @@ class BitcoinProvider(ChainProvider):
         for tx in page_txs:
             status = TransactionStatus.SUCCESS if tx.get("status", {}).get("confirmed", False) else TransactionStatus.PENDING
             block_height = tx.get("status", {}).get("block_height")
-
-            value_in = sum(
-                vout.get("value", 0)
-                for vin in tx.get("vin", [])
-                if False
-            ) or 0
 
             value_out = sum(
                 vout.get("value", 0)
@@ -291,11 +331,13 @@ class BitcoinProvider(ChainProvider):
                 for vout in tx.get("vout", [])
                 if vout.get("scriptpubkey_address")
             }
+
+            tx_value = sum(v.get("value", 0) for v in tx.get("vout", [])) / 10**8
             for f in from_set:
                 for t in to_set:
                     edges.append(GraphEdge(
                         source=f, target=t,
-                        value=str(tx.get("fee", 0) / 10**8),
+                        value=str(tx_value),
                         tx_count=1,
                     ))
 

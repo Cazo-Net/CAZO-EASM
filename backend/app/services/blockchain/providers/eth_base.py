@@ -200,6 +200,25 @@ class EthEtherscanBaseProvider(ChainProvider):
             ))
         return summaries
 
+    async def get_internal_transactions(self, address: str, tx_hash: str | None = None) -> list[dict[str, Any]]:
+        """Fetch internal transactions for an address or a specific tx."""
+        params: dict[str, Any] = {
+            "module": "account",
+            "action": "txlistinternal",
+            "address": address,
+            "startblock": "0",
+            "endblock": "99999999",
+            "page": "1",
+            "offset": "100",
+            "sort": "desc",
+        }
+        if tx_hash:
+            params["txhash"] = tx_hash
+            del params["address"]
+        resp = await self._get(params)
+        results = resp.get("result", [])
+        return results if isinstance(results, list) else []
+
     async def get_transaction(self, tx_hash: str) -> TransactionDetail:
         tx_resp = await self._get({
             "module": "proxy",
@@ -259,7 +278,7 @@ class EthEtherscanBaseProvider(ChainProvider):
             "action": "tokentx",
             "address": address,
             "page": "1",
-            "offset": "100",
+            "offset": "200",
             "sort": "desc",
         })
         results = resp.get("result", [])
@@ -278,16 +297,37 @@ class EthEtherscanBaseProvider(ChainProvider):
                 "decimals": int(tx.get("tokenDecimal", "18")),
             }
 
-        return [
-            TokenBalance(
-                contract_address=v["contract_address"],
-                symbol=v["symbol"],
-                name=v["name"],
-                balance="0",
-                decimals=v["decimals"],
-            )
-            for v in seen.values()
-        ]
+        balances = []
+        for token_info in seen.values():
+            balance = await self._get_token_balance(address, token_info["contract_address"], token_info["decimals"])
+            balances.append(TokenBalance(
+                contract_address=token_info["contract_address"],
+                symbol=token_info["symbol"],
+                name=token_info["name"],
+                balance=balance,
+                decimals=token_info["decimals"],
+            ))
+        return balances
+
+    async def _get_token_balance(self, owner: str, contract: str, decimals: int) -> str:
+        """Call balanceOf(address) on an ERC-20 contract via eth_call."""
+        try:
+            # balanceOf(address) selector = 0x70a08231
+            padded_owner = owner.lower().replace("0x", "").zfill(64)
+            data = f"0x70a08231{padded_owner}"
+            resp = await self._get({
+                "module": "proxy",
+                "action": "eth_call",
+                "to": contract,
+                "data": data,
+                "tag": "latest",
+            })
+            result = resp.get("result", "0x0")
+            raw = int(result, 16) if result and result != "0x" else 0
+            return str(raw / 10**decimals)
+        except Exception as e:
+            logger.debug("balanceOf failed for %s on %s: %s", owner, contract, e)
+            return "0"
 
     # ── Contract ─────────────────────────────────────────────────────────
 

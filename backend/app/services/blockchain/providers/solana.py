@@ -94,7 +94,8 @@ class SolanaProvider(ChainProvider):
             account_info = await self._rpc("getAccountInfo", [address, {"encoding": "jsonParsed"}])
             owner = account_info.get("value", {}).get("owner", "")
             wallet_type = WalletType.CONTRACT if owner != "11111111111111111111111111111111" else WalletType.EOA
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to get account info for %s: %s", address, e)
             wallet_type = WalletType.EOA
 
         first_seen = None
@@ -114,7 +115,8 @@ class SolanaProvider(ChainProvider):
                 {"encoding": "jsonParsed"},
             ])
             token_count = len(token_accounts_result.get("value", []))
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to get token accounts for %s: %s", address, e)
             token_count = 0
 
         return WalletSummary(
@@ -249,7 +251,8 @@ class SolanaProvider(ChainProvider):
     async def get_contract_detail(self, address: str) -> ContractDetail | None:
         try:
             account_info = await self._rpc("getAccountInfo", [address, {"encoding": "jsonParsed"}])
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to get account info for contract %s: %s", address, e)
             return None
 
         value = account_info.get("value")

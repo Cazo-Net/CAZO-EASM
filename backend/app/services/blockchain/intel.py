@@ -160,7 +160,7 @@ _OFAC_ADDRESSES: dict[str, dict[str, Any]] = {
     },
 
     # ── ChipMixer (sanctioned) ──────────────────────────────────────
-    "0xo37c8f846f2b4b0a8e6b3c0d1e2f4a5b6c7d8e9f": {
+    "0xd47b37b3f72f1996c048014e63a98f369e58d824": {
         "entity_name": "ChipMixer",
         "category": EntityCategory.MIXING_SERVICE,
         "source": "ofac_sdn",
