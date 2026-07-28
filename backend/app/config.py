@@ -116,6 +116,12 @@ class Settings(BaseSettings):
     NEO4J_USER: str = os.getenv("NEO4J_USER", "neo4j")
     NEO4J_PASSWORD: str = os.getenv("NEO4J_PASSWORD", "")
 
+    # OpenSearch (Phase 5: blockchain search)
+    OPENSEARCH_HOSTS: str = os.getenv("OPENSEARCH_HOSTS", "https://localhost:9200")
+    OPENSEARCH_USER: str = os.getenv("OPENSEARCH_USER", "admin")
+    OPENSEARCH_PASSWORD: str = os.getenv("OPENSEARCH_PASSWORD", "EasmAdmin123!")
+    OPENSEARCH_VERIFY_CERTS: bool = os.getenv("OPENSEARCH_VERIFY_CERTS", "false").lower() in ("1", "true", "yes")
+
     # Frontend base URL (for links in emails, invitations, etc.)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 

@@ -8,7 +8,7 @@ import {
   AlertTriangle, Trash2, Power, PowerOff, Unlock, Key, Search,
   RefreshCw, BarChart3, HardDrive, Cpu, MemoryStick, CheckCircle,
   XCircle, Loader2, LogOut, Globe, Bell, FileText, Fingerprint,
-  Flag, Lock, Clock, Terminal, Eye, Mail, Zap, Settings,
+  Flag, Lock, Clock, Terminal, Eye, Mail, Zap, Settings, Shield, GitBranch, List,
 } from "lucide-react";
 
 function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
@@ -207,11 +207,33 @@ export default function AdminPage() {
   const [bcAlerts, setBcAlerts] = useState<any[]>([]);
   const [bcCases, setBcCases] = useState<any[]>([]);
   const [bcTravelRule, setBcTravelRule] = useState<any[]>([]);
-  const [bcSubTab, setBcSubTab] = useState<"providers" | "ofac" | "labels" | "watches" | "alerts" | "cases" | "travel">("providers");
+  const [bcSubTab, setBcSubTab] = useState<"providers" | "ofac" | "labels" | "watches" | "alerts" | "cases" | "travel" | "graph" | "search" | "alerts-v2" | "compliance">("providers");
+
+  // Graph sync state
+  const [bcGraphHealth, setBcGraphHealth] = useState<any>(null);
+  const [bcGraphSyncAddr, setBcGraphSyncAddr] = useState("");
+  const [bcGraphSyncing, setBcGraphSyncing] = useState(false);
+  const [bcGraphSyncResult, setBcGraphSyncResult] = useState<any>(null);
+
+  // Search state
+  const [bcSearchQuery, setBcSearchQuery] = useState("");
+  const [bcSearchResults, setBcSearchResults] = useState<any>(null);
+  const [bcSearching, setBcSearching] = useState(false);
+  const [bcSearchHealth, setBcSearchHealth] = useState<any>(null);
+
+  // Alerts v2 state
+  const [bcAlertsV2, setBcAlertsV2] = useState<any[]>([]);
+  const [bcAlertsV2Stats, setBcAlertsV2Stats] = useState<any>(null);
+
+  // Compliance state
+  const [bcVasps, setBcVasps] = useState<any[]>([]);
+  const [bcComplianceStats, setBcComplianceStats] = useState<any>(null);
+  const [bcDetectAddr, setBcDetectAddr] = useState("");
+  const [bcDetectResult, setBcDetectResult] = useState<any>(null);
 
   const fetchBlockchain = useCallback(async () => {
     try {
-      const [st, pr, of, lb, wa, al, ca, tr] = await Promise.all([
+      const [st, pr, of, lb, wa, al, ca, tr, gh, sh, av, vs, cs] = await Promise.all([
         api.get("/blockchain/stats"),
         api.get("/blockchain/providers"),
         api.get("/blockchain/ofac"),
@@ -220,6 +242,11 @@ export default function AdminPage() {
         api.get("/blockchain/alerts"),
         api.get("/blockchain/cases"),
         api.get("/blockchain/travel-rule"),
+        api.get("/graph/health").catch(() => null),
+        api.get("/search/health").catch(() => null),
+        api.get("/alerts/v2").catch(() => null),
+        api.get("/compliance/vasps").catch(() => null),
+        api.get("/compliance/stats").catch(() => null),
       ]);
       setBcStats(st.data);
       setBcProviders(pr.data);
@@ -229,6 +256,11 @@ export default function AdminPage() {
       setBcAlerts(al.data);
       setBcCases(ca.data);
       setBcTravelRule(tr.data);
+      if (gh) setBcGraphHealth(gh.data);
+      if (sh) setBcSearchHealth(sh.data);
+      if (av) setBcAlertsV2(av.data);
+      if (vs) setBcVasps(vs.data);
+      if (cs) setBcComplianceStats(cs.data);
     } catch (e: any) { setError(getErrorMessage(e)); }
   }, []);
 
@@ -1289,6 +1321,10 @@ export default function AdminPage() {
               { id: "alerts" as const, label: "Alerts", icon: AlertTriangle },
               { id: "cases" as const, label: "Cases", icon: FileText },
               { id: "travel" as const, label: "Travel Rule", icon: Globe },
+              { id: "graph" as const, label: "Graph Sync", icon: GitBranch },
+              { id: "search" as const, label: "Search", icon: Search },
+              { id: "alerts-v2" as const, label: "Alerts v2", icon: Bell },
+              { id: "compliance" as const, label: "Compliance", icon: Shield },
             ] as const).map((st) => (
               <button key={st.id} onClick={() => setBcSubTab(st.id)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${bcSubTab === st.id ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
@@ -1545,6 +1581,281 @@ export default function AdminPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* Graph Sync sub-tab */}
+          {bcSubTab === "graph" && (
+            <div className="space-y-4">
+              {/* Health summary */}
+              {bcGraphHealth && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { l: "Neo4j Status", v: bcGraphHealth.neo4j_connected ? "Connected" : "Disconnected", c: bcGraphHealth.neo4j_connected ? "text-green-400" : "text-red-400" },
+                    { l: "Addresses", v: bcGraphHealth.address_count ?? "—", c: "text-blue-400" },
+                    { l: "Transactions", v: bcGraphHealth.transaction_count ?? "—", c: "text-purple-400" },
+                    { l: "Blocks", v: bcGraphHealth.block_count ?? "—", c: "text-emerald-400" },
+                  ].map((x) => (
+                    <div key={x.l} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                      <span className="text-xs text-zinc-500 uppercase">{x.l}</span>
+                      <div className={`text-lg font-bold mt-1 ${x.c}`}>{x.v}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Sync address form */}
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><GitBranch className="h-4 w-4 text-purple-400" /> Sync Address</h3>
+                <div className="flex gap-2">
+                  <input value={bcGraphSyncAddr} onChange={(e) => setBcGraphSyncAddr(e.target.value)}
+                    placeholder="0x... or address to sync"
+                    className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm font-mono focus:outline-none focus:border-purple-500" />
+                  <button onClick={async () => {
+                    if (!bcGraphSyncAddr) return;
+                    setBcGraphSyncing(true);
+                    setBcGraphSyncResult(null);
+                    try {
+                      const r = await api.post("/graph/sync/address", { address: bcGraphSyncAddr, chain: "ethereum" });
+                      setBcGraphSyncResult({ ok: true, data: r.data });
+                    } catch (e: any) { setBcGraphSyncResult({ ok: false, error: getErrorMessage(e) }); }
+                    finally { setBcGraphSyncing(false); }
+                  }} disabled={bcGraphSyncing || !bcGraphSyncAddr}
+                    className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2">
+                    {bcGraphSyncing && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Sync
+                  </button>
+                </div>
+                {bcGraphSyncResult && (
+                  <div className={`mt-3 p-3 rounded-lg text-sm ${bcGraphSyncResult.ok ? "bg-green-500/10 border border-green-500/20 text-green-400" : "bg-red-500/10 border border-red-500/20 text-red-400"}`}>
+                    {bcGraphSyncResult.ok ? `Synced: ${bcGraphSyncResult.data?.message || "OK"}` : bcGraphSyncResult.error}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Search sub-tab */}
+          {bcSubTab === "search" && (
+            <div className="space-y-4">
+              {/* Search health */}
+              {bcSearchHealth && (
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { l: "OpenSearch", v: bcSearchHealth.connected ? "Connected" : "Disconnected", c: bcSearchHealth.connected ? "text-green-400" : "text-red-400" },
+                    { l: "Indexes", v: bcSearchHealth.index_count ?? "—", c: "text-blue-400" },
+                    { l: "Total Docs", v: bcSearchHealth.total_docs ?? "—", c: "text-emerald-400" },
+                  ].map((x) => (
+                    <div key={x.l} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                      <span className="text-xs text-zinc-500 uppercase">{x.l}</span>
+                      <div className={`text-lg font-bold mt-1 ${x.c}`}>{x.v}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Search bar */}
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                <div className="flex gap-2">
+                  <input value={bcSearchQuery} onChange={(e) => setBcSearchQuery(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") document.getElementById("bc-search-btn")?.click(); }}
+                    placeholder="Search addresses, transactions, contracts..."
+                    className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm focus:outline-none focus:border-blue-500" />
+                  <button id="bc-search-btn" onClick={async () => {
+                    if (!bcSearchQuery) return;
+                    setBcSearching(true);
+                    setBcSearchResults(null);
+                    try {
+                      const r = await api.get(`/search/unified?q=${encodeURIComponent(bcSearchQuery)}&limit=20`);
+                      setBcSearchResults(r.data);
+                    } catch (e: any) { setBcSearchResults({ error: getErrorMessage(e) }); }
+                    finally { setBcSearching(false); }
+                  }} disabled={bcSearching || !bcSearchQuery}
+                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2">
+                    {bcSearching && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    <Search className="h-3.5 w-3.5" /> Search
+                  </button>
+                </div>
+                {bcSearchResults && !bcSearchResults.error && (
+                  <div className="mt-4 space-y-3">
+                    {bcSearchResults.addresses?.length > 0 && (
+                      <div>
+                        <p className="text-xs text-zinc-500 uppercase mb-2">Addresses ({bcSearchResults.addresses.length})</p>
+                        <div className="space-y-1">
+                          {bcSearchResults.addresses.map((a: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between p-2 rounded bg-zinc-800/30 text-xs">
+                              <span className="font-mono max-w-[300px] truncate">{a.address || a.hash}</span>
+                              <span className="text-zinc-500">{a.chain}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {bcSearchResults.transactions?.length > 0 && (
+                      <div>
+                        <p className="text-xs text-zinc-500 uppercase mb-2">Transactions ({bcSearchResults.transactions.length})</p>
+                        <div className="space-y-1">
+                          {bcSearchResults.transactions.map((t: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between p-2 rounded bg-zinc-800/30 text-xs">
+                              <span className="font-mono max-w-[300px] truncate">{t.hash}</span>
+                              <span className="text-zinc-500">{t.chain}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {(!bcSearchResults.addresses?.length && !bcSearchResults.transactions?.length) && (
+                      <p className="text-sm text-zinc-500 text-center py-4">No results found</p>
+                    )}
+                  </div>
+                )}
+                {bcSearchResults?.error && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{bcSearchResults.error}</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Alerts v2 sub-tab */}
+          {bcSubTab === "alerts-v2" && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+              {bcAlertsV2Stats && (
+                <div className="grid grid-cols-4 gap-3 p-4 border-b border-zinc-800">
+                  {[
+                    { l: "Total", v: bcAlertsV2Stats.total_alerts ?? bcAlertsV2.length, c: "text-zinc-400" },
+                    { l: "Open", v: bcAlertsV2Stats.open_alerts ?? bcAlertsV2.filter((a: any) => !a.acknowledged).length, c: "text-amber-400" },
+                    { l: "Acknowledged", v: bcAlertsV2Stats.acknowledged_alerts ?? bcAlertsV2.filter((a: any) => a.acknowledged).length, c: "text-green-400" },
+                    { l: "Dismissed", v: bcAlertsV2Stats.dismissed_alerts ?? "—", c: "text-red-400" },
+                  ].map((x) => (
+                    <div key={x.l} className="p-3 rounded-lg bg-zinc-800/50 text-center">
+                      <div className={`text-lg font-bold ${x.c}`}>{x.v ?? "—"}</div>
+                      <div className="text-xs text-zinc-500">{x.l}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-800/50">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium">Severity</th>
+                    <th className="text-left px-4 py-2 font-medium">Title</th>
+                    <th className="text-left px-4 py-2 font-medium">Address</th>
+                    <th className="text-left px-4 py-2 font-medium">Chain</th>
+                    <th className="text-left px-4 py-2 font-medium">Type</th>
+                    <th className="text-left px-4 py-2 font-medium">Status</th>
+                    <th className="text-left px-4 py-2 font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bcAlertsV2.length === 0 ? (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-500 text-sm">No alerts v2</td></tr>
+                  ) : bcAlertsV2.map((a: any) => (
+                    <tr key={a.id} className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                      <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded text-xs ${a.severity === "critical" ? "bg-red-500/10 text-red-400" : a.severity === "high" ? "bg-orange-500/10 text-orange-400" : a.severity === "medium" ? "bg-amber-500/10 text-amber-400" : "bg-zinc-700 text-zinc-400"}`}>{a.severity}</span></td>
+                      <td className="px-4 py-2 text-xs font-medium max-w-[200px] truncate">{a.title}</td>
+                      <td className="px-4 py-2 font-mono text-xs max-w-[160px] truncate">{a.address}</td>
+                      <td className="px-4 py-2"><span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-xs font-medium">{a.chain}</span></td>
+                      <td className="px-4 py-2 text-xs text-zinc-400">{a.alert_type}</td>
+                      <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded text-xs ${a.dismissed ? "bg-red-500/10 text-red-400" : a.acknowledged ? "bg-green-500/10 text-green-400" : "bg-amber-500/10 text-amber-400"}`}>{a.dismissed ? "Dismissed" : a.acknowledged ? "Acked" : "Open"}</span></td>
+                      <td className="px-4 py-2">
+                        {!a.acknowledged && !a.dismissed && (
+                          <div className="flex gap-1">
+                            <button onClick={() => doAction(`ack-${a.id}`, () => api.put(`/alerts/v2/${a.id}/acknowledge`), () => { api.get("/alerts/v2").then(r => setBcAlertsV2(r.data)); })}
+                              className="px-2 py-1 rounded bg-green-600/20 hover:bg-green-600/30 text-green-400 text-xs">Ack</button>
+                            <button onClick={() => doAction(`dim-${a.id}`, () => api.put(`/alerts/v2/${a.id}/dismiss`), () => { api.get("/alerts/v2").then(r => setBcAlertsV2(r.data)); })}
+                              className="px-2 py-1 rounded bg-red-600/20 hover:bg-red-600/30 text-red-400 text-xs">Dismiss</button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Compliance sub-tab */}
+          {bcSubTab === "compliance" && (
+            <div className="space-y-4">
+              {/* Stats */}
+              {bcComplianceStats && (
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { l: "VASPs", v: bcVasps.length, c: "text-blue-400" },
+                    { l: "Cases", v: bcComplianceStats.total_cases ?? "—", c: "text-cyan-400" },
+                    { l: "Open Cases", v: bcComplianceStats.open_cases ?? "—", c: "text-amber-400" },
+                    { l: "Reports", v: bcComplianceStats.total_reports ?? "—", c: "text-purple-400" },
+                  ].map((x) => (
+                    <div key={x.l} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                      <span className="text-xs text-zinc-500 uppercase">{x.l}</span>
+                      <div className={`text-lg font-bold mt-1 ${x.c}`}>{x.v}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* VASP registry */}
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+                <div className="px-4 py-3 border-b border-zinc-800">
+                  <p className="text-sm text-blue-400 font-medium">{bcVasps.length} registered VASPs</p>
+                </div>
+                <table className="w-full text-sm">
+                  <thead className="bg-zinc-800/50">
+                    <tr>
+                      <th className="text-left px-4 py-2 font-medium">Name</th>
+                      <th className="text-left px-4 py-2 font-medium">Category</th>
+                      <th className="text-left px-4 py-2 font-medium">Country</th>
+                      <th className="text-left px-4 py-2 font-medium">TRIS ID</th>
+                      <th className="text-left px-4 py-2 font-medium">Verified</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bcVasps.length === 0 ? (
+                      <tr><td colSpan={5} className="px-4 py-8 text-center text-zinc-500 text-sm">No VASPs registered</td></tr>
+                    ) : bcVasps.map((v: any) => (
+                      <tr key={v.id} className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                        <td className="px-4 py-2 text-xs font-medium">{v.name}</td>
+                        <td className="px-4 py-2"><span className="px-2 py-0.5 rounded bg-zinc-700 text-zinc-300 text-xs">{v.category || "—"}</span></td>
+                        <td className="px-4 py-2 text-xs">{v.country || "—"}</td>
+                        <td className="px-4 py-2 font-mono text-xs">{v.tris_id || "—"}</td>
+                        <td className="px-4 py-2">{v.is_verified ? <CheckCircle className="h-4 w-4 text-green-400" /> : <XCircle className="h-4 w-4 text-zinc-600" />}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Address detection */}
+              <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                <h3 className="text-sm font-semibold mb-3 flex items-center gap-2"><Shield className="h-4 w-4 text-teal-400" /> VASP Detection</h3>
+                <div className="flex gap-2">
+                  <input value={bcDetectAddr} onChange={(e) => setBcDetectAddr(e.target.value)}
+                    placeholder="0x... to check for VASP association"
+                    className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm font-mono focus:outline-none focus:border-teal-500" />
+                  <button onClick={async () => {
+                    if (!bcDetectAddr) return;
+                    setBcDetectResult(null);
+                    try {
+                      const r = await api.get(`/compliance/detect/${bcDetectAddr}`);
+                      setBcDetectResult({ ok: true, data: r.data });
+                    } catch (e: any) { setBcDetectResult({ ok: false, error: getErrorMessage(e) }); }
+                  }} disabled={!bcDetectAddr}
+                    className="px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium disabled:opacity-50 flex items-center gap-2">
+                    <Search className="h-3.5 w-3.5" /> Detect
+                  </button>
+                </div>
+                {bcDetectResult && (
+                  <div className={`mt-3 p-3 rounded-lg text-sm ${bcDetectResult.ok ? "bg-green-500/10 border border-green-500/20 text-green-400" : "bg-red-500/10 border border-red-500/20 text-red-400"}`}>
+                    {bcDetectResult.ok ? (
+                      <div className="space-y-1">
+                        <p>Address: <span className="font-mono">{bcDetectResult.data.address}</span></p>
+                        {bcDetectResult.data.vasps?.length > 0 ? (
+                          bcDetectResult.data.vasps.map((v: any, i: number) => (
+                            <p key={i}>Associated VASP: <strong>{v.name}</strong> ({v.category})</p>
+                          ))
+                        ) : (
+                          <p>No VASP association found</p>
+                        )}
+                      </div>
+                    ) : bcDetectResult.error}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

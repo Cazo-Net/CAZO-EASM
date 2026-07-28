@@ -603,3 +603,281 @@ async def check_sanctions(address: str):
     except Exception as e:
         logger.error("Sanctions check failed: %s", e)
         raise HTTPException(status_code=500, detail="Sanctions check failed")
+
+
+# ── Phase 3: Neo4j Graph Sync ─────────────────────────────────────────────────
+
+from app.blockchain.application.graph_sync import graph_sync as _graph_sync
+from app.blockchain.application.watchdog import watchdog as _watchdog
+from app.blockchain.domain.value_objects.chain import Chain as GraphChain
+
+
+@router.get("/graph/health")
+async def graph_health():
+    """Health check for the Neo4j-backed graph layer."""
+    return await _graph_sync.health()
+
+
+@router.post("/graph/sync/address")
+async def graph_sync_address(body: dict[str, str]):
+    """Trigger a full sync of an address into Neo4j."""
+    chain = GraphChain(body.get("chain", "ethereum"))
+    address = body.get("address", "")
+    if not address:
+        raise HTTPException(status_code=400, detail="address is required")
+    try:
+        result = await _graph_sync.sync_address(chain, address)
+        return {"status": "ok", "synced": result}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Graph sync address failed: %s", e)
+        raise HTTPException(status_code=500, detail="Graph sync failed")
+
+
+@router.post("/graph/sync/block")
+async def graph_sync_block(body: dict[str, Any]):
+    """Trigger a sync of a block into Neo4j."""
+    chain = GraphChain(body.get("chain", "ethereum"))
+    block_number = body.get("block_number")
+    if block_number is None:
+        raise HTTPException(status_code=400, detail="block_number is required")
+    try:
+        result = await _graph_sync.sync_block(chain, int(block_number))
+        return {"status": "ok", "synced": result}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Graph sync block failed: %s", e)
+        raise HTTPException(status_code=500, detail="Graph sync failed")
+
+
+@router.post("/graph/watch")
+async def graph_add_watch(body: dict[str, str]):
+    """Add an address to the watchdog for real-time monitoring."""
+    address = body.get("address", "")
+    chain = GraphChain(body.get("chain", "ethereum"))
+    if not address:
+        raise HTTPException(status_code=400, detail="address is required")
+    _watchdog.add_watch(address, chain)
+    return {"status": "watching", "address": address, "chain": chain.value}
+
+
+@router.delete("/graph/watch/{address:path}")
+async def graph_remove_watch(address: str):
+    """Remove an address from the watchdog."""
+    _watchdog.remove_watch(address)
+    return {"status": "removed", "address": address}
+
+
+@router.get("/graph/watches")
+async def graph_list_watches():
+    """List all watched addresses."""
+    return {"watches": _watchdog.list_watches()}
+
+
+# ── Phase 6: Alerting Engine ──────────────────────────────────────────────────
+
+from app.blockchain.application.alerts import alert_service as _alert_service
+
+
+@router.get("/alerts/v2")
+async def list_alerts_v2(
+    org_id: str | None = Query(default=None),
+    severity: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=500),
+):
+    """List alerts from the new alerting engine."""
+    return {
+        "alerts": _alert_service.list_alerts(org_id, severity, status, limit),
+        "stats": _alert_service.stats(org_id),
+    }
+
+
+@router.post("/alerts/v2/{alert_id}/acknowledge")
+async def acknowledge_alert_v2(alert_id: str, body: dict[str, str]):
+    """Acknowledge an alert."""
+    user_id = body.get("user_id", "")
+    if not _alert_service.acknowledge_alert(alert_id, user_id):
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {"acknowledged": True}
+
+
+@router.post("/alerts/v2/{alert_id}/dismiss")
+async def dismiss_alert_v2(alert_id: str):
+    """Dismiss an alert."""
+    if not _alert_service.dismiss_alert(alert_id):
+        raise HTTPException(status_code=404, detail="Alert not found")
+    return {"dismissed": True}
+
+
+@router.get("/alerts/v2/stats")
+async def alert_stats_v2(org_id: str | None = Query(default=None)):
+    """Get alert statistics."""
+    return _alert_service.stats(org_id)
+
+
+# ── Phase 7: Travel Rule / CARF Compliance ────────────────────────────────────
+
+from app.blockchain.application.compliance import (
+    travel_rule_service as _travel_rule,
+    VASPRegistry as _VASPRegistry,
+    register_default_vasps as _reg_vasps,
+    ComplianceCaseStatus,
+)
+
+
+@router.get("/compliance/vasps")
+async def list_vasps(status: str | None = Query(default=None), jurisdiction: str | None = Query(default=None)):
+    """List registered VASPs."""
+    return {"vasps": _VASPRegistry.list(status, jurisdiction)}
+
+
+@router.get("/compliance/vasps/{vasp_id}")
+async def get_vasp(vasp_id: str):
+    """Get VASP details."""
+    vasp = _VASPRegistry.get(vasp_id)
+    if not vasp:
+        raise HTTPException(status_code=404, detail="VASP not found")
+    return vasp.to_dict()
+
+
+@router.get("/compliance/detect/{address}")
+async def detect_vasp(address: str):
+    """Detect if an address belongs to a known VASP."""
+    vasp = _VASPRegistry.find_by_address(address)
+    if vasp:
+        return {"is_vasp": True, "vasp": vasp.to_dict()}
+    return {"is_vasp": False}
+
+
+@router.get("/compliance/cases")
+async def list_compliance_cases(status: str | None = Query(default=None), limit: int = Query(default=50, ge=1, le=200)):
+    """List travel rule compliance cases."""
+    return {"cases": _travel_rule.list_cases(status, limit)}
+
+
+@router.get("/compliance/cases/{case_id}")
+async def get_compliance_case(case_id: str):
+    """Get a compliance case with messages."""
+    case = _travel_rule.get_case(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+    return case
+
+
+@router.post("/compliance/cases/{case_id}/notes")
+async def add_case_note(case_id: str, body: dict[str, str]):
+    """Add a note to a compliance case."""
+    note = body.get("note", "")
+    user = body.get("user", "")
+    if not _travel_rule.add_case_note(case_id, note, user):
+        raise HTTPException(status_code=404, detail="Case not found")
+    return {"added": True}
+
+
+@router.put("/compliance/cases/{case_id}/status")
+async def update_case_status(case_id: str, body: dict[str, str]):
+    """Update compliance case status."""
+    status_str = body.get("status", "")
+    try:
+        status = ComplianceCaseStatus(status_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {status_str}")
+    if not _travel_rule.update_case_status(case_id, status):
+        raise HTTPException(status_code=404, detail="Case not found")
+    return {"updated": True, "status": status.value}
+
+
+@router.get("/compliance/messages")
+async def list_travel_rule_messages(status: str | None = Query(default=None), limit: int = Query(default=50, ge=1, le=200)):
+    """List travel rule messages."""
+    return {"messages": _travel_rule.list_messages(status, limit)}
+
+
+@router.post("/compliance/messages/{msg_id}/acknowledge")
+async def acknowledge_travel_rule_message(msg_id: str):
+    """Acknowledge a received travel rule message."""
+    if not _travel_rule.acknowledge_message(msg_id):
+        raise HTTPException(status_code=404, detail="Message not found")
+    return {"acknowledged": True}
+
+
+@router.post("/compliance/reports/generate")
+async def generate_carf_report(body: dict[str, Any]):
+    """Generate a CARF report for a VASP."""
+    vasp_id = body.get("vasp_id", "")
+    year = body.get("year")
+    quarter = body.get("quarter")
+    if not all([vasp_id, year, quarter]):
+        raise HTTPException(status_code=400, detail="vasp_id, year, and quarter are required")
+    report = _travel_rule.generate_carf_report(vasp_id, int(year), int(quarter))
+    if not report:
+        raise HTTPException(status_code=404, detail="VASP not found")
+    return {"report": report.to_dict()}
+
+
+@router.get("/compliance/reports")
+async def list_carf_reports(vasp_id: str | None = Query(default=None)):
+    """List CARF reports."""
+    return {"reports": _travel_rule.list_reports(vasp_id)}
+
+
+@router.post("/compliance/reports/{report_id}/filed")
+async def confirm_report_filed(report_id: str):
+    """Confirm a CARF report has been filed."""
+    if not _travel_rule.confirm_report_filed(report_id):
+        raise HTTPException(status_code=404, detail="Report not found")
+    return {"filed": True}
+
+
+@router.get("/compliance/stats")
+async def compliance_stats():
+    """Get compliance statistics."""
+    return _travel_rule.stats()
+
+
+# ── Phase 5: OpenSearch Search ────────────────────────────────────────────────
+
+from app.blockchain.infrastructure.search.search_service import search_service as _search
+
+
+@router.get("/search/health")
+async def search_health():
+    """Health check for OpenSearch."""
+    return _search.health()
+
+
+@router.get("/search/unified")
+async def unified_search(
+    q: str = Query(..., min_length=1, max_length=200),
+    chain: str | None = Query(default=None),
+    size: int = Query(default=20, ge=1, le=100),
+):
+    """Full-text search across addresses, transactions, and contracts."""
+    results = _search.unified_search(q, chain, size)
+    total = sum(len(v) for v in results.values())
+    return {"results": results, "total": total}
+
+
+@router.get("/search/addresses")
+async def search_addresses(
+    q: str = Query(..., min_length=1, max_length=200),
+    chain: str | None = Query(default=None),
+    size: int = Query(default=20, ge=1, le=100),
+):
+    """Search blockchain addresses."""
+    results = _search.search_addresses(q, chain, size)
+    return {"addresses": results, "total": len(results)}
+
+
+@router.get("/search/transactions")
+async def search_transactions(
+    q: str = Query(..., min_length=1, max_length=200),
+    chain: str | None = Query(default=None),
+    size: int = Query(default=50, ge=1, le=200),
+):
+    """Search transactions by address."""
+    results = _search.search_transactions(q, chain, size)
+    return {"transactions": results, "total": len(results)}

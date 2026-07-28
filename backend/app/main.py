@@ -92,8 +92,35 @@ async def lifespan(app: FastAPI):
     from app.services.scan_scheduler import scan_scheduler
     await scan_scheduler.start()
 
+    # Initialize Neo4j graph database
+    from app.blockchain.infrastructure.graph.neo4j_driver import driver as neo4j_driver
+    from app.blockchain.infrastructure.graph.schema import initialize_schema
+    from app.blockchain.application.connector_registry import register_defaults
+    await neo4j_driver.initialize()
+    await initialize_schema()
+    register_defaults()
+
+    # Initialize OpenSearch indices
+    from app.blockchain.infrastructure.search.opensearch_client import client as os_client
+    from app.blockchain.infrastructure.search.index_definitions import ensure_indices
+    await os_client.initialize()
+    ensure_indices()
+
+    # Register default VASPs for Travel Rule compliance
+    from app.blockchain.application.compliance import register_default_vasps
+    register_default_vasps()
+
+    # Start watchdog service
+    from app.blockchain.application.watchdog import watchdog
+    await watchdog.start()
+
     logger.info("Application started", extra={"environment": settings.ENVIRONMENT})
     yield
+
+    # Stop watchdog + Neo4j + OpenSearch
+    await watchdog.stop()
+    await neo4j_driver.close()
+    await os_client.close()
 
     # Stop scan scheduler
     await scan_scheduler.stop()
@@ -350,7 +377,15 @@ async def readiness_check():
         with write_engine.connect() as conn:
             from sqlalchemy import text
             conn.execute(text("SELECT 1"))
-        return {"status": "ready", "database": "ok"}
+        neo4j_ok = False
+        try:
+            from app.blockchain.infrastructure.graph.neo4j_driver import driver
+            if driver.is_connected:
+                result = await driver.run("RETURN 1 AS ok")
+                neo4j_ok = bool(result)
+        except Exception:
+            neo4j_ok = False
+        return {"status": "ready", "database": "ok", "neo4j": neo4j_ok}
     except Exception as exc:  # noqa: BLE001
         logger.error("Readiness check failed", extra={"error": str(exc)})
         return JSONResponse(
