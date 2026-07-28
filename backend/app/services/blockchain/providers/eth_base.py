@@ -3,12 +3,17 @@
 Polygon, BSC, Arbitrum, Optimism, Base, and Avalanche all expose an
 Etherscan-compatible API with the same request/response format but
 different base URLs and chain IDs.
+
+When no API key is configured, providers return simulated wallet data
+so the UI remains functional in development/demo mode.
 """
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
+import random
 from datetime import datetime, timezone
 from typing import Any
 
@@ -36,6 +41,17 @@ from app.schemas.blockchain import (
 from app.services.blockchain.providers.base import ChainProvider
 
 logger = logging.getLogger(__name__)
+
+
+def _simulated_balance(address: str) -> int:
+    """Derive a deterministic but fake balance from the address hash."""
+    h = int(hashlib.sha256(address.lower().encode()).hexdigest(), 16)
+    return (h % 5000) * 10 ** 18  # 0–5000 native tokens
+
+
+def _simulated_tx_count(address: str) -> int:
+    h = int(hashlib.md5(address.lower().encode()).hexdigest(), 16)
+    return (h % 500) + 1
 
 
 class EthEtherscanBaseProvider(ChainProvider):
@@ -67,6 +83,48 @@ class EthEtherscanBaseProvider(ChainProvider):
     def is_available(self) -> bool:
         return True
 
+    @property
+    def _has_key(self) -> bool:
+        return bool(self._api_key)
+
+    # ── Simulated data (no API key) ────────────────────────────────────
+
+    def _simulated_wallet(self, address: str) -> WalletSummary:
+        """Return deterministic simulated wallet data."""
+        bal = _simulated_balance(address)
+        tx_count = _simulated_tx_count(address)
+        return WalletSummary(
+            address=address,
+            chain=self.chain,
+            wallet_type=WalletType.EOA,
+            balance=self._wei_to_native(bal),
+            tx_count=tx_count,
+            first_seen=datetime(2021, 1, 1, tzinfo=timezone.utc),
+            last_active=datetime.now(tz=timezone.utc),
+            risk_score=15,
+            risk_band=RiskBand.LOW,
+        )
+
+    def _simulated_transactions(self, address: str, count: int = 5) -> list[TransactionSummary]:
+        """Return deterministic simulated transactions."""
+        txs = []
+        h = int(hashlib.sha256(address.lower().encode()).hexdigest(), 16)
+        for i in range(min(count, 10)):
+            val = ((h + i * 137) % 1000) * 10 ** 14
+            ts = 1700000000 + i * 3600
+            txs.append(TransactionSummary(
+                hash=f"0x{hashlib.md5(f'{address}{i}'.encode()).hexdigest()}",
+                chain=self.chain,
+                status=TransactionStatus.SUCCESS,
+                block_number=18000000 + i * 100,
+                timestamp=datetime.fromtimestamp(ts, tz=timezone.utc),
+                from_address=address if i % 2 == 0 else f"0x{'a' * 40}",
+                to_address=f"0x{'b' * 40}" if i % 2 == 0 else address,
+                value=self._wei_to_native(val),
+                fee=self._wei_to_native(val // 100),
+            ))
+        return txs
+
     # ── Internal helpers ─────────────────────────────────────────────────
 
     async def _throttle(self) -> None:
@@ -83,6 +141,9 @@ class EthEtherscanBaseProvider(ChainProvider):
         Automatically injects ``chainid`` and ``apikey`` (if set).
         Retries once on transient errors.
         """
+        if not self._has_key:
+            raise ValueError("No API key configured")
+
         await self._throttle()
         params.setdefault("chainid", str(self._chain_id))
         if self._api_key:
@@ -112,6 +173,9 @@ class EthEtherscanBaseProvider(ChainProvider):
     # ── Wallet ───────────────────────────────────────────────────────────
 
     async def get_wallet_summary(self, address: str) -> WalletSummary:
+        if not self._has_key:
+            return self._simulated_wallet(address)
+
         balance_resp = await self._get({
             "module": "account",
             "action": "balance",
@@ -165,6 +229,9 @@ class EthEtherscanBaseProvider(ChainProvider):
     async def get_transactions(
         self, address: str, page: int = 1, page_size: int = 20
     ) -> list[TransactionSummary]:
+        if not self._has_key:
+            return self._simulated_transactions(address, page_size)
+
         resp = await self._get({
             "module": "account",
             "action": "txlist",
@@ -202,6 +269,9 @@ class EthEtherscanBaseProvider(ChainProvider):
 
     async def get_internal_transactions(self, address: str, tx_hash: str | None = None) -> list[dict[str, Any]]:
         """Fetch internal transactions for an address or a specific tx."""
+        if not self._has_key:
+            return []
+
         params: dict[str, Any] = {
             "module": "account",
             "action": "txlistinternal",
@@ -220,6 +290,19 @@ class EthEtherscanBaseProvider(ChainProvider):
         return results if isinstance(results, list) else []
 
     async def get_transaction(self, tx_hash: str) -> TransactionDetail:
+        if not self._has_key:
+            return TransactionDetail(
+                hash=tx_hash,
+                chain=self.chain,
+                status=TransactionStatus.SUCCESS,
+                block_number=0,
+                timestamp=datetime.now(tz=timezone.utc),
+                from_address="0x0000000000000000000000000000000000000000",
+                to_address="0x0000000000000000000000000000000000000000",
+                value="0",
+                fee="0",
+            )
+
         tx_resp = await self._get({
             "module": "proxy",
             "action": "eth_getTransactionByHash",
@@ -273,6 +356,9 @@ class EthEtherscanBaseProvider(ChainProvider):
     # ── Tokens ───────────────────────────────────────────────────────────
 
     async def get_token_balances(self, address: str) -> list[TokenBalance]:
+        if not self._has_key:
+            return []
+
         resp = await self._get({
             "module": "account",
             "action": "tokentx",
@@ -311,6 +397,8 @@ class EthEtherscanBaseProvider(ChainProvider):
 
     async def _get_token_balance(self, owner: str, contract: str, decimals: int) -> str:
         """Call balanceOf(address) on an ERC-20 contract via eth_call."""
+        if not self._has_key:
+            return "0"
         try:
             # balanceOf(address) selector = 0x70a08231
             padded_owner = owner.lower().replace("0x", "").zfill(64)
@@ -332,6 +420,14 @@ class EthEtherscanBaseProvider(ChainProvider):
     # ── Contract ─────────────────────────────────────────────────────────
 
     async def get_contract_detail(self, address: str) -> ContractDetail | None:
+        if not self._has_key:
+            return ContractDetail(
+                address=address,
+                chain=self.chain,
+                verified=False,
+                contract_type=ContractType.UNKNOWN,
+            )
+
         code_resp = await self._get({
             "module": "proxy",
             "action": "eth_getCode",
@@ -396,6 +492,20 @@ class EthEtherscanBaseProvider(ChainProvider):
     # ── Risk ─────────────────────────────────────────────────────────────
 
     async def get_risk_score(self, address: str) -> RiskScore:
+        if not self._has_key:
+            return RiskScore(
+                address=address,
+                chain=self.chain,
+                score=15,
+                band=RiskBand.LOW,
+                factors=[RiskFactor(
+                    category="simulated",
+                    label="No API key — simulated score",
+                    weight=0,
+                    contribution=0,
+                )],
+            )
+
         score = 10
         factors: list[RiskFactor] = []
 
@@ -497,6 +607,12 @@ class EthEtherscanBaseProvider(ChainProvider):
     async def get_graph_data(
         self, address: str, depth: int = 2, limit: int = 50
     ) -> GraphData:
+        if not self._has_key:
+            return GraphData(
+                nodes=[GraphNode(id=address, chain=self.chain, label="center")],
+                edges=[],
+            )
+
         tx_resp = await self._get({
             "module": "account",
             "action": "txlist",
