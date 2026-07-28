@@ -123,7 +123,7 @@ export default function IntegrationsDocPage() {
             <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">4.</span>
             <span>
               Click <strong className="text-foreground">Refresh</strong> in the Integrations
-              panel — the status should change to "Configured".
+              panel — the status should change to &quot;Configured&quot;.
             </span>
           </li>
           <li className="flex items-start gap-3">
