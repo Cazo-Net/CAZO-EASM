@@ -8,6 +8,11 @@ export const metadata: Metadata = {
 
 const TERMS: { term: string; definition: string }[] = [
   {
+    term: "API Key",
+    definition:
+      "A unique token used to authenticate programmatic access to CAZO's API. Create and revoke API keys from Settings → Access → API Keys. Each key is scoped to your organization.",
+  },
+  {
     term: "ASN (Autonomous System Number)",
     definition:
       "A unique identifier for a network operator on the internet. ISPs, cloud providers, and large organizations each have one or more ASNs. CAZO uses shared ASNs to correlate assets that are likely operated by the same entity.",
@@ -101,6 +106,41 @@ const TERMS: { term: string; definition: string }[] = [
     term: "Wildcard",
     definition:
       "A scope entry like *.example.com that authorizes scanning of all subdomains under example.com. Useful when you control a large number of subdomains and don't want to register each one individually.",
+  },
+  {
+    term: "Webhook",
+    definition:
+      "An HTTP callback that CAZO sends to your endpoint when an event occurs (scan completed, critical finding, risk score change). Webhooks include HMAC-SHA256 signatures for payload verification.",
+  },
+  {
+    term: "Supply Chain Risk",
+    definition:
+      "Risk arising from third-party services your infrastructure depends on. CAZO detects 140+ technologies, classifies them by vendor type, and visualizes concentration risk across your vendor portfolio.",
+  },
+  {
+    term: "Exposure Validation",
+    definition:
+      "The process of actively probing your infrastructure to confirm whether a misconfiguration actually exists, rather than just reporting theoretical vulnerabilities. Dramatically reduces false positives.",
+  },
+  {
+    term: "Travel Rule",
+    definition:
+      "A FATF requirement that virtual asset service providers (VASPs) share originator and beneficiary information for transactions above certain thresholds (e.g., $3,000 in the US). CAZO checks wallet addresses against Travel Rule compliance requirements.",
+  },
+  {
+    term: "Chain of Custody",
+    definition:
+      "A documented, tamper-evident record of who handled digital evidence and when. CAZO generates court-ready evidence packages with SHA-256 hashing, merkle roots, and digital signatures for forensic use.",
+  },
+  {
+    term: "Concentration Risk",
+    definition:
+      "The risk that arises when too many services depend on a single vendor. If 80% of your stack runs on AWS, an AWS outage affects most of your infrastructure. CAZO visualizes this as vendor concentration bars.",
+  },
+  {
+    term: "Cross-chain Bridge",
+    definition:
+      "A protocol that transfers assets between different blockchains (e.g., ETH on Ethereum to ETH on Arbitrum). Bridges are common targets for exploits. CAZO detects bridge interactions in wallet transaction history.",
   },
 ];
 

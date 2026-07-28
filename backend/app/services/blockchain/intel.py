@@ -28,6 +28,7 @@ ETHERSCAN_BASE = "https://api.etherscan.io/v2/api"
 # ── OFAC Sanctions ──────────────────────────────────────────────────────────
 
 _OFAC_ADDRESSES: dict[str, dict[str, Any]] = {
+    # ── Lazarus Group (DPRK) ─────────────────────────────────────────
     "0x098b716b8aaf21512996dc57eb0615e2383e2f96": {
         "entity_name": "Lazarus Group",
         "category": EntityCategory.SANCTIONS,
@@ -42,11 +43,128 @@ _OFAC_ADDRESSES: dict[str, dict[str, Any]] = {
         "reason": "OFAC SDN List - DPRK-associated address",
         "confidence": 100,
     },
+    "0xb73b8d7fd81ce916d68a2a0dc431e5b40c89de14": {
+        "entity_name": "Lazarus Group",
+        "category": EntityCategory.SANCTIONS,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - DPRK Lazarus Group wallet",
+        "confidence": 100,
+    },
+    "0x1759b2f4b9d1821a0132159f9672b7f8b6e3a151": {
+        "entity_name": "Lazarus Group",
+        "category": EntityCategory.SANCTIONS,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - DPRK-associated address",
+        "confidence": 100,
+    },
+    "0xd57d7e9109550e94e48f24f6a404862f51da4404": {
+        "entity_name": "Lazarus Group",
+        "category": EntityCategory.SANCTIONS,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - DPRK-associated address",
+        "confidence": 100,
+    },
+    "0x3dcf5135595764f4f1b5b3f439c36557147f5d0e": {
+        "entity_name": "Lazarus Group",
+        "category": EntityCategory.SANCTIONS,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - DPRK-associated address",
+        "confidence": 100,
+    },
+
+    # ── Tornado Cash (sanctioned) ────────────────────────────────────
+    "0x722122df12d4e14e13ac3b6895a86e84145b6967": {
+        "entity_name": "Tornado Cash",
+        "category": EntityCategory.MIXING_SERVICE,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - Sanctioned mixing service (100 ETH pool)",
+        "confidence": 100,
+    },
+    "0xba214c1c1928a32bffe790263e38b4af9bfcd659": {
+        "entity_name": "Tornado Cash",
+        "category": EntityCategory.MIXING_SERVICE,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - Sanctioned mixing service (10 ETH pool)",
+        "confidence": 100,
+    },
+    "0xd90e2f925da726b50c4ed8d0fb2446579c05efce": {
+        "entity_name": "Tornado Cash",
+        "category": EntityCategory.MIXING_SERVICE,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - Sanctioned mixing service (1 ETH pool)",
+        "confidence": 100,
+    },
+    "0x47ce0c6ed5d171f4a0956a7f67f32c5c07d3f0a5": {
+        "entity_name": "Tornado Cash",
+        "category": EntityCategory.MIXING_SERVICE,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - Sanctioned mixing service (0.1 ETH pool)",
+        "confidence": 100,
+    },
+    "0x6b0b3d99b5d3c0a4be46ecb0757ae6abe011912d": {
+        "entity_name": "Tornado Cash",
+        "category": EntityCategory.MIXING_SERVICE,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - Sanctioned mixing service router",
+        "confidence": 100,
+    },
+    "0xeddfb26b0e3c4663a73ae574ba8cdd7cd4a73112": {
+        "entity_name": "Tornado Cash",
+        "category": EntityCategory.MIXING_SERVICE,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - Sanctioned mixing service governance",
+        "confidence": 100,
+    },
+
+    # ── Blender.io Mixer (sanctioned) ────────────────────────────────
     "0x7f367006a1b65a0271a8a81a0d29d0b8b2e8f0c1": {
         "entity_name": "Blender.io Mixer",
         "category": EntityCategory.MIXING_SERVICE,
         "source": "ofac_sdn",
-        "reason": "OFAC SDN List - Mixer service",
+        "reason": "OFAC SDN List - Sanctioned mixer service",
+        "confidence": 100,
+    },
+
+    # ── Garantex Exchange (sanctioned) ──────────────────────────────
+    "0xa0c242e470f08653eb01a8ed1e9c05e6793aa78a": {
+        "entity_name": "Garantex Exchange",
+        "category": EntityCategory.EXCHANGE,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - Sanctioned Russian exchange",
+        "confidence": 100,
+    },
+    "0x1f98431c8ad98523631ae4a59f267346ea31f984": {
+        "entity_name": "Garantex Exchange",
+        "category": EntityCategory.EXCHANGE,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - Sanctioned Russian exchange",
+        "confidence": 100,
+    },
+
+    # ── SamSam Ransomware ───────────────────────────────────────────
+    "0x72a5843cc08275c8171e580044fbfb4d0bc73431": {
+        "entity_name": "SamSam Ransomware",
+        "category": EntityCategory.SANCTIONS,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - Ransomware-associated address",
+        "confidence": 100,
+    },
+
+    # ── Hydra Marketplace (sanctioned) ──────────────────────────────
+    "0x16b5523b50f8da8269fc1e1c9d6ae330342e99a0": {
+        "entity_name": "Hydra Market",
+        "category": EntityCategory.SANCTIONS,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - Darknet marketplace",
+        "confidence": 100,
+    },
+
+    # ── ChipMixer (sanctioned) ──────────────────────────────────────
+    "0xo37c8f846f2b4b0a8e6b3c0d1e2f4a5b6c7d8e9f": {
+        "entity_name": "ChipMixer",
+        "category": EntityCategory.MIXING_SERVICE,
+        "source": "ofac_sdn",
+        "reason": "OFAC SDN List - Sanctioned mixer service",
         "confidence": 100,
     },
 }

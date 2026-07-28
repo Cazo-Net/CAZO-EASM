@@ -315,7 +315,7 @@ function DiscoveryBlips() {
 function IntroMark() {
   return (
     <svg
-      viewBox="0 0 32 32"
+      viewBox="0 0 64 64"
       fill="none"
       aria-hidden="true"
       className="relative z-10 h-28 w-28 md:h-32 md:w-32"
@@ -324,10 +324,10 @@ function IntroMark() {
       <defs>
         <linearGradient
           id="intro-ring"
-          x1="4"
-          y1="4"
-          x2="28"
-          y2="28"
+          x1="0"
+          y1="0"
+          x2="64"
+          y2="64"
           gradientUnits="userSpaceOnUse"
         >
           <stop stopColor={C.primary} />
@@ -339,50 +339,34 @@ function IntroMark() {
         </radialGradient>
       </defs>
 
+      {/* Background sweep glow */}
       <motion.circle
-        cx="16"
-        cy="16"
-        r="13"
+        cx="32"
+        cy="32"
+        r="28"
         fill="url(#intro-sweep)"
         initial={{ opacity: 0, scale: 0.6 }}
         animate={{ opacity: [0, 0.9, 0.5], scale: [0.6, 1.05, 1] }}
         transition={{ delay: 0.7, duration: 1.6, ease: EASE }}
-        style={{ transformOrigin: "16px 16px" }}
+        style={{ transformOrigin: "32px 32px" }}
       />
 
+      {/* Main "C" shape - open circle */}
       <motion.path
-        d="M23.5 7.6A11 11 0 1 0 27 16"
+        d="M44.5 12.8A22 22 0 1 0 52 32"
         stroke="url(#intro-ring)"
-        strokeWidth="2.2"
+        strokeWidth="7"
         strokeLinecap="round"
         initial={{ pathLength: 0, opacity: 0.25 }}
         animate={{ pathLength: 1, opacity: 1 }}
         transition={{ delay: 0.3, duration: 1.8, ease: [0.65, 0, 0.35, 1] }}
       />
 
-      <motion.path
-        d="M16 4.5v2.2"
-        stroke={C.primary}
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.6 }}
-        transition={{ delay: 1.5, duration: 0.6 }}
-      />
-      <motion.path
-        d="M27.5 16h-2.2"
-        stroke={C.secondary}
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.6 }}
-        transition={{ delay: 1.65, duration: 0.6 }}
-      />
-
+      {/* Small circle on the right */}
       <motion.circle
-        cx="27"
-        cy="16"
-        r="2.6"
+        cx="50"
+        cy="28"
+        r="5"
         fill={C.primary}
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -392,18 +376,33 @@ function IntroMark() {
           stiffness: 260,
           damping: 15,
         }}
-        style={{ transformOrigin: "27px 16px" }}
+        style={{ transformOrigin: "50px 28px" }}
       />
+
+      {/* Tiny inner dot */}
       <motion.circle
-        cx="27"
-        cy="16"
-        r="4.4"
+        cx="50"
+        cy="28"
+        r="2"
+        fill="#09090B"
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ delay: 1.8, duration: 0.3 }}
+        style={{ transformOrigin: "50px 28px" }}
+      />
+
+      {/* Ripple effect on the small circle */}
+      <motion.circle
+        cx="50"
+        cy="28"
+        r="5"
         stroke={C.primary}
         strokeWidth="1"
+        fill="none"
         initial={{ scale: 0.4, opacity: 0.9 }}
         animate={{ scale: 2.4, opacity: 0 }}
         transition={{ delay: 1.75, duration: 1.4, ease: "easeOut", repeat: 1, repeatDelay: 0.3 }}
-        style={{ transformOrigin: "27px 16px" }}
+        style={{ transformOrigin: "50px 28px" }}
       />
     </svg>
   );

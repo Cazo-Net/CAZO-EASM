@@ -15,12 +15,18 @@ from app.models.vulnerability import Vulnerability
 from app.database import SessionLocal
 from app.services.audit import log_event
 from app.services.notification_service import dispatch_notification
+from app.config import settings
 from datetime import datetime, timezone
 from typing import Dict, Any
+import asyncio
 import json
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Enforce max concurrent scans — prevents scan flooding under heavy load.
+# Shared across all requests within a single worker process.
+_scan_semaphore = asyncio.Semaphore(getattr(settings, "MAX_CONCURRENT_SCANS", 5))
 
 
 class ScanServiceV2:
@@ -41,110 +47,86 @@ class ScanServiceV2:
 
     async def execute_scan(self, scan_id: str) -> Scan:
         """Execute a scan using the v2 enterprise scanner pipeline."""
-        db = SessionLocal()
-        try:
-            scan = None
-            for _ in range(10):
-                scan = db.query(Scan).filter(Scan.id == scan_id).first()
-                if scan:
-                    break
-                import asyncio
-                await asyncio.sleep(0.1)
-            if not scan:
-                raise ValueError(f"Scan not found: {scan_id}")
+        async with _scan_semaphore:
+            db = SessionLocal()
+            try:
+                scan = None
+                for _ in range(10):
+                    scan = db.query(Scan).filter(Scan.id == scan_id).first()
+                    if scan:
+                        break
+                    await asyncio.sleep(0.1)
+                if not scan:
+                    raise ValueError(f"Scan not found: {scan_id}")
 
-            scan.status = "running"
-            scan.started_at = datetime.now(timezone.utc)
-            db.commit()
+                scan.status = "running"
+                scan.started_at = datetime.now(timezone.utc)
+                db.commit()
 
-            options = self._resolve_scan_options(scan)
+                options = self._resolve_scan_options(scan)
 
-            async def progress_callback(progress: int, message: str):
+                async def progress_callback(progress: int, message: str):
+                    try:
+                        scan.progress = progress
+                        db.commit()
+                    except Exception:
+                        db.rollback()
+
+                from app.scanners.v2_runner import V2ScanRunner
+                runner = V2ScanRunner()
+
+                scan_type = scan.scan_type or "full"
+                if scan_type == "quick":
+                    results = await runner.run_quick_scan(
+                        domain=scan.domain,
+                        progress_callback=progress_callback,
+                    )
+                else:
+                    results = await runner.run_full_scan(
+                        domain=scan.domain,
+                        progress_callback=progress_callback,
+                        options=options,
+                    )
+
+                await asyncio.to_thread(self._store_results_sync, db, scan, results)
+
+                # Record in scan_history
                 try:
-                    scan.progress = progress
-                    db.commit()
+                    from app.scanners.v2.monitoring import monitor as v2_monitor
+                    await asyncio.to_thread(
+                        self._record_history_and_lifecycle, v2_monitor, db, scan, results
+                    )
+                except Exception as e:
+                    logger.warning("Failed to record scan_history: %s", e)
+
+                scan.status = "completed"
+                scan.progress = 100
+                scan.completed_at = datetime.now(timezone.utc)
+                if results.get("scanner_status"):
+                    scan.scanner_status = results["scanner_status"]
+                db.commit()
+
+                try:
+                    self._generate_notifications(db, scan, results)
+                except Exception as e:
+                    logger.error(f"Failed to generate notifications: {e}")
+
+                return scan
+
+            except Exception as e:
+                logger.error(f"Scan v2 failed: {e}")
+                try:
+                    scan = db.query(Scan).filter(Scan.id == scan_id).first()
+                    if scan:
+                        scan.status = "failed"
+                        scan.error_message = str(e)
+                        scan.completed_at = datetime.now(timezone.utc)
+                        db.commit()
                 except Exception:
                     db.rollback()
-
-            from app.scanners.v2_runner import V2ScanRunner
-            runner = V2ScanRunner()
-
-            scan_type = scan.scan_type or "full"
-            if scan_type == "quick":
-                results = await runner.run_quick_scan(
-                    domain=scan.domain,
-                    progress_callback=progress_callback,
-                )
-            else:
-                results = await runner.run_full_scan(
-                    domain=scan.domain,
-                    progress_callback=progress_callback,
-                    options=options,
-                )
-
-            await self._store_results(db, scan, results)
-
-            # Record in scan_history
-            try:
-                from app.scanners.v2.monitoring import monitor as v2_monitor
-                scan_history_id = v2_monitor.record_scan_history(
-                    db,
-                    domain=scan.domain,
-                    scan_type=scan.scan_type or "full",
-                    status="completed",
-                    user_id=scan.created_by,
-                    organization_id=getattr(scan, "organization_id", None),
-                    results=results,
-                    duration_ms=(scan.completed_at - scan.started_at).total_seconds() * 1000
-                    if scan.completed_at and scan.started_at else 0,
-                )
-                # Track asset lifecycle
-                assets = []
-                for sub in results.get("subdomains", []):
-                    name = sub if isinstance(sub, str) else sub.get("name", "")
-                    if name:
-                        assets.append({"type": "subdomain", "value": name})
-                if assets:
-                    v2_monitor.update_asset_lifecycle(
-                        db, scan.domain, assets,
-                        scan_history_id=scan_history_id,
-                        organization_id=getattr(scan, "organization_id", None),
-                    )
-                    v2_monitor.mark_removed_assets(
-                        db, scan.domain,
-                        {a["value"] for a in assets},
-                    )
-            except Exception as e:
-                logger.warning("Failed to record scan_history: %s", e)
-
-            scan.status = "completed"
-            scan.progress = 100
-            scan.completed_at = datetime.now(timezone.utc)
-            if results.get("scanner_status"):
-                scan.scanner_status = results["scanner_status"]
-            db.commit()
-
-            try:
-                self._generate_notifications(db, scan, results)
-            except Exception as e:
-                logger.error(f"Failed to generate notifications: {e}")
-
-            return scan
-
-        except Exception as e:
-            logger.error(f"Scan v2 failed: {e}")
-            try:
-                scan = db.query(Scan).filter(Scan.id == scan_id).first()
-                if scan:
-                    scan.status = "failed"
-                    scan.error_message = str(e)
-                    scan.completed_at = datetime.now(timezone.utc)
-                    db.commit()
-            except Exception:
-                db.rollback()
-            raise
-        finally:
-            db.close()
+                raise
+            finally:
+                db.close()
 
     async def _store_results(self, db: Session, scan: Scan, results: Dict[str, Any]) -> None:
         """Store scan results in the database."""
@@ -339,3 +321,36 @@ class ScanServiceV2:
             )
         except Exception as e:
             logger.error(f"Failed to log audit event: {e}")
+
+    def _store_results_sync(self, db: Session, scan: Scan, results: Dict[str, Any]) -> None:
+        """Synchronous version of _store_results for use with asyncio.to_thread."""
+        self._store_results(db, scan, results)
+
+    def _record_history_and_lifecycle(self, v2_monitor, db: Session, scan: Scan, results: Dict[str, Any]) -> None:
+        """Record scan history and asset lifecycle in a thread-safe way."""
+        scan_history_id = v2_monitor.record_scan_history(
+            db,
+            domain=scan.domain,
+            scan_type=scan.scan_type or "full",
+            status="completed",
+            user_id=scan.created_by,
+            organization_id=getattr(scan, "organization_id", None),
+            results=results,
+            duration_ms=(scan.completed_at - scan.started_at).total_seconds() * 1000
+            if scan.completed_at and scan.started_at else 0,
+        )
+        assets = []
+        for sub in results.get("subdomains", []):
+            name = sub if isinstance(sub, str) else sub.get("name", "")
+            if name:
+                assets.append({"type": "subdomain", "value": name})
+        if assets:
+            v2_monitor.update_asset_lifecycle(
+                db, scan.domain, assets,
+                scan_history_id=scan_history_id,
+                organization_id=getattr(scan, "organization_id", None),
+            )
+            v2_monitor.mark_removed_assets(
+                db, scan.domain,
+                {a["value"] for a in assets},
+            )

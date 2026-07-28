@@ -13,6 +13,7 @@ from app.services.scan_service import ScanService
 from app.services.scan_dispatch import dispatch_scan
 from app.api.deps import get_current_user
 from app.core.permissions import require_permission, Permission
+from app.core.cache import cached
 from app.scanners.registry import discovery_manifest
 
 router = APIRouter()
@@ -83,6 +84,7 @@ async def list_discovery_plugins(
 
 
 @router.get("/stats")
+@cached(ttl=30, prefix="dashboard_stats")
 async def get_dashboard_stats(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -127,6 +129,7 @@ async def get_dashboard_stats(
 
 
 @router.get("", response_model=List[ScanResponse])
+@cached(ttl=15, prefix="scan_list")
 async def list_scans(
     skip: int = 0,
     limit: int = 20,
@@ -230,6 +233,7 @@ async def get_recent_activity(
 
 
 @router.get("/{scan_id}", response_model=ScanDetail)
+@cached(ttl=60, prefix="scan_detail")
 async def get_scan(
     scan_id: str,
     db: Session = Depends(get_db),

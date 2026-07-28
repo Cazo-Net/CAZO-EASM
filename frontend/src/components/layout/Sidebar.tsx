@@ -30,11 +30,14 @@ import {
   BookOpen,
   Wallet,
   Eye,
+  Link2,
+  Webhook,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
+import { CazoMark } from "@/components/marketing/CazoLogo";
 import {
   Tooltip,
   TooltipContent,
@@ -64,6 +67,7 @@ const navSections = [
       { href: "/intel", label: "Intelligence", icon: Zap },
       { href: "/blockchain", label: "Blockchain Intel", icon: Wallet },
       { href: "/darkweb", label: "Dark Web Intel", icon: Eye },
+      { href: "/supply-chain", label: "Supply Chain", icon: Boxes },
       { href: "/assets", label: "Assets", icon: Globe },
       { href: "/shadow-assets", label: "Shadow Assets", icon: Ghost },
       { href: "/vulnerabilities", label: "Vulnerabilities", icon: Bug },
@@ -144,7 +148,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
         <div className="flex h-14 items-center gap-3 border-b border-border/50 px-4 shrink-0">
           <Link href="/dashboard" className="flex items-center gap-3 min-w-0">
             <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-void border border-border/50 overflow-hidden shadow-glow-sm">
-              <img src="/icon.ico" alt="" className="h-6 w-6 object-contain" />
+              <CazoMark className="h-6 w-6" />
               <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-phosphor/20 to-cyan-signal/10 blur-md" />
             </div>
             {!collapsed && (

@@ -11,7 +11,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // No console.error in production — leaks error details
+    // Never log error details in production — prevents info leakage in DevTools
   }, [error]);
 
   return (

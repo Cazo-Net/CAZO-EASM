@@ -1,0 +1,186 @@
+CAZO EASM PLATFORM - 8-WEEK COMPREHENSIVE IMPLEMENTATION PLAN
+============================================================
+Generated: July 28, 2026
+Goal: Close gaps vs. market leaders (IONIX, Chainalysis, TRM Labs, etc.)
+
+========================================================================
+STREAM A: CROSS-CHAIN BLOCKCHAIN INTELLIGENCE (Weeks 1-4)
+========================================================================
+
+Week 1: Solana, Polygon, BSC Providers [DONE]
+---------------------------------------
+Task                          File                         API Source                              Status
+Etherscan-family base class   providers/eth_base.py        Shared Etherscan-compatible logic       DONE
+Solana provider               providers/solana.py          api.mainnet-beta.solana.com (public)    DONE
+Polygon provider              providers/polygon.py         api.polygonscan.com (free)              DONE
+BSC provider                  providers/bsc.py             api.bscscan.com (free)                  DONE
+Register in __init__.py       providers/__init__.py        Auto-register new providers              DONE
+Update Chain enum             blockchain/schemas.py        10 chains defined                       DONE
+Expand curated labels         blockchain/labels/curated.py ~65 labels (ETH,BTC,SOL,POLY,BSC)      DONE
+Expand OFAC SDN list          blockchain/intel.py          21 sanctioned addresses                  DONE
+
+Week 2: Arbitrum, Optimism, Base Providers [DONE]
+-------------------------------------------
+Task                          File                         API Source                              Status
+Arbitrum provider             providers/arbitrum.py        api.arbiscan.com (free)                 DONE
+Optimism provider             providers/optimism.py        api-optimistic.etherscan.io (free)      DONE
+Base provider                 providers/base_chain.py      api.basescan.org (free)                 DONE
+Curated labels L2             blockchain/labels/curated.py +15 labels for ARB,OPT,BASE           DONE
+
+Week 3: Avalanche, Tron + Cross-chain Tracing [DONE]
+----------------------------------------------
+Task                          File                         API Source                              Status
+Avalanche provider            providers/avalanche.py       api.snowtrace.io (free)                 DONE
+Tron provider                 providers/tron.py            api.trongrid.io (free tier)             DONE
+Cross-chain bridge tracer     blockchain/cross_chain.py    Extends existing bridges.py             PENDING
+
+Week 4: Frontend Chain Selector + Attribution
+----------------------------------------------
+Task                          File                         Description
+Dynamic chain selector        frontend blockchain/page.tsx Wire chain selector to API
+Detail page chain support     frontend blockchain/[address]/page.tsx Pass chain from URL
+OFAC expansion                blockchain/intel.py          ~1000 addresses
+
+========================================================================
+STREAM B: EXPOSURE VALIDATION SCANNER (Weeks 1-4)
+========================================================================
+
+Week 1-2: Scanner Foundation [DONE]
+----------------------------------------------
+Task                          File                         Description                           Status
+Create exposure validation    scanners/v2/exposure_validation.py  New scanner                DONE
+Register in pipeline          scanners/v2/registry.py + __init__.py Added to VULNERABILITY_ASSESSMENT  DONE
+HTTP header security checks   (within scanner)              Missing HSTS, CSP, X-Frame-Options    DONE
+TLS configuration validation  (within scanner)              Weak ciphers, protocol downgrade       DONE
+Exposed service detection     (within scanner)              Admin panels, phpinfo, .git            DONE
+Sensitive file detection      (within scanner)              .env, backup, config dumps             DONE
+Information disclosure        (within scanner)              Server headers, error pages            DONE
+
+Week 3-4: Active Validation [DONE]
+------------------------------
+Task                          File                         Description                           Status
+Subdomain takeover validation (within scanner)              Verify dangling CNAMEs exploitable    DONE
+CORS misconfiguration check   (within scanner)              Wildcard, null, reflected origin      DONE
+Open redirect detection       (within scanner)              Test common redirect parameters        DONE
+SSRF surface mapping          (within scanner)              Identify user-controlled URLs          DONE
+Risk integration              risk_engine.py                Feed into _score_exposure()            DONE
+
+========================================================================
+STREAM C: SUPPLY CHAIN INTELLIGENCE (Weeks 2-5)
+========================================================================
+
+Week 2-3: Technology Dependency Mapping [DONE]
+-----------------------------------------
+Task                          File                         Description                           Status
+Third-party script detection  scanners/v2/tech_intel.py    142 fingerprints (was ~80)             DONE
+CDN/WAF dependency mapping    (within tech_intel)           Cloudflare -> origin IP                DONE
+SaaS service enumeration      (within tech_intel)           CRM, Support, Payment, Auth, etc.     DONE
+Third-party risk scoring      risk_engine.py                _score_supply_chain() dimension        DONE
+
+Week 4-5: Graph-Based Supply Chain Analysis [DONE]
+---------------------------------------------
+Task                          File                         Description                           Status
+Supply chain graph builder    scanners/v2/graph_intel.py   vendor -> technology -> subdomain      DONE
+Risk propagation              (within graph_intel)          Third-party risk -> first-party        DONE
+Supply chain report           services/supply_chain_report.py  Risk assessment report             DONE
+Critical path analysis        (within graph_intel)          Find paths from vendors to domains    DONE
+Concentration risk            (within graph_intel)          Single point of failure detection     DONE
+
+========================================================================
+STREAM D: INTEGRATION LAYER (Weeks 3-6)
+========================================================================
+
+Week 3-4: Webhook System [DONE]
+--------------------------
+Task                          File                         Description                           Status
+Webhook model                 models/webhook.py             url, secret, event_types, org_id       DONE
+Webhook CRUD API              api/v1/webhooks.py            POST/GET/PUT/DELETE + test             DONE
+Webhook dispatch              services/webhook_dispatch.py  HMAC-SHA256 signed, retry + backoff    DONE
+Wire into notification        notification_service.py       Added webhook channel                  DONE
+Webhook event types           models/webhook.py             18 event types defined                 DONE
+
+Week 5-6: SIEM Integrations [DONE]
+-----------------------------
+Task                          File                         Description                           Status
+CEF formatter                 integrations/cef.py           Splunk/Elastic format                  DONE
+Splunk HEC                    integrations/splunk.py        Push to Splunk via HEC                 DONE
+Elastic Common Schema         integrations/elastic.py       Push to Elasticsearch (bulk API)       DONE
+Microsoft Sentinel            integrations/sentinel.py      Push to Log Analytics                  DONE
+Jira integration              integrations/jira.py          Create tickets for findings            DONE
+Slack/Teams notifications     integrations/chatops.py       Post alerts to channels                DONE
+
+========================================================================
+STREAM E: COMPLIANCE & ENTERPRISE (Weeks 5-8)
+========================================================================
+
+Week 5-6: Travel Rule Compliance [DONE]
+---------------------------------
+Task                          File                         Description                           Status
+Travel Rule data model        compliance/travel_rule_model.py  VASP records, config              DONE
+FATF Travel Rule checker      compliance/travel_rule.py     Compliance check + threshold         DONE
+VASP identification           compliance/travel_rule.py     Identify counterparty VASP           DONE
+Compliance config             compliance/travel_rule_model.py  Org-level settings                DONE
+
+Week 7-8: Court-Ready Evidence Export [DONE]
+---------------------------------------
+Task                          File                         Description                           Status
+Evidence package builder      forensics/evidence.py         Chain of custody, SHA-256 hashing    DONE
+Audit trail                   forensics/audit.py            Immutable hash chain investigation log DONE
+Export formats                forensics/evidence.py         JSON export with merkle root          DONE
+
+========================================================================
+MILESTONES
+========================================================================
+
+M2 (Week 2): 5 chain providers live (ETH, BTC, SOL, POLY, BSC) [DONE]
+M4 (Week 4): All 10 chains + exposure validation scanner [DONE]
+M6 (Week 6): Webhook system + Splunk/Elastic/Sentinel integrations [DONE]
+M8 (Week 8): Travel Rule compliance + court-ready evidence export [DONE]
+
+========================================================================
+NEW FILES (~35)
+========================================================================
+
+providers/solana.py              Solana chain provider
+providers/polygon.py             Polygon chain provider
+providers/bsc.py                 BSC chain provider
+providers/arbitrum.py            Arbitrum chain provider
+providers/optimism.py            Optimism chain provider
+providers/base_chain.py          Base chain provider
+providers/avalanche.py           Avalanche chain provider
+providers/tron.py                Tron chain provider
+providers/eth_base.py            Etherscan-family base class
+blockchain/cross_chain.py        Cross-chain bridge tracing
+scanners/v2/exposure_validation.py  Exposure validation scanner
+scanners/v2/supply_chain.py      Supply chain intelligence scanner
+models/webhook.py                Webhook data model
+api/v1/webhooks.py               Webhook CRUD API
+services/webhook_dispatch.py     Webhook dispatch engine
+integrations/cef.py              CEF format formatter
+integrations/splunk.py           Splunk HEC integration
+integrations/elastic.py          Elasticsearch integration
+integrations/sentinel.py         Azure Sentinel integration
+integrations/jira.py             Jira ticket creation
+integrations/chatops.py          Slack/Teams notifications
+blockchain/compliance/travel_rule.py  FATF Travel Rule checker
+blockchain/compliance/vasp.py         VASP identification
+blockchain/forensics/evidence.py      Evidence package builder
+blockchain/forensics/report.py        PDF evidence report
+blockchain/forensics/audit.py         Investigation audit trail
+
+========================================================================
+MODIFIED FILES (~20)
+========================================================================
+
+providers/__init__.py            Register 8 new providers
+blockchain/models.py             Add Chain enum values
+scanners/v2/registry.py          Register new scanners
+scanners/v2/pipeline.py          Add new stage categories
+risk_engine.py                   Add _score_supply_chain() + exposure validation
+notification_service.py          Add webhook channel
+main.py                          Register new routers
+frontend blockchain/page.tsx     Dynamic chain selector
+frontend blockchain/[address]/page.tsx  Chain-aware detail page
+blockchain/labels/curated.py     Expand to ~65 labels
+blockchain/intel.py              Full OFAC SDN list
+blockchain/bridges.py            Extend bridge contracts

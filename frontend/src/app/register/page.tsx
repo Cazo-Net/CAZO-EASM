@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/api";
 import { GoogleButton } from "@/components/auth/GoogleButton";
+import { CazoMark } from "@/components/marketing/CazoLogo";
 
 function getPasswordStrength(password: string): {
   score: number;
@@ -89,7 +90,7 @@ export default function RegisterPage() {
           <div className="relative mb-5">
             <div className="absolute inset-0 rounded-2xl gradient-brand opacity-60 blur-lg" />
             <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-[#09090B] border border-border/50 shadow-xl overflow-hidden">
-              <img src="/icon.ico" alt="CAZO EASM" className="h-11 w-11 object-contain" />
+              <CazoMark className="h-11 w-11" />
             </div>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">

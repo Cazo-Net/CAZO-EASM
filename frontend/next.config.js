@@ -1,10 +1,8 @@
 const { withSentryConfig } = require("@sentry/nextjs");
+const webpack = require("webpack");
 
 /** @type {import('next').NextConfig} */
 const API_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-if (!process.env.BACKEND_URL && !process.env.NEXT_PUBLIC_API_URL) {
-  console.warn("[CAZO] BACKEND_URL or NEXT_PUBLIC_API_URL not set — using localhost fallback (dev only)");
-}
 
 const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
@@ -42,6 +40,10 @@ const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   poweredByHeader: false,
+  // Strip console.* in production — prevents info leakage in DevTools
+  compiler: {
+    removeConsole: process.env.NODE_ENV === "production",
+  },
   async rewrites() {
     return [
       {

@@ -53,6 +53,8 @@ import { Separator } from "@/components/ui/separator";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { cn } from "@/lib/utils";
 import { AuditLogViewer } from "@/components/AuditLogViewer";
+import { WebhookManager } from "@/components/settings/WebhookManager";
+import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel";
 import { useChecklistAutoComplete } from "@/components/onboarding/GettingStartedChecklist";
 import type { User as UserType } from "@/types";
 
@@ -89,6 +91,7 @@ const navSections: NavSection[] = [
     label: "Access",
     items: [
       { id: "api-keys", label: "API Keys", icon: Key },
+      { id: "webhooks", label: "Webhooks", icon: Link2 },
       { id: "notifications", label: "Notifications", icon: Bell },
       { id: "integrations", label: "Integrations", icon: Link2 },
     ],
@@ -507,7 +510,8 @@ function SettingsContent() {
               handleSavePreferences={handleSavePreferences}
             />
           )}
-          {activeTab === "integrations" && <IntegrationsTab />}
+          {activeTab === "webhooks" && <WebhookManager />}
+          {activeTab === "integrations" && <IntegrationsPanel />}
           {activeTab === "danger" && (
             <DangerTab
               showDeleteConfirm={showDeleteConfirm}
@@ -1102,23 +1106,6 @@ function NotificationsTab({ notifications, setNotifications, savingPrefs, handle
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-/* ============================================
-   INTEGRATIONS TAB
-   ============================================ */
-
-function IntegrationsTab() {
-  return (
-    <div>
-      <SectionHeader icon={Link2} title="Integrations" description="Connect with third-party services." color="info" />
-      <div className="rounded-lg border border-border/30 bg-muted/10 p-12 text-center">
-        <Link2 className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground mb-1">Integrations coming soon</p>
-        <p className="text-xs text-muted-foreground/50">Connect with Slack, Jira, PagerDuty, and more.</p>
-      </div>
     </div>
   );
 }

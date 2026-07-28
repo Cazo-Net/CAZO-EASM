@@ -195,6 +195,235 @@ FINGERPRINTS: Dict[str, Dict[str, Any]] = {
     "amplitude": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
         "html": [r"amplitude\.com", r"amplitude\.getInstance"],
     }},
+    "heap": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"heap\.io", r"heap\.analyze"],
+    }},
+    "pendo": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"pendo\.io", r"pendo-"],
+    }},
+    "fullstory": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"fullstory\.com", r"fs\.js"],
+    }},
+    "segment": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"segment\.com", r"cdn\.segment\.com"],
+    }},
+    "posthog": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"posthog\.com", r"posthog"],
+    }},
+    "plausible": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"plausible\.io", r"plausible\.js"],
+    }},
+    "fathom": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"fathom\.analytics", r"cdn\.usefathom"],
+    }},
+    "matomo": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"matomo", r"piwik"],
+    }},
+    "clarity": {"category": "Analytics", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"clarity\.ms", r"clarity\.js"],
+    }},
+
+    # CRM & Sales
+    "salesforce": {"category": "CRM", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"salesforce\.com", r"sfdc\.com", r"force\.com"],
+    }},
+    "hubspot": {"category": "CRM", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"hubspot\.com", r"hs-scripts", r"hubspot\.net"],
+    }},
+    "pipedrive": {"category": "CRM", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"pipedrive\.com", r"pipedrive"],
+    }},
+    "zoho": {"category": "CRM", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"zoho\.com", r"zoho"],
+    }},
+    "freshsales": {"category": "CRM", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"freshworks\.com", r"freshsales"],
+    }},
+
+    # Customer Support
+    "zendesk": {"category": "Support", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"zendesk\.com", r"zendesk\.zendesk"],
+    }},
+    "intercom": {"category": "Support", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"intercom\.com", r"intercom\.io", r"intercomcdn"],
+    }},
+    "drift": {"category": "Support", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"drift\.com", r"driftt"],
+    }},
+    "crisp": {"category": "Support", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"crisp\.chat", r"crisp\.io"],
+    }},
+    "tawk_to": {"category": "Support", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"tawk\.to", r"tawkto"],
+    }},
+    "freshdesk": {"category": "Support", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"freshdesk\.com", r"freshworks"],
+    }},
+    "helpscout": {"category": "Support", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"helpscout\.com", r"helpscoutdocs"],
+    }},
+    "livechat": {"category": "Support", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"livechatinc\.com", r"livechat"],
+    }},
+    "olark": {"category": "Support", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"olark\.com", r"olark"],
+    }},
+    "zendesk_chat": {"category": "Support", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"zopim\.com", r"zopim"],
+    }},
+
+    # Payment & Commerce
+    "stripe": {"category": "Payment", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"stripe\.com", r"js\.stripe\.com"],
+    }},
+    "paypal": {"category": "Payment", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"paypal\.com", r"paypalobjects"],
+    }},
+    "braintree": {"category": "Payment", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"braintreegateway\.com", r"braintree"],
+    }},
+    "square": {"category": "Payment", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"square\.com", r"squarespace"],
+    }},
+    "shopify_pay": {"category": "Payment", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"shopify\.com/pay", r"shopify-pay"],
+    }},
+    "adyen": {"category": "Payment", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"adyen\.com", r"adyen"],
+    }},
+    "checkout_com": {"category": "Payment", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"checkout\.com", r"checkout\.com"],
+    }},
+
+    # Authentication & Identity
+    "auth0": {"category": "Authentication", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"auth0\.com", r"auth0"],
+    }},
+    "okta": {"category": "Authentication", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"okta\.com", r"okta"],
+    }},
+    "firebase_auth": {"category": "Authentication", "vendor_type": "cloud_provider", "patterns": {
+        "html": [r"firebaseio\.com", r"firebase"],
+    }},
+    "cognito": {"category": "Authentication", "vendor_type": "cloud_provider", "patterns": {
+        "html": [r"cognito\.amazonaws\.com", r"cognito"],
+    }},
+    "clerk": {"category": "Authentication", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"clerk\.com", r"clerk\.dev"],
+    }},
+    "supabase_auth": {"category": "Authentication", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"supabase\.co", r"supabase"],
+    }},
+
+    # Email & Marketing
+    "sendgrid": {"category": "Email", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"sendgrid\.com", r"sendgrid"],
+    }},
+    "mailchimp": {"category": "Email", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"mailchimp\.com", r"list-manage\.com"],
+    }},
+    "postmark": {"category": "Email", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"postmarkapp\.com", r"postmark"],
+    }},
+    "ses": {"category": "Email", "vendor_type": "cloud_provider", "patterns": {
+        "html": [r"amazonses\.com", r"ses\."],
+    }},
+
+    # Error Tracking & Monitoring
+    "sentry": {"category": "Monitoring", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"sentry\.io", r"sentry-cdn", r"Sentry\.init"],
+    }},
+    "datadog": {"category": "Monitoring", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"datadoghq\.com", r"dd-rum"],
+    }},
+    "new_relic": {"category": "Monitoring", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"newrelic\.com", r"new-relic", r"nr-data\.net"],
+    }},
+    "rollbar": {"category": "Monitoring", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"rollbar\.com", r"rollbar"],
+    }},
+    "bugsnag": {"category": "Monitoring", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"bugsnag\.com", r"bugsnag"],
+    }},
+    "logrocket": {"category": "Monitoring", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"logrocket\.com", r"logrocket"],
+    }},
+    "uptime_robot": {"category": "Monitoring", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"uptimerobot\.com", r"uptimerobot"],
+    }},
+    "pagerduty": {"category": "Monitoring", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"pagerduty\.com", r"pagerduty"],
+    }},
+
+    # Hosting & Deployment
+    "vercel": {"category": "Hosting", "vendor_type": "cloud_provider", "patterns": {
+        "header": [r"x-vercel", r"vercel"],
+        "html": [r"vercel\.app", r"vercel\.com"],
+    }},
+    "netlify": {"category": "Hosting", "vendor_type": "cloud_provider", "patterns": {
+        "header": [r"netlify", r"x-nf-request-id"],
+        "html": [r"netlify\.app", r"netlify\.com"],
+    }},
+    "cloudflare_pages": {"category": "Hosting", "vendor_type": "cloud_provider", "patterns": {
+        "html": [r"pages\.dev", r"cloudflare\.pages"],
+    }},
+    "fly_io": {"category": "Hosting", "vendor_type": "cloud_provider", "patterns": {
+        "html": [r"fly\.dev", r"fly\.io"],
+    }},
+    "render": {"category": "Hosting", "vendor_type": "cloud_provider", "patterns": {
+        "html": [r"onrender\.com", r"render\.com"],
+    }},
+    "railway": {"category": "Hosting", "vendor_type": "cloud_provider", "patterns": {
+        "html": [r"railway\.app", r"railway\.com"],
+    }},
+    "digital_ocean": {"category": "Hosting", "vendor_type": "cloud_provider", "patterns": {
+        "html": [r"digitalocean\.com", r"digitaloceanspaces"],
+    }},
+    "heroku": {"category": "Hosting", "vendor_type": "cloud_provider", "patterns": {
+        "html": [r"heroku\.com", r"herokuapp\.com"],
+    }},
+
+    # Project Management & Collaboration
+    "jira": {"category": "Project Management", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"atlassian\.net", r"jira\.atlassian"],
+    }},
+    "notion": {"category": "Project Management", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"notion\.so", r"notion\.site"],
+    }},
+    "confluence": {"category": "Project Management", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"confluence\.atlassian", r"confluence"],
+    }},
+
+    # Communication & Chat
+    "slack": {"category": "Communication", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"slack\.com", r"slack\.com/api"],
+    }},
+    "twilio": {"category": "Communication", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"twilio\.com", r"twilio"],
+    }},
+    "discord": {"category": "Communication", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"discord\.com", r"discordapp\.com"],
+    }},
+
+    # SEO & Marketing Tools
+    "semrush": {"category": "SEO", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"semrush\.com", r"semrush"],
+    }},
+    "ahrefs": {"category": "SEO", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"ahrefs\.com", r"ahrefs"],
+    }},
+    "unbounce": {"category": "Landing Pages", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"unbounce\.com", r"unbounce"],
+    }},
+    "optimizely": {"category": "A/B Testing", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"optimizely\.com", r"optimizely"],
+    }},
+    "vwo": {"category": "A/B Testing", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"vwo\.com", r"vwo"],
+    }},
+    "launchdarkly": {"category": "Feature Flags", "vendor_type": "third_party_service", "patterns": {
+        "html": [r"launchdarkly\.com", r"launchdarkly"],
+    }},
 
     # Databases (detected via exposed ports/services)
     "mysql": {"category": "Database", "vendor_type": "first_party_infra", "patterns": {"header": [r"mysql"]}},

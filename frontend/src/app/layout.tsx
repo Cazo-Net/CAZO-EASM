@@ -79,9 +79,9 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/icon.ico",
-    shortcut: "/icon.ico",
-    apple: "/icon.ico",
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
   },
   verification: {
     google: "your-google-verification-code",

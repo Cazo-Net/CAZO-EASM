@@ -103,6 +103,14 @@ class RiskScoringEngine:
         dimensions["technology"] = {"score": tech_score, "weight": self.weights["technology"], "findings": tech_findings}
         all_findings.extend(tech_findings)
 
+        # Supply chain risk (added to technology dimension)
+        sc_score, sc_findings = self._score_supply_chain(scan_results)
+        if sc_findings:
+            tech_score = min(100, tech_score + sc_score)
+            dimensions["technology"]["score"] = tech_score
+            dimensions["technology"]["findings"].extend(sc_findings)
+            all_findings.extend(sc_findings)
+
         vuln_score, vuln_findings = self._score_vulnerability(scan_results)
         dimensions["vulnerability"] = {"score": vuln_score, "weight": self.weights["vulnerability"], "findings": vuln_findings}
         all_findings.extend(vuln_findings)
@@ -194,6 +202,57 @@ class RiskScoringEngine:
                                     "severity": "medium",
                                 })
 
+        # Exposure validation findings (from exposure-validation scanner)
+        exposure_data = data.get("exposure_validation", {})
+        if isinstance(exposure_data, dict):
+            ev_findings = exposure_data.get("findings", [])
+            if isinstance(ev_findings, list):
+                for ef in ev_findings:
+                    if not isinstance(ef, dict):
+                        continue
+                    cat = ef.get("category", "")
+                    sev = ef.get("severity", "info")
+                    desc = ef.get("description", "")
+
+                    # Map severity to risk contribution
+                    sev_risk = {"critical": 30, "high": 20, "medium": 10, "low": 5, "info": 1}
+                    risk_pts = sev_risk.get(sev, 0)
+
+                    subcategory = "exposure_finding"
+                    if cat == "cors_misconfiguration":
+                        subcategory = "cors_misconfiguration"
+                        risk_pts = max(risk_pts, 20)  # CORS issues are serious
+                    elif cat == "open_redirect":
+                        subcategory = "open_redirect"
+                        risk_pts = max(risk_pts, 15)
+                    elif cat == "subdomain_takeover":
+                        subcategory = "subdomain_takeover"
+                        risk_pts = max(risk_pts, 25)
+                    elif cat == "ssrf_surface":
+                        subcategory = "ssrf_surface"
+                        risk_pts = max(risk_pts, 15)
+                    elif cat == "missing_security_header":
+                        subcategory = "missing_security_header"
+                    elif cat == "info_disclosure":
+                        subcategory = "info_disclosure"
+                    elif cat == "ssl_tls":
+                        subcategory = "ssl_tls"
+                    elif cat in ("environment_file", "config_file", "source_control", "backup_file"):
+                        subcategory = "sensitive_file"
+                        risk_pts = max(risk_pts, 15)
+                    elif cat in ("debug_endpoint", "admin_panel", "api_exposure"):
+                        subcategory = "exposed_endpoint"
+
+                    if risk_pts > 0:
+                        score += risk_pts
+                        findings.append({
+                            "category": "exposure",
+                            "subcategory": subcategory,
+                            "detail": desc[:200],
+                            "risk_contribution": risk_pts,
+                            "severity": sev,
+                        })
+
         return min(100, score), findings
 
     def _score_technology(self, data: Dict[str, Any]) -> Tuple[int, List[Dict]]:
@@ -256,6 +315,179 @@ class RiskScoringEngine:
                                 "risk_contribution": pts,
                                 "severity": pattern["severity"],
                             })
+
+        return min(100, score), findings
+
+    # ── Supply Chain Risk ────────────────────────────────────────────────────
+
+    # Third-party service risk profiles: service → {risk_level, category, description}
+    THIRD_PARTY_RISKS: Dict[str, Dict[str, Any]] = {
+        # Analytics — data collection risk
+        "google_analytics": {"risk": "medium", "category": "data_collection", "desc": "Google Analytics collects user data"},
+        "google_tag_manager": {"risk": "medium", "category": "data_collection", "desc": "GTM can load arbitrary scripts"},
+        "hotjar": {"risk": "medium", "category": "session_recording", "desc": "Hotjar records user sessions"},
+        "fullstory": {"risk": "high", "category": "session_recording", "desc": "FullStory records all user interactions"},
+        "mixpanel": {"risk": "low", "category": "analytics", "desc": "Mixpanel event tracking"},
+        "amplitude": {"risk": "low", "category": "analytics", "desc": "Amplitude analytics"},
+        "segment": {"risk": "medium", "category": "data_collection", "desc": "Segment collects and routes user data"},
+        "pendo": {"risk": "medium", "category": "product_analytics", "desc": "Pendo tracks user behavior"},
+        "heap": {"risk": "medium", "category": "auto_capture", "desc": "Heap auto-captures all user interactions"},
+        "logrocket": {"risk": "high", "category": "session_recording", "desc": "LogRocket records sessions and network"},
+        "clarity": {"risk": "medium", "category": "session_recording", "desc": "Microsoft Clarity session recording"},
+
+        # Support — chat widget = script injection
+        "intercom": {"risk": "medium", "category": "chat_widget", "desc": "Intercom chat widget injects scripts"},
+        "drift": {"risk": "medium", "category": "chat_widget", "desc": "Drift chat widget injects scripts"},
+        "zendesk": {"risk": "low", "category": "support", "desc": "Zendesk support widget"},
+        "crisp": {"risk": "medium", "category": "chat_widget", "desc": "Crisp chat widget"},
+        "tawk_to": {"risk": "medium", "category": "chat_widget", "desc": "tawk.to chat widget"},
+        "livechat": {"risk": "low", "category": "support", "desc": "LiveChat widget"},
+
+        # Payment — PCI scope
+        "stripe": {"risk": "low", "category": "payment", "desc": "Stripe payment processing (PCI compliant)"},
+        "paypal": {"risk": "low", "category": "payment", "desc": "PayPal payment processing"},
+        "braintree": {"risk": "low", "category": "payment", "desc": "Braintree payment processing"},
+
+        # Auth — identity risk
+        "auth0": {"risk": "low", "category": "authentication", "desc": "Auth0 identity provider"},
+        "okta": {"risk": "low", "category": "authentication", "desc": "Okta identity provider"},
+        "firebase_auth": {"risk": "medium", "category": "authentication", "desc": "Firebase Auth (Google dependency)"},
+
+        # Monitoring — data exfiltration risk
+        "sentry": {"risk": "low", "category": "error_tracking", "desc": "Sentry error tracking (sends stack traces)"},
+        "datadog": {"risk": "medium", "category": "monitoring", "desc": "Datadog APM (collects performance data)"},
+        "new_relic": {"risk": "medium", "category": "monitoring", "desc": "New Relic APM (collects performance data)"},
+        "logrocket": {"risk": "high", "category": "session_recording", "desc": "LogRocket (records DOM + network)"},
+
+        # Feature flags — code execution risk
+        "launchdarkly": {"risk": "medium", "category": "feature_flags", "desc": "LaunchDarkly (can toggle features remotely)"},
+
+        # A/B testing — script injection
+        "optimizely": {"risk": "medium", "category": "ab_testing", "desc": "Optimizely (injects variation scripts)"},
+        "vwo": {"risk": "medium", "category": "ab_testing", "desc": "VWO (injects variation scripts)"},
+    }
+
+    def _score_supply_chain(self, data: Dict[str, Any]) -> Tuple[int, List[Dict]]:
+        """Score supply chain risk from third-party services detected by tech-intel."""
+        score = 0
+        findings = []
+
+        # Get technology data from scan results
+        tech_data = data.get("technologies", {})
+        if not isinstance(tech_data, dict):
+            # Try alternative keys
+            tech_data = data.get("technology_intelligence", {})
+            if isinstance(tech_data, dict):
+                tech_data = tech_data.get("data", {}).get("technologies", [])
+                if isinstance(tech_data, list):
+                    # Convert list to dict format
+                    tech_data = {"_all": tech_data}
+
+        if not isinstance(tech_data, dict):
+            return score, findings
+
+        # Flatten all detected technologies
+        all_techs: list[dict] = []
+        for host, techs in tech_data.items():
+            if isinstance(techs, list):
+                all_techs.extend(techs)
+            elif isinstance(techs, dict):
+                for cat_items in techs.values():
+                    if isinstance(cat_items, list):
+                        all_techs.extend(cat_items)
+
+        # Check each detected tech against supply chain risk profiles
+        third_party_count = 0
+        high_risk_vendors: list[str] = []
+        data_collectors: list[str] = []
+        script_injectors: list[str] = []
+
+        for tech in all_techs:
+            if not isinstance(tech, dict):
+                continue
+            name = tech.get("name", "").lower()
+            vendor_type = tech.get("vendor_type", "")
+            category = tech.get("category", "")
+
+            # Only score third-party services and SaaS platforms
+            if vendor_type not in ("third_party_service", "saas_platform"):
+                continue
+
+            third_party_count += 1
+            risk_profile = self.THIRD_PARTY_RISKS.get(name)
+
+            if risk_profile:
+                risk_level = risk_profile["risk"]
+                risk_category = risk_profile["category"]
+
+                if risk_level == "high":
+                    pts = 15
+                    high_risk_vendors.append(name)
+                elif risk_level == "medium":
+                    pts = 8
+                else:
+                    pts = 3
+
+                score += pts
+
+                # Track specific risk categories
+                if risk_category in ("data_collection", "session_recording", "auto_capture"):
+                    data_collectors.append(name)
+                if risk_category in ("chat_widget", "ab_testing", "feature_flags"):
+                    script_injectors.append(name)
+
+                findings.append({
+                    "category": "supply_chain",
+                    "subcategory": f"third_party_{risk_level}_risk",
+                    "detail": f"{risk_profile['desc']} [{name}]",
+                    "risk_contribution": pts,
+                    "severity": "high" if risk_level == "high" else ("medium" if risk_level == "medium" else "low"),
+                    "vendor": name,
+                    "risk_category": risk_category,
+                })
+
+        # Summary findings
+        if third_party_count > 10:
+            pts = min(15, third_party_count - 10)
+            score += pts
+            findings.append({
+                "category": "supply_chain",
+                "subcategory": "vendor_sprawl",
+                "detail": f"High third-party dependency count: {third_party_count} vendors detected",
+                "risk_contribution": pts,
+                "severity": "medium",
+            })
+
+        if data_collectors:
+            pts = 10
+            score += pts
+            findings.append({
+                "category": "supply_chain",
+                "subcategory": "data_collection_exposure",
+                "detail": f"User data flows to third parties: {', '.join(data_collectors[:5])}",
+                "risk_contribution": pts,
+                "severity": "medium",
+            })
+
+        if script_injectors:
+            pts = 8
+            score += pts
+            findings.append({
+                "category": "supply_chain",
+                "subcategory": "script_injection_surface",
+                "detail": f"Third-party scripts can inject code: {', '.join(script_injectors[:5])}",
+                "risk_contribution": pts,
+                "severity": "medium",
+            })
+
+        if high_risk_vendors:
+            findings.append({
+                "category": "supply_chain",
+                "subcategory": "high_risk_vendors",
+                "detail": f"High-risk third-party vendors detected: {', '.join(high_risk_vendors)}",
+                "risk_contribution": 0,  # Already scored individually
+                "severity": "high",
+            })
 
         return min(100, score), findings
 

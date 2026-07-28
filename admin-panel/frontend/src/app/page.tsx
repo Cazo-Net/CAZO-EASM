@@ -4,12 +4,33 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api, { getErrorMessage } from "@/lib/api";
 import {
-  Shield, Users, Building, Scan, Database, Server, Activity,
+  Users, Building, Scan, Database, Server, Activity,
   AlertTriangle, Trash2, Power, PowerOff, Unlock, Key, Search,
   RefreshCw, BarChart3, HardDrive, Cpu, MemoryStick, CheckCircle,
   XCircle, Loader2, LogOut, Globe, Bell, FileText, Fingerprint,
   Flag, Lock, Clock, Terminal, Eye, Mail, Zap, Settings,
 } from "lucide-react";
+
+function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" fill="none" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="admin-header-gradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#10B981" />
+          <stop offset="1" stopColor="#06B6D4" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M44.5 12.8A22 22 0 1 0 52 32"
+        stroke="url(#admin-header-gradient)"
+        strokeWidth="7"
+        strokeLinecap="round"
+      />
+      <circle cx="50" cy="28" r="5" fill="url(#admin-header-gradient)" />
+      <circle cx="50" cy="28" r="2" fill="#09090B" />
+    </svg>
+  );
+}
 
 type Tab = "overview" | "users" | "orgs" | "scans" | "vulns" | "assets" | "sessions" | "audit" | "logs" | "notifications" | "apikeys" | "flags" | "database" | "system";
 
@@ -294,7 +315,7 @@ export default function AdminPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Shield className="h-7 w-7 text-blue-500" />
+          <CazoMark className="h-7 w-7" />
           <div>
             <h1 className="text-xl font-bold">CAZO Admin Panel</h1>
             <p className="text-xs text-zinc-500">Standalone control console &mdash; Backend :9000 / Frontend :3001</p>

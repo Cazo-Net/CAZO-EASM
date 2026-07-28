@@ -13,12 +13,17 @@ from app.database import SessionLocal
 from app.core.scope import check_target_authorized
 from app.services.audit import log_event
 from app.services.notification_service import dispatch_notification
+from app.config import settings
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
+import asyncio
 import json
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Enforce max concurrent scans for v1 engine
+_scan_semaphore_v1 = asyncio.Semaphore(getattr(settings, "MAX_CONCURRENT_SCANS", 5))
 
 
 class ScanService:
@@ -148,96 +153,96 @@ class ScanService:
     
     async def execute_scan(self, scan_id: str) -> Scan:
         """Execute a scan asynchronously. Creates its own DB session for background task."""
-        db = SessionLocal()
-        try:
-            # Retry the lookup briefly: under SQLite the scan row committed by the
-            # API request's session may not be immediately visible to this new
-            # connection (cross-connection visibility race). In production
-            # (PostgreSQL) this is a no-op.
-            scan = None
-            for _ in range(10):
-                scan = db.query(Scan).filter(Scan.id == scan_id).first()
-                if scan:
-                    break
-                import asyncio
-                await asyncio.sleep(0.1)
-            if not scan:
-                raise ValueError(f"Scan not found: {scan_id}")
-            
-            scan.status = "running"
-            scan.started_at = datetime.now(timezone.utc)
-            db.commit()
-            
-            # Resolve scan options from profile + stored options
-            options = self._resolve_scan_options(scan)
-            
-            async def progress_callback(progress: int, message: str):
-                try:
-                    scan.progress = progress
-                    db.commit()
-                except Exception:
-                    db.rollback()
-            
-            # Route to quick or full scan based on scan_type
-            scan_type = scan.scan_type or "full"
-            if scan_type == "quick":
-                results = await self.runner.run_quick_scan(
-                    domain=scan.domain,
-                    progress_callback=progress_callback,
-                )
-            else:
-                results = await self.runner.run_full_scan(
-                    domain=scan.domain,
-                    progress_callback=progress_callback,
-                    options=options,
-                )
-            
-            await self._store_results(db, scan, results)
-            
-            scan.status = "completed"
-            scan.progress = 100
-            scan.completed_at = datetime.now(timezone.utc)
-            if results.get("scanner_status"):
-                scan.scanner_status = results["scanner_status"]
-            db.commit()
-            
-            # Generate notifications
+        async with _scan_semaphore_v1:
+            db = SessionLocal()
             try:
-                self._generate_notifications(db, scan, results)
-            except Exception as e:
-                logger.error(f"Failed to generate notifications: {e}")
-            
-            return scan
-            
-        except Exception as e:
-            logger.error(f"Scan failed: {e}")
-            try:
-                scan = db.query(Scan).filter(Scan.id == scan_id).first()
-                if scan:
-                    scan.status = "failed"
-                    scan.error_message = str(e)
-                    scan.completed_at = datetime.now(timezone.utc)
-                    db.commit()
+                # Retry the lookup briefly: under SQLite the scan row committed by the
+                # API request's session may not be immediately visible to this new
+                # connection (cross-connection visibility race). In production
+                # (PostgreSQL) this is a no-op.
+                scan = None
+                for _ in range(10):
+                    scan = db.query(Scan).filter(Scan.id == scan_id).first()
+                    if scan:
+                        break
+                    await asyncio.sleep(0.1)
+                if not scan:
+                    raise ValueError(f"Scan not found: {scan_id}")
+
+                scan.status = "running"
+                scan.started_at = datetime.now(timezone.utc)
+                db.commit()
+
+                # Resolve scan options from profile + stored options
+                options = self._resolve_scan_options(scan)
+
+                async def progress_callback(progress: int, message: str):
                     try:
-                        dispatch_notification(
-                            db=db,
-                            organization_id=scan.organization_id,
-                            user_id=scan.created_by,
-                            notification_type="scan_failed",
-                            title=f"Scan failed: {scan.domain}",
-                            message=f"Scan for {scan.domain} failed. {e}",
-                            related_entity_type="scan",
-                            related_entity_id=scan.id,
-                            data={"scan_id": scan.id, "domain": scan.domain, "error": str(e)},
-                            skip_dedup=True,
-                        )
-                    except Exception as notify_err:
-                        logger.warning("Failed to send scan failure notification: %s", notify_err)
-            except Exception as rollback_err:
-                logger.error("Failed to rollback after scan error: %s", rollback_err)
-            raise
-        finally:
-            db.close()
+                        scan.progress = progress
+                        db.commit()
+                    except Exception:
+                        db.rollback()
+
+                # Route to quick or full scan based on scan_type
+                scan_type = scan.scan_type or "full"
+                if scan_type == "quick":
+                    results = await self.runner.run_quick_scan(
+                        domain=scan.domain,
+                        progress_callback=progress_callback,
+                    )
+                else:
+                    results = await self.runner.run_full_scan(
+                        domain=scan.domain,
+                        progress_callback=progress_callback,
+                        options=options,
+                    )
+
+                await asyncio.to_thread(self._store_results_sync, db, scan, results)
+
+                scan.status = "completed"
+                scan.progress = 100
+                scan.completed_at = datetime.now(timezone.utc)
+                if results.get("scanner_status"):
+                    scan.scanner_status = results["scanner_status"]
+                db.commit()
+
+                # Generate notifications
+                try:
+                    self._generate_notifications(db, scan, results)
+                except Exception as e:
+                    logger.error(f"Failed to generate notifications: {e}")
+
+                return scan
+
+            except Exception as e:
+                logger.error(f"Scan failed: {e}")
+                try:
+                    scan = db.query(Scan).filter(Scan.id == scan_id).first()
+                    if scan:
+                        scan.status = "failed"
+                        scan.error_message = str(e)
+                        scan.completed_at = datetime.now(timezone.utc)
+                        db.commit()
+                        try:
+                            dispatch_notification(
+                                db=db,
+                                organization_id=scan.organization_id,
+                                user_id=scan.created_by,
+                                notification_type="scan_failed",
+                                title=f"Scan failed: {scan.domain}",
+                                message=f"Scan for {scan.domain} failed. {e}",
+                                related_entity_type="scan",
+                                related_entity_id=scan.id,
+                                data={"scan_id": scan.id, "domain": scan.domain, "error": str(e)},
+                                skip_dedup=True,
+                            )
+                        except Exception as notify_err:
+                            logger.warning("Failed to send scan failure notification: %s", notify_err)
+                except Exception as rollback_err:
+                    logger.error("Failed to rollback after scan error: %s", rollback_err)
+                raise
+            finally:
+                db.close()
     
     async def store_results(self, scan_id: str, results: Dict[str, Any]):
         """Public entry point for storing results — used by the scan engine.
@@ -593,16 +598,26 @@ class ScanService:
         scan = self.db.query(Scan).filter(Scan.id == scan_id).first()
         if not scan:
             return None
-        
+
         # Get subdomains
         subdomains = self.db.query(Subdomain).filter(Subdomain.scan_id == scan_id).all()
-        
+
         # Get risk score
         risk_score = self.db.query(RiskScore).filter(RiskScore.scan_id == scan_id).first()
-        
+
         return {
             "scan": scan,
             "subdomains": subdomains,
             "risk_score": risk_score,
             "subdomains_count": len(subdomains),
         }
+
+    def _store_results_sync(self, db: Session, scan: Scan, results: Dict[str, Any]) -> None:
+        """Synchronous version of _store_results for use with asyncio.to_thread.
+        _store_results is async but contains no awaits — this calls it directly."""
+        import asyncio
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(self._store_results(db, scan, results))
+        finally:
+            loop.close()

@@ -19,9 +19,9 @@ class Settings(BaseSettings):
     DATABASE_ECHO: bool = False
     # Read replica (optional — routes all reads here when set)
     DATABASE_READ_URL: Optional[str] = None
-    # Connection pool — tuned for high-concurrency (1M+ users, 200+ workers)
-    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "30"))
-    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "50"))
+    # Connection pool — tuned for ~320 concurrent requests (4 workers × 80 each)
+    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "32"))
+    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "48"))
     DB_POOL_TIMEOUT: int = int(os.getenv("DB_POOL_TIMEOUT", "15"))
     DB_POOL_RECYCLE: int = int(os.getenv("DB_POOL_RECYCLE", "900"))
     DB_POOL_PRE_PING: bool = os.getenv("DB_POOL_PRE_PING", "true").lower() in ("1", "true", "yes")

@@ -3,50 +3,36 @@ import Link from "next/link";
 /**
  * CAZO logo mark.
  *
- * Concept: an open perimeter ring (the external attack surface you can never
- * fully close) that also reads as the "C" in CAZO. A single scan node sits on
- * the ring's opening — the one asset you forgot you own — with a faint radial
- * sweep behind it. Uses phosphor + cyan design tokens.
+ * New design: a teal "C" shape (open perimeter ring) with a small
+ * scan node circle on the right opening. Clean, minimal, technical.
  */
 
 export function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 32 32"
+      viewBox="0 0 64 64"
       fill="none"
       className={className}
       aria-hidden="true"
       role="img"
     >
       <defs>
-        <linearGradient id="cazo-ring" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+        <linearGradient id="cazo-gradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
           <stop stopColor="#10B981" />
           <stop offset="1" stopColor="#06B6D4" />
         </linearGradient>
-        <linearGradient id="radarSweep" x1="0" y1="0" x2="1" y2="0">
-          <stop stopColor="#10B981" stopOpacity="0.35" />
-          <stop offset="1" stopColor="#10B981" stopOpacity="0" />
-        </linearGradient>
       </defs>
-
-      {/* faint sweep glow */}
-      <circle cx="16" cy="16" r="13" fill="url(#cazo-sweep)" />
-
-      {/* open perimeter ring — the "C" */}
+      {/* Main "C" shape - open circle */}
       <path
-        d="M23.5 7.6A11 11 0 1 0 27 16"
-        stroke="url(#cazo-ring)"
-        strokeWidth="2.4"
+        d="M44.5 12.8A22 22 0 1 0 52 32"
+        stroke="url(#cazo-gradient)"
+        strokeWidth="7"
         strokeLinecap="round"
       />
-
-      {/* inner tick marks — radar bearings */}
-      <path d="M16 4.5v2.2" stroke="#10B981" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
-      <path d="M27.5 16h-2.2" stroke="#06B6D4" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
-
-      {/* the scan node sitting on the ring opening */}
-      <circle cx="27" cy="16" r="2.6" fill="#10B981" />
-      <circle cx="27" cy="16" r="4.4" stroke="#10B981" strokeWidth="1" opacity="0.35" />
+      {/* Small circle on the right */}
+      <circle cx="50" cy="28" r="5" fill="url(#cazo-gradient)" />
+      {/* Tiny inner dot */}
+      <circle cx="50" cy="28" r="2" fill="#09090B" />
     </svg>
   );
 }

@@ -8,10 +8,20 @@ import { cn } from "@/lib/utils";
 
 const DOCS_NAV = [
   { href: "/docs", label: "Overview" },
+  { href: "/docs/getting-started", label: "Getting Started" },
+  { label: "---", href: "" },
+  { href: "/docs/blockchain-intel", label: "Blockchain Intelligence" },
+  { href: "/docs/supply-chain", label: "Supply Chain" },
+  { href: "/docs/exposure-validation", label: "Exposure Validation" },
+  { label: "---", href: "" },
   { href: "/docs/shadow-assets", label: "What is a Shadow Asset?" },
   { href: "/docs/threat-score", label: "Threat Exposure Score" },
   { href: "/docs/unverified-cves", label: 'What "unverified" means' },
   { href: "/docs/evidence-panel", label: "Reading the Evidence Panel" },
+  { label: "---", href: "" },
+  { href: "/docs/webhooks", label: "Webhooks" },
+  { href: "/docs/integrations", label: "Integrations" },
+  { label: "---", href: "" },
   { href: "/docs/authorized-scope", label: "Authorized Scope" },
   { href: "/docs/scan-statuses", label: 'Why "blocked by CDN"?' },
   { href: "/docs/glossary", label: "Glossary" },
@@ -46,7 +56,10 @@ export function DocsLayout({ children }: { children: React.ReactNode }) {
             </span>
           </div>
           <ul className="space-y-0.5">
-            {DOCS_NAV.map((link) => {
+            {DOCS_NAV.map((link, i) => {
+              if (link.label === "---") {
+                return <li key={`sep-${i}`} className="my-2 border-t border-border/30" />;
+              }
               const active =
                 link.href === "/docs"
                   ? pathname === "/docs"

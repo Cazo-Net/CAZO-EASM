@@ -251,6 +251,20 @@ def dispatch_notification(
                 notification_id=notification.id if notification else None,
             )
 
+        # Dispatch to webhooks (async, fire-and-forget)
+        if organization_id:
+            _dispatch_webhook_async(
+                db=db,
+                organization_id=organization_id,
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                priority=priority,
+                data=data,
+                related_entity_type=related_entity_type,
+                related_entity_id=related_entity_id,
+            )
+
         if notification:
             db.commit()
             logger.info(f"Notification dispatched: {notification_type} to user {user_id}")
@@ -322,6 +336,99 @@ def _send_notification_email(
 
     except Exception as e:
         logger.error(f"Failed to send notification email ({notification_type} to {user_id}): {e}")
+
+
+def _dispatch_webhook_async(
+    db: Session,
+    organization_id: str,
+    notification_type: str,
+    title: str,
+    message: str,
+    priority: str,
+    data: Optional[Dict[str, Any]],
+    related_entity_type: Optional[str],
+    related_entity_id: Optional[str],
+) -> None:
+    """Dispatch notification to matching webhooks for the organization.
+
+    Maps notification types to webhook event types and fires async.
+    """
+    try:
+        from app.models.webhook import Webhook
+
+        # Map notification types to webhook event types
+        event_type_map = {
+            "scan_completed": "scan.completed",
+            "scan_failed": "scan.failed",
+            "new_shadow_asset": "asset.shadow_asset",
+            "new_finding_critical": "finding.critical",
+            "new_finding_high": "finding.high",
+            "new_finding_medium": "finding.medium",
+            "ssl_expiring": "ssl.certificate_expiring",
+            "new_cve_match": "cve.new_match",
+        }
+
+        event_type = event_type_map.get(notification_type)
+        if not event_type:
+            return  # No webhook event for this notification type
+
+        # Get active webhooks for this org that match the event
+        webhooks = (
+            db.query(Webhook)
+            .filter(
+                Webhook.organization_id == organization_id,
+                Webhook.is_active == True,
+            )
+            .all()
+        )
+
+        matching = [wh for wh in webhooks if wh.matches_event(event_type)]
+        if not matching:
+            return
+
+        # Build webhook payload
+        payload = {
+            "title": title,
+            "message": message,
+            "priority": priority,
+            "data": data or {},
+        }
+        if related_entity_type:
+            payload["entity_type"] = related_entity_type
+        if related_entity_id:
+            payload["entity_id"] = related_entity_id
+
+        # Fire webhooks asynchronously (fire-and-forget)
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(
+                    _fire_webhooks(matching, event_type, payload)
+                )
+            else:
+                loop.run_until_complete(
+                    _fire_webhooks(matching, event_type, payload)
+                )
+        except RuntimeError:
+            # No event loop, create one
+            asyncio.run(_fire_webhooks(matching, event_type, payload))
+
+    except Exception as e:
+        logger.error(f"Failed to dispatch webhooks for org {organization_id}: {e}")
+
+
+async def _fire_webhooks(
+    webhooks: list,
+    event_type: str,
+    payload: Dict[str, Any],
+) -> None:
+    """Fire webhook dispatches concurrently."""
+    from app.services.webhook_dispatch import dispatch_webhook
+    import asyncio
+
+    tasks = [dispatch_webhook(wh, event_type, payload) for wh in webhooks]
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def _build_email_content(

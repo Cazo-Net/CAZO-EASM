@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   Wallet,
   ArrowLeft,
@@ -40,8 +40,23 @@ function getRiskColor(score: number): string {
 
 function AddressDetailContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const address = params.address as string;
-  const chain: string = "ethereum";
+  const chain: string = searchParams.get("chain") || "ethereum";
+
+  const CHAIN_TOKENS: Record<string, string> = {
+    ethereum: "ETH", bitcoin: "BTC", solana: "SOL", polygon: "MATIC",
+    bsc: "BNB", arbitrum: "ETH", optimism: "ETH", base: "ETH",
+    avalanche: "AVAX", tron: "TRX",
+  };
+  const CHAIN_EXPLORERS: Record<string, string> = {
+    ethereum: "etherscan.io", bitcoin: "blockstream.info", solana: "solscan.io",
+    polygon: "polygonscan.com", bsc: "bscscan.com", arbitrum: "arbiscan.com",
+    optimism: "optimistic.etherscan.io", base: "basescan.org",
+    avalanche: "snowtrace.io", tron: "tronscan.org",
+  };
+  const nativeToken = CHAIN_TOKENS[chain] || "ETH";
+  const explorer = CHAIN_EXPLORERS[chain] || "etherscan.io";
 
   const [wallet, setWallet] = useState<any>(null);
   const [attribution, setAttribution] = useState<any>(null);
@@ -192,6 +207,7 @@ function AddressDetailContent() {
                 <h2 className="text-lg font-medium">
                   {attribution?.entity_name || "Unknown Entity"}
                 </h2>
+                <Badge variant="outline" className="text-xs capitalize">{chain}</Badge>
                 {attribution && (
                   <Badge variant="outline" className="text-xs">
                     {attribution.category}
@@ -233,7 +249,7 @@ function AddressDetailContent() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6 pt-4 border-t border-border">
             <div>
               <div className="text-xs text-muted-foreground">Balance</div>
-              <div className="text-sm font-medium mt-1">{wallet.balance} {chain === "bitcoin" ? "BTC" : "ETH"}</div>
+              <div className="text-sm font-medium mt-1">{wallet.balance} {nativeToken}</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Transactions</div>
@@ -377,23 +393,25 @@ function AddressDetailContent() {
             <SectionCard title="External" icon={<ExternalLink className="h-4 w-4" />}>
               <div className="space-y-2">
                 <a
-                  href={`https://etherscan.io/address/${address}`}
+                  href={`https://${explorer}/address/${address}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  View on Etherscan
+                  View on {explorer}
                 </a>
-                <a
-                  href={`https://www.blockchain.com/eth/address/${address}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  View on Blockchain.com
-                </a>
+                {chain === "ethereum" && (
+                  <a
+                    href={`https://www.blockchain.com/eth/address/${address}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    View on Blockchain.com
+                  </a>
+                )}
               </div>
             </SectionCard>
 

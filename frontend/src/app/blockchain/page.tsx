@@ -23,15 +23,67 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useBlockchainStore } from "@/lib/blockchainStore";
 
 const CHAINS = [
-  { value: "ethereum", label: "Ethereum" },
-  { value: "bitcoin", label: "Bitcoin" },
+  { value: "ethereum", label: "Ethereum", token: "ETH", color: "bg-blue-500" },
+  { value: "bitcoin", label: "Bitcoin", token: "BTC", color: "bg-orange-500" },
+  { value: "solana", label: "Solana", token: "SOL", color: "bg-purple-500" },
+  { value: "polygon", label: "Polygon", token: "MATIC", color: "bg-violet-500" },
+  { value: "bsc", label: "BNB Chain", token: "BNB", color: "bg-yellow-500" },
+  { value: "arbitrum", label: "Arbitrum", token: "ETH", color: "bg-cyan-500" },
+  { value: "optimism", label: "Optimism", token: "ETH", color: "bg-red-500" },
+  { value: "base", label: "Base", token: "ETH", color: "bg-blue-400" },
+  { value: "avalanche", label: "Avalanche", token: "AVAX", color: "bg-red-400" },
+  { value: "tron", label: "Tron", token: "TRX", color: "bg-red-600" },
 ];
 
-const EXAMPLE_ADDRESSES = [
-  { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", label: "USDT (Tether)" },
-  { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", label: "USDC (Circle)" },
-  { address: "0x28C6c06298d514Db089934071355E5743bf21d60", label: "Binance Hot Wallet" },
-];
+const EXPLORER_MAP: Record<string, string> = {
+  ethereum: "etherscan.io",
+  bitcoin: "blockstream.info",
+  solana: "solscan.io",
+  polygon: "polygonscan.com",
+  bsc: "bscscan.com",
+  arbitrum: "arbiscan.com",
+  optimism: "optimistic.etherscan.io",
+  base: "basescan.org",
+  avalanche: "snowtrace.io",
+  tron: "tronscan.org",
+};
+
+const EXAMPLE_ADDRESSES: Record<string, { address: string; label: string }[]> = {
+  ethereum: [
+    { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", label: "USDT (Tether)" },
+    { address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", label: "USDC (Circle)" },
+    { address: "0x28C6c06298d514Db089934071355E5743bf21d60", label: "Binance Hot Wallet" },
+  ],
+  bitcoin: [
+    { address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", label: "Genesis Block" },
+    { address: "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo", label: "Binance Cold Wallet" },
+  ],
+  solana: [
+    { address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", label: "Binance Hot Wallet" },
+    { address: "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9", label: "FTX Cold Wallet" },
+  ],
+  polygon: [
+    { address: "0x37305B1cD40574E4C5Ce33f8e8306Be057fD7341", label: "Polygon Bridge" },
+  ],
+  bsc: [
+    { address: "0x8894E0a0c962CB723c1ef8a1B676f17E857B6C42", label: "Binance Hot Wallet" },
+  ],
+  arbitrum: [
+    { address: "0xc3a6FF0531E75D3487648161435D70b98F85c9D2", label: "Arbitrum Bridge" },
+  ],
+  optimism: [
+    { address: "0x25ace71c97B33Cc4729CF772ae268934afc7521f", label: "Optimism Bridge" },
+  ],
+  base: [
+    { address: "0x3154Cf16ccdb4C6d922629664174b904d80F2C35", label: "Base Bridge" },
+  ],
+  avalanche: [
+    { address: "0x8b8731292F9bA492830E4696da2e52e2C6bAB0dC", label: "Avalanche Bridge" },
+  ],
+  tron: [
+    { address: "TNaRAoLUyYEV2uEYXWfV2VQSEiF8bUjbYP", label: "Binance Hot Wallet" },
+  ],
+};
 
 function getRiskColor(score: number): string {
   if (score >= 80) return "text-red-400 bg-red-500/10 border-red-500/20";
@@ -54,6 +106,8 @@ function BlockchainContent() {
   } = useBlockchainStore();
 
   const [localAddress, setLocalAddress] = useState(address);
+  const selectedChain = CHAINS.find((c) => c.value === chain) || CHAINS[0];
+  const chainExamples = EXAMPLE_ADDRESSES[chain] || EXAMPLE_ADDRESSES.ethereum;
 
   useEffect(() => {
     setLocalAddress(address);
@@ -93,7 +147,7 @@ function BlockchainContent() {
         <div className="mt-4 border border-yellow-500/30 bg-yellow-500/5 rounded-lg p-3 flex items-center gap-3">
           <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0" />
           <p className="text-xs text-muted-foreground">
-            Running in <span className="text-yellow-300 font-medium">simulated mode</span>. Add <code className="text-xs">ETHERSCAN_API_KEY</code> to your backend <code className="text-xs">.env</code> for live blockchain data.
+            Running in <span className="text-yellow-300 font-medium">simulated mode</span>. Add <code className="text-xs">ETHERSCAN_API_KEY</code> (and other chain API keys) to your backend <code className="text-xs">.env</code> for live data.
           </p>
         </div>
 
@@ -102,7 +156,7 @@ function BlockchainContent() {
           <form onSubmit={handleSearch} className="flex gap-3">
             <div className="flex-1 flex gap-2">
               <Input
-                placeholder="0x... or enter address"
+                placeholder={`Search ${selectedChain.label} address...`}
                 value={localAddress}
                 onChange={(e) => setLocalAddress(e.target.value)}
                 className="font-mono text-sm"
@@ -114,7 +168,7 @@ function BlockchainContent() {
               >
                 {CHAINS.map((c) => (
                   <option key={c.value} value={c.value}>
-                    {c.label}
+                    {c.label} ({c.token})
                   </option>
                 ))}
               </select>
@@ -129,11 +183,29 @@ function BlockchainContent() {
             </Button>
           </form>
 
+          {/* Chain chips */}
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {CHAINS.map((c) => (
+              <button
+                key={c.value}
+                onClick={() => setChain(c.value)}
+                className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-colors ${
+                  chain === c.value
+                    ? "border-foreground/30 bg-foreground/10 text-foreground"
+                    : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/20"
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${c.color}`} />
+                {c.label}
+              </button>
+            ))}
+          </div>
+
           {/* Example addresses */}
           {!wallet && !walletLoading && (
             <div className="mt-4 flex flex-wrap gap-2">
               <span className="text-xs text-muted-foreground mr-1">Try:</span>
-              {EXAMPLE_ADDRESSES.map((ex) => (
+              {chainExamples.map((ex) => (
                 <button
                   key={ex.address}
                   onClick={() => handleExampleClick(ex.address)}
@@ -177,7 +249,7 @@ function BlockchainContent() {
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Balance</div>
-                    <div className="text-sm mt-1">{wallet.balance} {chain === "bitcoin" ? "BTC" : "ETH"}</div>
+                    <div className="text-sm mt-1">{wallet.balance} {selectedChain.token}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Transactions</div>
@@ -292,10 +364,10 @@ function BlockchainContent() {
                     variant="outline"
                     size="sm"
                     className="w-full justify-start"
-                    onClick={() => window.open(`https://etherscan.io/address/${address}`, "_blank")}
+                    onClick={() => window.open(`https://${EXPLORER_MAP[chain] || "etherscan.io"}/address/${address}`, "_blank")}
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    View on Etherscan
+                    View on {EXPLORER_MAP[chain] || "Etherscan"}
                   </Button>
                   <Button
                     variant="outline"
@@ -317,7 +389,7 @@ function BlockchainContent() {
           <EmptyState
             icon={<Wallet className="h-8 w-8" />}
             title="No wallet analyzed"
-            description="Enter an Ethereum or Bitcoin address above to begin analysis."
+            description="Enter an address above to begin cross-chain analysis."
           />
         )}
       </div>

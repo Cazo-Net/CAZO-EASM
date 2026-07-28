@@ -31,6 +31,19 @@ interface BlockchainState {
   searchResults: any[];
 }
 
+export const CHAIN_META: Record<string, { label: string; token: string; color: string; explorer: string }> = {
+  ethereum: { label: "Ethereum", token: "ETH", color: "bg-blue-500", explorer: "etherscan.io" },
+  bitcoin: { label: "Bitcoin", token: "BTC", color: "bg-orange-500", explorer: "blockstream.info" },
+  solana: { label: "Solana", token: "SOL", color: "bg-purple-500", explorer: "solscan.io" },
+  polygon: { label: "Polygon", token: "MATIC", color: "bg-violet-500", explorer: "polygonscan.com" },
+  bsc: { label: "BNB Chain", token: "BNB", color: "bg-yellow-500", explorer: "bscscan.com" },
+  arbitrum: { label: "Arbitrum", token: "ETH", color: "bg-cyan-500", explorer: "arbiscan.com" },
+  optimism: { label: "Optimism", token: "ETH", color: "bg-red-500", explorer: "optimistic.etherscan.io" },
+  base: { label: "Base", token: "ETH", color: "bg-blue-400", explorer: "basescan.org" },
+  avalanche: { label: "Avalanche", token: "AVAX", color: "bg-red-400", explorer: "snowtrace.io" },
+  tron: { label: "Tron", token: "TRX", color: "bg-red-600", explorer: "tronscan.org" },
+};
+
 const _listeners: Set<() => void> = new Set();
 let _state: BlockchainState = {
   address: "",
