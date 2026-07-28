@@ -1301,6 +1301,391 @@ async def get_platform_log(
     )
 
 
+# ── Blockchain ────────────────────────────────────────────────────────
+class ChainProviderRow(BaseModel):
+    name: str
+    chain: str
+    chain_id: Optional[int] = None
+    native_symbol: str
+    api_source: str
+    has_api_key: bool
+    supports_wallet: bool
+    supports_transactions: bool
+    supports_contracts: bool
+    supports_tokens: bool
+    supports_graph: bool
+
+class OFACEntryRow(BaseModel):
+    address: str
+    entity_name: str
+    category: str
+    source: str
+    reason: str
+    confidence: int
+
+class CuratedLabelRow(BaseModel):
+    chain: str
+    address: str
+    entity_name: str
+    category: str
+    confidence: int
+    evidence_count: int
+
+class BlockchainStats(BaseModel):
+    providers_total: int
+    chains_supported: int
+    ofac_entries: int
+    curated_labels: int
+    watches_total: int
+    alerts_total: int
+    alerts_unacknowledged: int
+    cases_total: int
+    cases_open: int
+    travel_rule_records: int
+    compliance_configs: int
+
+class WatchRow(BaseModel):
+    id: str
+    organization_id: Optional[str]
+    user_id: Optional[str]
+    address: str
+    chain: str
+    alert_on_new_tx: bool
+    alert_on_risk_change: bool
+    risk_threshold: Optional[int]
+    is_active: bool
+    created_at: str
+
+class AlertRow(BaseModel):
+    id: str
+    watch_id: Optional[str]
+    organization_id: Optional[str]
+    user_id: Optional[str]
+    address: str
+    chain: str
+    alert_type: str
+    title: str
+    message: Optional[str]
+    severity: str
+    acknowledged: bool
+    acknowledged_by: Optional[str]
+    created_at: str
+
+class CaseRow(BaseModel):
+    id: str
+    organization_id: Optional[str]
+    title: str
+    description: Optional[str]
+    status: str
+    created_by: Optional[str]
+    assigned_to: Optional[str]
+    created_at: str
+    updated_at: Optional[str]
+
+class TravelRuleRecordRow(BaseModel):
+    id: str
+    organization_id: Optional[str]
+    chain: str
+    tx_hash: str
+    from_address: str
+    to_address: str
+    amount: Optional[str]
+    amount_usd: Optional[float]
+    status: str
+    compliance_score: Optional[int]
+    jurisdiction: Optional[str]
+    checked_at: Optional[str]
+
+
+def _import_blockchain_services():
+    """Import blockchain services from the main EASM backend."""
+    import sys
+    import importlib
+    main_backend = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "backend")
+    main_backend = os.path.normpath(main_backend)
+    if main_backend not in sys.path:
+        sys.path.insert(0, main_backend)
+    return main_backend
+
+
+@app.get("/blockchain/providers", response_model=List[ChainProviderRow])
+async def list_blockchain_providers(admin: str = Depends(require_admin)):
+    try:
+        _import_blockchain_services()
+        from app.services.blockchain.providers import registry
+        providers = []
+        for name, p in registry._providers.items():
+            cap = p.capabilities if hasattr(p, "capabilities") else {}
+            providers.append(ChainProviderRow(
+                name=name,
+                chain=p.chain.value if hasattr(p.chain, "value") else str(p.chain),
+                chain_id=getattr(p, "chain_id", None),
+                native_symbol=getattr(p, "native_symbol", "?"),
+                api_source=getattr(p, "base_url", getattr(p, "api_source", "unknown")),
+                has_api_key=bool(getattr(p, "api_key", None)),
+                supports_wallet=cap.get("wallet", False) if isinstance(cap, dict) else True,
+                supports_transactions=cap.get("transactions", False) if isinstance(cap, dict) else True,
+                supports_contracts=cap.get("contracts", False) if isinstance(cap, dict) else True,
+                supports_tokens=cap.get("tokens", False) if isinstance(cap, dict) else True,
+                supports_graph=cap.get("graph", False) if isinstance(cap, dict) else False,
+            ))
+        return providers
+    except Exception as e:
+        return [ChainProviderRow(
+            name="error", chain="unknown", native_symbol="?", api_source=str(e)[:200],
+            has_api_key=False, supports_wallet=False, supports_transactions=False,
+            supports_contracts=False, supports_tokens=False, supports_graph=False,
+        )]
+
+
+@app.get("/blockchain/ofac", response_model=List[OFACEntryRow])
+async def list_ofac_entries(admin: str = Depends(require_admin)):
+    try:
+        _import_blockchain_services()
+        from app.services.blockchain.intel import _OFAC_ADDRESSES
+        return [OFACEntryRow(
+            address=addr,
+            entity_name=info.get("entity_name", ""),
+            category=info.get("category", "unknown").value if hasattr(info.get("category", ""), "value") else str(info.get("category", "")),
+            source=info.get("source", "ofac_sdn"),
+            reason=info.get("reason", ""),
+            confidence=info.get("confidence", 100),
+        ) for addr, info in _OFAC_ADDRESSES.items()]
+    except Exception:
+        return []
+
+
+@app.get("/blockchain/labels", response_model=List[CuratedLabelRow])
+async def list_curated_labels(
+    chain: Optional[str] = None,
+    admin: str = Depends(require_admin),
+):
+    try:
+        _import_blockchain_services()
+        from app.services.blockchain.labels.curated import get_curated_labels
+        labels = get_curated_labels(chain=chain)
+        return [CuratedLabelRow(
+            chain=l.chain.value if hasattr(l.chain, "value") else str(l.chain),
+            address=l.address,
+            entity_name=l.entity_name,
+            category=l.category.value if hasattr(l.category, "value") else str(l.category),
+            confidence=l.confidence,
+            evidence_count=len(l.evidence) if l.evidence else 0,
+        ) for l in labels]
+    except Exception:
+        return []
+
+
+@app.get("/blockchain/stats", response_model=BlockchainStats)
+async def blockchain_stats(
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    providers_count = 0
+    chains_set = set()
+    ofac_count = 0
+    labels_count = 0
+    try:
+        _import_blockchain_services()
+        from app.services.blockchain.providers import registry
+        providers_count = len(registry._providers)
+        for p in registry._providers.values():
+            c = p.chain.value if hasattr(p.chain, "value") else str(p.chain)
+            chains_set.add(c)
+    except Exception:
+        pass
+    try:
+        _import_blockchain_services()
+        from app.services.blockchain.intel import _OFAC_ADDRESSES
+        ofac_count = len(_OFAC_ADDRESSES)
+    except Exception:
+        pass
+    try:
+        _import_blockchain_services()
+        from app.services.blockchain.labels.curated import get_curated_labels
+        labels_count = len(get_curated_labels())
+    except Exception:
+        pass
+
+    watches_total = _count(db, "blockchain_watches") if "blockchain_watches" in _table_names(db) else 0
+    alerts_total = _count(db, "blockchain_alerts") if "blockchain_alerts" in _table_names(db) else 0
+    alerts_unack = 0
+    if "blockchain_alerts" in _table_names(db):
+        t = _get_table("blockchain_alerts")
+        alerts_unack = db.query(func.count(t.c.id)).filter(t.c.acknowledged == False).scalar() or 0
+    cases_total = _count(db, "blockchain_cases") if "blockchain_cases" in _table_names(db) else 0
+    cases_open = 0
+    if "blockchain_cases" in _table_names(db):
+        t = _get_table("blockchain_cases")
+        cases_open = db.query(func.count(t.c.id)).filter(t.c.status == "open").scalar() or 0
+    travel_rule_count = _count(db, "travel_rule_records") if "travel_rule_records" in _table_names(db) else 0
+    compliance_count = _count(db, "compliance_config") if "compliance_config" in _table_names(db) else 0
+
+    return BlockchainStats(
+        providers_total=providers_count,
+        chains_supported=len(chains_set),
+        ofac_entries=ofac_count,
+        curated_labels=labels_count,
+        watches_total=watches_total,
+        alerts_total=alerts_total,
+        alerts_unacknowledged=alerts_unack,
+        cases_total=cases_total,
+        cases_open=cases_open,
+        travel_rule_records=travel_rule_count,
+        compliance_configs=compliance_count,
+    )
+
+
+@app.get("/blockchain/watches", response_model=List[WatchRow])
+async def list_blockchain_watches(
+    skip: int = 0, limit: int = 200,
+    chain: Optional[str] = None,
+    organization_id: Optional[str] = None,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    if "blockchain_watches" not in _table_names(db):
+        return []
+    t = _get_table("blockchain_watches")
+    q = db.query(t)
+    if chain:
+        q = q.filter(t.c.chain == chain)
+    if organization_id:
+        q = q.filter(t.c.organization_id == organization_id)
+    rows = q.order_by(desc(t.c.created_at)).offset(skip).limit(limit).all()
+    return [WatchRow(
+        id=r.id,
+        organization_id=getattr(r, "organization_id", None),
+        user_id=getattr(r, "user_id", None),
+        address=r.address,
+        chain=r.chain,
+        alert_on_new_tx=getattr(r, "alert_on_new_tx", True),
+        alert_on_risk_change=getattr(r, "alert_on_risk_change", True),
+        risk_threshold=getattr(r, "risk_threshold", None),
+        is_active=getattr(r, "is_active", True),
+        created_at=str(r.created_at),
+    ) for r in rows]
+
+
+@app.get("/blockchain/alerts", response_model=List[AlertRow])
+async def list_blockchain_alerts(
+    skip: int = 0, limit: int = 200,
+    severity: Optional[str] = None,
+    acknowledged: Optional[bool] = None,
+    chain: Optional[str] = None,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    if "blockchain_alerts" not in _table_names(db):
+        return []
+    t = _get_table("blockchain_alerts")
+    q = db.query(t)
+    if severity:
+        q = q.filter(t.c.severity == severity)
+    if acknowledged is not None:
+        q = q.filter(t.c.acknowledged == acknowledged)
+    if chain:
+        q = q.filter(t.c.chain == chain)
+    rows = q.order_by(desc(t.c.created_at)).offset(skip).limit(limit).all()
+    return [AlertRow(
+        id=r.id,
+        watch_id=getattr(r, "watch_id", None),
+        organization_id=getattr(r, "organization_id", None),
+        user_id=getattr(r, "user_id", None),
+        address=r.address,
+        chain=r.chain,
+        alert_type=r.alert_type,
+        title=r.title,
+        message=getattr(r, "message", None),
+        severity=r.severity,
+        acknowledged=getattr(r, "acknowledged", False),
+        acknowledged_by=getattr(r, "acknowledged_by", None),
+        created_at=str(r.created_at),
+    ) for r in rows]
+
+
+@app.put("/blockchain/alerts/{alert_id}/acknowledge")
+async def acknowledge_blockchain_alert(
+    alert_id: str,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    if "blockchain_alerts" not in _table_names(db):
+        raise HTTPException(404, "Alerts table not found")
+    t = _get_table("blockchain_alerts")
+    row = db.query(t).filter(t.c.id == alert_id).first()
+    if not row:
+        raise HTTPException(404, "Alert not found")
+    db.execute(t.update().where(t.c.id == alert_id).values(
+        acknowledged=True, acknowledged_by=admin, acknowledged_at=datetime.now(timezone.utc)
+    ))
+    db.commit()
+    return {"message": "Alert acknowledged"}
+
+
+@app.get("/blockchain/cases", response_model=List[CaseRow])
+async def list_blockchain_cases(
+    skip: int = 0, limit: int = 200,
+    status: Optional[str] = None,
+    organization_id: Optional[str] = None,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    if "blockchain_cases" not in _table_names(db):
+        return []
+    t = _get_table("blockchain_cases")
+    q = db.query(t)
+    if status:
+        q = q.filter(t.c.status == status)
+    if organization_id:
+        q = q.filter(t.c.organization_id == organization_id)
+    rows = q.order_by(desc(t.c.created_at)).offset(skip).limit(limit).all()
+    return [CaseRow(
+        id=r.id,
+        organization_id=getattr(r, "organization_id", None),
+        title=r.title,
+        description=getattr(r, "description", None),
+        status=r.status,
+        created_by=getattr(r, "created_by", None),
+        assigned_to=getattr(r, "assigned_to", None),
+        created_at=str(r.created_at),
+        updated_at=str(getattr(r, "updated_at", "")),
+    ) for r in rows]
+
+
+@app.get("/blockchain/travel-rule", response_model=List[TravelRuleRecordRow])
+async def list_travel_rule_records(
+    skip: int = 0, limit: int = 200,
+    status: Optional[str] = None,
+    chain: Optional[str] = None,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    if "travel_rule_records" not in _table_names(db):
+        return []
+    t = _get_table("travel_rule_records")
+    q = db.query(t)
+    if status:
+        q = q.filter(t.c.status == status)
+    if chain:
+        q = q.filter(t.c.chain == chain)
+    rows = q.order_by(desc(t.c.checked_at)).offset(skip).limit(limit).all()
+    return [TravelRuleRecordRow(
+        id=r.id,
+        organization_id=getattr(r, "organization_id", None),
+        chain=r.chain,
+        tx_hash=r.tx_hash,
+        from_address=r.from_address,
+        to_address=r.to_address,
+        amount=getattr(r, "amount", None),
+        amount_usd=getattr(r, "amount_usd", None),
+        status=r.status,
+        compliance_score=getattr(r, "compliance_score", None),
+        jurisdiction=getattr(r, "jurisdiction", None),
+        checked_at=str(getattr(r, "checked_at", "")),
+    ) for r in rows]
+
+
 # ── Helpers ────────────────────────────────────────────────────────────
 @app.get("/")
 async def root():

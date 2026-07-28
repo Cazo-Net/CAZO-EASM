@@ -32,7 +32,7 @@ function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
   );
 }
 
-type Tab = "overview" | "users" | "orgs" | "scans" | "vulns" | "assets" | "sessions" | "audit" | "logs" | "notifications" | "apikeys" | "flags" | "database" | "system";
+type Tab = "overview" | "users" | "orgs" | "scans" | "vulns" | "assets" | "sessions" | "audit" | "logs" | "notifications" | "apikeys" | "flags" | "database" | "system" | "blockchain";
 
 const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "overview", label: "Overview", icon: BarChart3 },
@@ -48,6 +48,7 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "apikeys", label: "API Keys", icon: Key },
   { id: "flags", label: "Feature Flags", icon: Flag },
   { id: "database", label: "Database", icon: Database },
+  { id: "blockchain", label: "Blockchain", icon: Zap },
   { id: "system", label: "System", icon: Server },
 ];
 
@@ -197,6 +198,40 @@ export default function AdminPage() {
     catch (e: any) { setError(getErrorMessage(e)); }
   }, []);
 
+  // Blockchain state
+  const [bcStats, setBcStats] = useState<any>(null);
+  const [bcProviders, setBcProviders] = useState<any[]>([]);
+  const [bcOfac, setBcOfac] = useState<any[]>([]);
+  const [bcLabels, setBcLabels] = useState<any[]>([]);
+  const [bcWatches, setBcWatches] = useState<any[]>([]);
+  const [bcAlerts, setBcAlerts] = useState<any[]>([]);
+  const [bcCases, setBcCases] = useState<any[]>([]);
+  const [bcTravelRule, setBcTravelRule] = useState<any[]>([]);
+  const [bcSubTab, setBcSubTab] = useState<"providers" | "ofac" | "labels" | "watches" | "alerts" | "cases" | "travel">("providers");
+
+  const fetchBlockchain = useCallback(async () => {
+    try {
+      const [st, pr, of, lb, wa, al, ca, tr] = await Promise.all([
+        api.get("/blockchain/stats"),
+        api.get("/blockchain/providers"),
+        api.get("/blockchain/ofac"),
+        api.get("/blockchain/labels"),
+        api.get("/blockchain/watches"),
+        api.get("/blockchain/alerts"),
+        api.get("/blockchain/cases"),
+        api.get("/blockchain/travel-rule"),
+      ]);
+      setBcStats(st.data);
+      setBcProviders(pr.data);
+      setBcOfac(of.data);
+      setBcLabels(lb.data);
+      setBcWatches(wa.data);
+      setBcAlerts(al.data);
+      setBcCases(ca.data);
+      setBcTravelRule(tr.data);
+    } catch (e: any) { setError(getErrorMessage(e)); }
+  }, []);
+
   const openUserDetail = async (user: any) => {
     setSelectedUser(user);
     setUserMsg("");
@@ -264,6 +299,7 @@ export default function AdminPage() {
     if (tab === "apikeys") fetchApiKeys();
     if (tab === "flags") fetchFlags();
     if (tab === "database") fetchDbStats();
+    if (tab === "blockchain") fetchBlockchain();
     if (tab === "system") fetchProcesses();
   }, [tab, authenticated]);
 
@@ -1213,6 +1249,302 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── BLOCKCHAIN TAB ────────────────────────────────────── */}
+      {tab === "blockchain" && (
+        <div className="space-y-6">
+          {/* Stats Cards */}
+          {bcStats && (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {[
+                { l: "Providers", v: bcStats.providers_total, c: "text-blue-400" },
+                { l: "Chains", v: bcStats.chains_supported, c: "text-purple-400" },
+                { l: "OFAC Entries", v: bcStats.ofac_entries, c: "text-red-400" },
+                { l: "Curated Labels", v: bcStats.curated_labels, c: "text-emerald-400" },
+                { l: "Active Watches", v: bcStats.watches_total, c: "text-amber-400" },
+                { l: "Unacked Alerts", v: bcStats.alerts_unacknowledged, c: "text-orange-400" },
+                { l: "Open Cases", v: bcStats.cases_open, c: "text-cyan-400" },
+                { l: "Travel Rule", v: bcStats.travel_rule_records, c: "text-pink-400" },
+                { l: "Compliance Cfgs", v: bcStats.compliance_configs, c: "text-teal-400" },
+              ].map((x) => (
+                <div key={x.l} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+                  <span className="text-xs text-zinc-500 uppercase">{x.l}</span>
+                  <div className={`text-2xl font-bold mt-1 ${x.c}`}>{x.v}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Sub-tab navigation */}
+          <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 overflow-x-auto">
+            {([
+              { id: "providers" as const, label: "Providers", icon: Server },
+              { id: "ofac" as const, label: "OFAC Sanctions", icon: AlertTriangle },
+              { id: "labels" as const, label: "Curated Labels", icon: FileText },
+              { id: "watches" as const, label: "Watches", icon: Bell },
+              { id: "alerts" as const, label: "Alerts", icon: AlertTriangle },
+              { id: "cases" as const, label: "Cases", icon: FileText },
+              { id: "travel" as const, label: "Travel Rule", icon: Globe },
+            ] as const).map((st) => (
+              <button key={st.id} onClick={() => setBcSubTab(st.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${bcSubTab === st.id ? "bg-zinc-700 text-white" : "text-zinc-400 hover:text-white hover:bg-zinc-800"}`}>
+                <st.icon className="h-3.5 w-3.5" /> {st.label}
+                {st.id === "alerts" && bcStats?.alerts_unacknowledged > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs">{bcStats.alerts_unacknowledged}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <button onClick={fetchBlockchain} className="px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-sm hover:bg-zinc-700 flex items-center gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Refresh</button>
+
+          {/* Providers sub-tab */}
+          {bcSubTab === "providers" && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-800/50">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium">Provider</th>
+                    <th className="text-left px-4 py-2 font-medium">Chain</th>
+                    <th className="text-left px-4 py-2 font-medium">Chain ID</th>
+                    <th className="text-left px-4 py-2 font-medium">Symbol</th>
+                    <th className="text-left px-4 py-2 font-medium">API Source</th>
+                    <th className="text-left px-4 py-2 font-medium">API Key</th>
+                    <th className="text-left px-4 py-2 font-medium">Capabilities</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bcProviders.map((p: any) => (
+                    <tr key={p.name} className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                      <td className="px-4 py-2 font-medium text-xs">{p.name}</td>
+                      <td className="px-4 py-2"><span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-xs font-medium">{p.chain}</span></td>
+                      <td className="px-4 py-2 font-mono text-xs">{p.chain_id || "—"}</td>
+                      <td className="px-4 py-2 font-mono text-xs">{p.native_symbol}</td>
+                      <td className="px-4 py-2 text-xs max-w-[200px] truncate text-zinc-400">{p.api_source}</td>
+                      <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded text-xs ${p.has_api_key ? "bg-green-500/10 text-green-400" : "bg-zinc-700 text-zinc-400"}`}>{p.has_api_key ? "Configured" : "Missing"}</span></td>
+                      <td className="px-4 py-2">
+                        <div className="flex gap-1 flex-wrap">
+                          {p.supports_wallet && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-xs">wallet</span>}
+                          {p.supports_transactions && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-xs">tx</span>}
+                          {p.supports_contracts && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-xs">contract</span>}
+                          {p.supports_tokens && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-xs">tokens</span>}
+                          {p.supports_graph && <span className="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 text-xs">graph</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* OFAC Sanctions sub-tab */}
+          {bcSubTab === "ofac" && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+              <div className="px-4 py-3 border-b border-zinc-800 bg-red-500/5">
+                <p className="text-sm text-red-400 font-medium">{bcOfac.length} sanctioned addresses on record</p>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-800/50">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium">Address</th>
+                    <th className="text-left px-4 py-2 font-medium">Entity</th>
+                    <th className="text-left px-4 py-2 font-medium">Category</th>
+                    <th className="text-left px-4 py-2 font-medium">Source</th>
+                    <th className="text-left px-4 py-2 font-medium">Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bcOfac.map((e: any) => (
+                    <tr key={e.address} className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                      <td className="px-4 py-2 font-mono text-xs text-red-300 max-w-[200px] truncate">{e.address}</td>
+                      <td className="px-4 py-2 text-xs font-medium">{e.entity_name}</td>
+                      <td className="px-4 py-2"><span className="px-2 py-0.5 rounded bg-red-500/10 text-red-400 text-xs">{e.category}</span></td>
+                      <td className="px-4 py-2 text-xs text-zinc-400">{e.source}</td>
+                      <td className="px-4 py-2 text-xs text-zinc-400 max-w-[300px] truncate">{e.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Curated Labels sub-tab */}
+          {bcSubTab === "labels" && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+              <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+                <p className="text-sm text-emerald-400 font-medium">{bcLabels.length} curated labels</p>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-800/50">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium">Chain</th>
+                    <th className="text-left px-4 py-2 font-medium">Address</th>
+                    <th className="text-left px-4 py-2 font-medium">Entity</th>
+                    <th className="text-left px-4 py-2 font-medium">Category</th>
+                    <th className="text-left px-4 py-2 font-medium">Confidence</th>
+                    <th className="text-left px-4 py-2 font-medium">Evidence</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bcLabels.map((l: any, i: number) => (
+                    <tr key={`${l.chain}-${l.address}-${i}`} className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                      <td className="px-4 py-2"><span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-xs font-medium">{l.chain}</span></td>
+                      <td className="px-4 py-2 font-mono text-xs max-w-[180px] truncate">{l.address}</td>
+                      <td className="px-4 py-2 text-xs font-medium">{l.entity_name}</td>
+                      <td className="px-4 py-2"><span className="px-2 py-0.5 rounded bg-zinc-700 text-zinc-300 text-xs">{l.category}</span></td>
+                      <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded text-xs ${l.confidence >= 90 ? "bg-green-500/10 text-green-400" : l.confidence >= 70 ? "bg-amber-500/10 text-amber-400" : "bg-zinc-700 text-zinc-400"}`}>{l.confidence}%</span></td>
+                      <td className="px-4 py-2 text-xs text-zinc-400">{l.evidence_count} sources</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Watches sub-tab */}
+          {bcSubTab === "watches" && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-800/50">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium">Address</th>
+                    <th className="text-left px-4 py-2 font-medium">Chain</th>
+                    <th className="text-left px-4 py-2 font-medium">Alert on Tx</th>
+                    <th className="text-left px-4 py-2 font-medium">Alert on Risk</th>
+                    <th className="text-left px-4 py-2 font-medium">Threshold</th>
+                    <th className="text-left px-4 py-2 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bcWatches.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-500 text-sm">No watches configured</td></tr>
+                  ) : bcWatches.map((w: any) => (
+                    <tr key={w.id} className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                      <td className="px-4 py-2 font-mono text-xs max-w-[200px] truncate">{w.address}</td>
+                      <td className="px-4 py-2"><span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-xs font-medium">{w.chain}</span></td>
+                      <td className="px-4 py-2">{w.alert_on_new_tx ? <CheckCircle className="h-4 w-4 text-green-400" /> : <XCircle className="h-4 w-4 text-zinc-600" />}</td>
+                      <td className="px-4 py-2">{w.alert_on_risk_change ? <CheckCircle className="h-4 w-4 text-green-400" /> : <XCircle className="h-4 w-4 text-zinc-600" />}</td>
+                      <td className="px-4 py-2 text-xs">{w.risk_threshold || "—"}</td>
+                      <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded text-xs ${w.is_active ? "bg-green-500/10 text-green-400" : "bg-zinc-700 text-zinc-400"}`}>{w.is_active ? "Active" : "Inactive"}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Alerts sub-tab */}
+          {bcSubTab === "alerts" && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-800/50">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium">Severity</th>
+                    <th className="text-left px-4 py-2 font-medium">Title</th>
+                    <th className="text-left px-4 py-2 font-medium">Address</th>
+                    <th className="text-left px-4 py-2 font-medium">Chain</th>
+                    <th className="text-left px-4 py-2 font-medium">Type</th>
+                    <th className="text-left px-4 py-2 font-medium">Status</th>
+                    <th className="text-left px-4 py-2 font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bcAlerts.length === 0 ? (
+                    <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-500 text-sm">No alerts</td></tr>
+                  ) : bcAlerts.map((a: any) => (
+                    <tr key={a.id} className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                      <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded text-xs ${a.severity === "critical" ? "bg-red-500/10 text-red-400" : a.severity === "high" ? "bg-orange-500/10 text-orange-400" : a.severity === "medium" ? "bg-amber-500/10 text-amber-400" : "bg-zinc-700 text-zinc-400"}`}>{a.severity}</span></td>
+                      <td className="px-4 py-2 text-xs font-medium max-w-[200px] truncate">{a.title}</td>
+                      <td className="px-4 py-2 font-mono text-xs max-w-[160px] truncate">{a.address}</td>
+                      <td className="px-4 py-2"><span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-xs font-medium">{a.chain}</span></td>
+                      <td className="px-4 py-2 text-xs text-zinc-400">{a.alert_type}</td>
+                      <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded text-xs ${a.acknowledged ? "bg-green-500/10 text-green-400" : "bg-amber-500/10 text-amber-400"}`}>{a.acknowledged ? "Acked" : "Open"}</span></td>
+                      <td className="px-4 py-2">
+                        {!a.acknowledged && (
+                          <button onClick={() => doAction(`ack-${a.id}`, () => api.put(`/blockchain/alerts/${a.id}/acknowledge`), fetchBlockchain)}
+                            className="px-2 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-xs">Ack</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Cases sub-tab */}
+          {bcSubTab === "cases" && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-800/50">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium">Status</th>
+                    <th className="text-left px-4 py-2 font-medium">Title</th>
+                    <th className="text-left px-4 py-2 font-medium">Description</th>
+                    <th className="text-left px-4 py-2 font-medium">Created By</th>
+                    <th className="text-left px-4 py-2 font-medium">Assigned To</th>
+                    <th className="text-left px-4 py-2 font-medium">Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bcCases.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-500 text-sm">No investigation cases</td></tr>
+                  ) : bcCases.map((c: any) => (
+                    <tr key={c.id} className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                      <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded text-xs ${c.status === "open" ? "bg-green-500/10 text-green-400" : c.status === "in_review" ? "bg-amber-500/10 text-amber-400" : "bg-zinc-700 text-zinc-400"}`}>{c.status}</span></td>
+                      <td className="px-4 py-2 text-xs font-medium">{c.title}</td>
+                      <td className="px-4 py-2 text-xs text-zinc-400 max-w-[250px] truncate">{c.description || "—"}</td>
+                      <td className="px-4 py-2 text-xs text-zinc-400">{c.created_by || "—"}</td>
+                      <td className="px-4 py-2 text-xs text-zinc-400">{c.assigned_to || "—"}</td>
+                      <td className="px-4 py-2 text-xs text-zinc-400">{fmtDate(c.created_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Travel Rule sub-tab */}
+          {bcSubTab === "travel" && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+              <div className="px-4 py-3 border-b border-zinc-800">
+                <p className="text-sm text-pink-400 font-medium">{bcTravelRule.length} compliance records</p>
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-800/50">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium">Status</th>
+                    <th className="text-left px-4 py-2 font-medium">Chain</th>
+                    <th className="text-left px-4 py-2 font-medium">TX Hash</th>
+                    <th className="text-left px-4 py-2 font-medium">From</th>
+                    <th className="text-left px-4 py-2 font-medium">To</th>
+                    <th className="text-left px-4 py-2 font-medium">Amount</th>
+                    <th className="text-left px-4 py-2 font-medium">Score</th>
+                    <th className="text-left px-4 py-2 font-medium">Jurisdiction</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bcTravelRule.length === 0 ? (
+                    <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-500 text-sm">No travel rule records</td></tr>
+                  ) : bcTravelRule.map((r: any) => (
+                    <tr key={r.id} className="border-t border-zinc-800 hover:bg-zinc-800/30">
+                      <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded text-xs ${r.status === "compliant" ? "bg-green-500/10 text-green-400" : r.status === "non_compliant" ? "bg-red-500/10 text-red-400" : r.status === "exempt" ? "bg-blue-500/10 text-blue-400" : "bg-zinc-700 text-zinc-400"}`}>{r.status}</span></td>
+                      <td className="px-4 py-2"><span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-xs font-medium">{r.chain}</span></td>
+                      <td className="px-4 py-2 font-mono text-xs max-w-[140px] truncate">{r.tx_hash}</td>
+                      <td className="px-4 py-2 font-mono text-xs max-w-[140px] truncate">{r.from_address}</td>
+                      <td className="px-4 py-2 font-mono text-xs max-w-[140px] truncate">{r.to_address}</td>
+                      <td className="px-4 py-2 text-xs">{r.amount || "—"}</td>
+                      <td className="px-4 py-2"><span className={`px-2 py-0.5 rounded text-xs ${(r.compliance_score || 0) >= 80 ? "bg-green-500/10 text-green-400" : (r.compliance_score || 0) >= 50 ? "bg-amber-500/10 text-amber-400" : "bg-red-500/10 text-red-400"}`}>{r.compliance_score ?? "—"}</span></td>
+                      <td className="px-4 py-2 text-xs text-zinc-400">{r.jurisdiction || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
