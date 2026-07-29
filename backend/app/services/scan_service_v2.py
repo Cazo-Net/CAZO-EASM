@@ -128,7 +128,7 @@ class ScanServiceV2:
             finally:
                 db.close()
 
-    async def _store_results(self, db: Session, scan: Scan, results: Dict[str, Any]) -> None:
+    def _store_results(self, db: Session, scan: Scan, results: Dict[str, Any]) -> None:
         """Store scan results in the database."""
         domain = scan.domain
 
