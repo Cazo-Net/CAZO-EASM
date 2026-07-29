@@ -293,7 +293,7 @@ export default function AdminPage() {
     if (!supportSelected || !supportReply.trim()) return;
     setSupportSending(true);
     try {
-      await api.post(`/support/conversations/${supportSelected}/reply`, { message: supportReply });
+      await api.post(`/support/conversations/${supportSelected}/messages`, { message: supportReply });
       setSupportReply("");
       await fetchSupportMessages(supportSelected);
       await fetchSupportConversations();
@@ -1921,7 +1921,7 @@ export default function AdminPage() {
                   className={`w-full text-left px-3 py-3 border-b border-zinc-800/50 hover:bg-zinc-800/50 transition-colors ${supportSelected === c.id ? "bg-zinc-800/70" : ""}`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium truncate max-w-[160px]">{c.user_email || "Anonymous"}</span>
+                    <span className="text-xs font-medium truncate max-w-[160px]">{c.user_name || "Anonymous"}</span>
                     <span className={`h-2 w-2 rounded-full ${c.status === "open" ? "bg-green-500" : c.status === "closed" ? "bg-zinc-500" : "bg-yellow-500"}`} />
                   </div>
                   <p className="text-xs text-zinc-500 truncate">{c.subject || "No subject"}</p>
@@ -1952,7 +1952,7 @@ export default function AdminPage() {
                       {supportConversations.find((c) => c.id === supportSelected)?.subject || "Support Conversation"}
                     </h3>
                     <p className="text-xs text-zinc-500">
-                      {supportConversations.find((c) => c.id === supportSelected)?.user_email || "Anonymous"}
+                      {supportConversations.find((c) => c.id === supportSelected)?.user_name || "Anonymous"}
                     </p>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-xs ${supportConversations.find((c) => c.id === supportSelected)?.status === "open" ? "bg-green-500/20 text-green-400" : "bg-zinc-500/20 text-zinc-400"}`}>
