@@ -1815,7 +1815,7 @@ async def admin_send_support_message(
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     msg_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
     db.execute(msg_t.insert().values(
         id=msg_id,
         conversation_id=conversation_id,
