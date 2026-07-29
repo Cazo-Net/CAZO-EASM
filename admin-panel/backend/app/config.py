@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     )
     EASM_SQLITE_PATH: str = os.getenv(
         "EASM_SQLITE_PATH",
-        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "..", "easm-platform", "backend", "data", "easm.db")
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "..", "backend", "data", "easm.db")
     )
     USE_SQLITE: bool = os.getenv("USE_SQLITE", "true").lower() in ("1", "true", "yes")
 

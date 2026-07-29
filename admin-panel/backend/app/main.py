@@ -1697,59 +1697,63 @@ async def admin_list_support_conversations(
     db: DBSession = Depends(get_db),
     admin: str = Depends(require_admin),
 ):
-    tables = _table_names(db)
-    if "support_conversations" not in tables:
-        return {"conversations": [], "total": 0}
+    try:
+        tables = _table_names(db)
+        if "support_conversations" not in tables:
+            return {"conversations": [], "total": 0}
 
-    conv_t = _get_table("support_conversations")
-    msg_t = _get_table("support_messages")
-    users_t = _get_table("users") if "users" in tables else None
+        conv_t = _get_table("support_conversations")
+        msg_t = _get_table("support_messages")
+        users_t = _get_table("users") if "users" in tables else None
 
-    q = db.query(conv_t)
-    if status:
-        q = q.filter(conv_t.c.status == status)
-    total = q.count()
-    rows = q.order_by(desc(conv_t.c.updated_at)).offset(skip).limit(limit).all()
+        q = db.query(conv_t)
+        if status:
+            q = q.filter(conv_t.c.status == status)
+        total = q.count()
+        rows = q.order_by(desc(conv_t.c.updated_at)).offset(skip).limit(limit).all()
 
-    results = []
-    for r in rows:
-        # Get user name
-        user_name = "Unknown"
-        if users_t:
-            u = db.query(users_t).filter(users_t.c.id == r.user_id).first()
-            if u:
-                user_name = getattr(u, "full_name", None) or getattr(u, "email", "Unknown")
+        results = []
+        for r in rows:
+            # Get user name
+            user_name = "Unknown"
+            if users_t is not None:
+                u = db.query(users_t).filter(users_t.c.id == r.user_id).first()
+                if u:
+                    user_name = getattr(u, "full_name", None) or getattr(u, "email", "Unknown")
 
-        # Get last message
-        last_msg_row = (
-            db.query(msg_t)
-            .filter(msg_t.c.conversation_id == r.id)
-            .order_by(desc(msg_t.c.created_at))
-            .first()
-        )
-        last_msg = last_msg_row.message[:100] if last_msg_row else None
+            # Get last message
+            last_msg_row = (
+                db.query(msg_t)
+                .filter(msg_t.c.conversation_id == r.id)
+                .order_by(desc(msg_t.c.created_at))
+                .first()
+            )
+            last_msg = last_msg_row.message[:100] if last_msg_row else None
 
-        # Get unread count (admin messages that user hasn't read are not relevant here;
-        # we count user messages that admin hasn't seen)
-        unread = db.query(func.count(msg_t.c.id)).filter(
-            msg_t.c.conversation_id == r.id,
-            msg_t.c.sender_type == "user",
-            msg_t.c.is_read == False,
-        ).scalar() or 0
+            # Get unread count (user messages that admin hasn't seen)
+            unread_result = db.execute(
+                text("SELECT COUNT(*) FROM support_messages WHERE conversation_id = :cid AND sender_type = 'user' AND is_read = 0"),
+                {"cid": r.id}
+            ).scalar()
+            unread = unread_result or 0
 
-        results.append({
-            "id": r.id,
-            "user_id": r.user_id,
-            "user_name": user_name,
-            "subject": r.subject,
-            "status": r.status,
-            "created_at": str(getattr(r, "created_at", "")),
-            "updated_at": str(getattr(r, "updated_at", "")),
-            "last_message": last_msg,
-            "unread_count": unread,
-        })
+            results.append({
+                "id": r.id,
+                "user_id": r.user_id,
+                "user_name": user_name,
+                "subject": r.subject,
+                "status": r.status,
+                "created_at": str(getattr(r, "created_at", "")),
+                "updated_at": str(getattr(r, "updated_at", "")),
+                "last_message": last_msg,
+                "unread_count": unread,
+            })
 
-    return {"conversations": results, "total": total}
+        return {"conversations": results, "total": total}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/support/conversations/{conversation_id}/messages")
@@ -1766,9 +1770,8 @@ async def admin_get_support_messages(
 
     # Mark user messages as read by admin
     db.execute(
-        msg_t.update()
-        .where(msg_t.c.conversation_id == conversation_id, msg_t.c.sender_type == "user", msg_t.c.is_read == False)
-        .values(is_read=True)
+        text("UPDATE support_messages SET is_read = 1 WHERE conversation_id = :cid AND sender_type = 'user' AND is_read = 0"),
+        {"cid": conversation_id}
     )
     db.commit()
 
@@ -1818,7 +1821,6 @@ async def admin_send_support_message(
         sender_type="admin",
         sender_id=admin,
         message=body.get("message", ""),
-        is_read=False,
     ))
     db.execute(
         conv_t.update()
@@ -1862,9 +1864,8 @@ async def admin_support_unread(
         return {"count": 0}
 
     msg_t = _get_table("support_messages")
-    count = db.query(func.count(msg_t.c.id)).filter(
-        msg_t.c.sender_type == "user",
-        msg_t.c.is_read == False,
+    count = db.execute(
+        text("SELECT COUNT(*) FROM support_messages WHERE sender_type = 'user' AND is_read = 0")
     ).scalar() or 0
     return {"count": count}
 
