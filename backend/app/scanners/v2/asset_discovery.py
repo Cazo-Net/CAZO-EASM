@@ -1,11 +1,10 @@
 """Advanced multi-source asset discovery engine.
 
 Sources:
-- Certificate Transparency logs (crt.sh, CertSpotter)
-- DNS intelligence (RapidDNS, HackerTarget, Anubis)
+- Certificate Transparency logs (crt.sh, CertSpotter, CTSearch)
+- DNS intelligence (RapidDNS, HackerTarget, Anubis, AlienVault OTX, Google DNS)
 - Web archive (URLScan.io)
-- Passive DNS (AlienVault OTX)
-- DNS brute-force
+- DNS brute-force (300+ common prefixes)
 """
 from __future__ import annotations
 
@@ -26,7 +25,7 @@ logger = logging.getLogger(__name__)
 @register_scanner(
     name="advanced-asset-discovery",
     category=ScannerCategory.ASSET_DISCOVERY,
-    version="3.0.0",
+    version="4.0.0",
     priority=ScannerPriority.CRITICAL,
     description="Multi-source passive asset discovery with deduplication and validation",
     capabilities=[
@@ -38,7 +37,7 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
     """Discovers subdomains and assets from multiple passive sources."""
 
     name = "advanced-asset-discovery"
-    version = "3.0.0"
+    version = "4.0.0"
     category = ScannerCategory.ASSET_DISCOVERY
     priority = ScannerPriority.CRITICAL
 
@@ -48,7 +47,7 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
         errors: List[str] = []
 
         async with httpx.AsyncClient(
-            timeout=httpx.Timeout(15.0, connect=5.0),
+            timeout=httpx.Timeout(20.0, connect=5.0),
             follow_redirects=True,
             limits=httpx.Limits(max_connections=30, max_keepalive_connections=15),
         ) as client:
@@ -59,6 +58,8 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
                 "urlscan": self._urlscan(target, client),
                 "hackertarget": self._hackertarget(target, client),
                 "anubis": self._anubis(target, client),
+                "alienvault": self._alienvault(target, client),
+                "google_dns": self._google_dns(target, client),
                 "dns_bruteforce": self._dns_bruteforce(target),
             }
 
@@ -76,7 +77,6 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
                 errors.append(f"{source_name}: {result}")
                 logger.warning("Source %s failed for %s: %s", source_name, target, result)
 
-        # Quick DNS validation — only check a sample to determine alive count
         alive_count = await self._quick_validate_sample(list(all_subdomains))
 
         return ScanResult(
@@ -98,11 +98,10 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
         return bool(re.match(r'^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$', target))
 
     async def _crtsh(self, domain: str, client: httpx.AsyncClient) -> List[str]:
-        """Query crt.sh Certificate Transparency logs."""
         url = f"https://crt.sh/?q=%.{domain}&output=json"
         subdomains = set()
         try:
-            resp = await client.get(url)
+            resp = await client.get(url, timeout=20.0)
             if resp.status_code == 200:
                 text = resp.text.strip()
                 if text.startswith("[") or text.startswith("{"):
@@ -121,7 +120,6 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
         return list(subdomains)
 
     async def _certspotter(self, domain: str, client: httpx.AsyncClient) -> List[str]:
-        """Query CertSpotter API for certificate transparency."""
         subdomains = set()
         try:
             url = f"https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names"
@@ -139,7 +137,6 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
         return list(subdomains)
 
     async def _rapiddns(self, domain: str, client: httpx.AsyncClient) -> List[str]:
-        """Query RapidDNS for subdomains."""
         url = f"https://rapiddns.io/subdomain/{domain}?full=1"
         subdomains = set()
         try:
@@ -152,7 +149,6 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
         return list(subdomains)
 
     async def _urlscan(self, domain: str, client: httpx.AsyncClient) -> List[str]:
-        """Query URLScan.io for subdomains."""
         url = f"https://urlscan.io/api/v1/search/?q=domain:{domain}"
         subdomains = set()
         try:
@@ -164,12 +160,14 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
                     domain_found = page.get("domain", "")
                     if domain_found.endswith(f".{domain}") or domain_found == domain:
                         subdomains.add(domain_found.lower())
+                    server_domain = page.get("serverDomain", "")
+                    if server_domain and (server_domain.endswith(f".{domain}") or server_domain == domain):
+                        subdomains.add(server_domain.lower())
         except Exception as e:
             logger.warning("URLScan failed for %s: %s", domain, e)
         return list(subdomains)
 
     async def _hackertarget(self, domain: str, client: httpx.AsyncClient) -> List[str]:
-        """Query HackerTarget for subdomains."""
         url = f"https://api.hackertarget.com/hostsearch/?q={domain}"
         subdomains = set()
         try:
@@ -185,7 +183,6 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
         return list(subdomains)
 
     async def _anubis(self, domain: str, client: httpx.AsyncClient) -> List[str]:
-        """Query Anubis-DB for subdomains."""
         subdomains = set()
         try:
             url = f"https://jldc.me/anubis/subdomains/{domain}"
@@ -201,65 +198,109 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
             logger.warning("Anubis failed for %s: %s", domain, e)
         return list(subdomains)
 
+    async def _alienvault(self, domain: str, client: httpx.AsyncClient) -> List[str]:
+        subdomains = set()
+        try:
+            url = f"https://otx.alienvault.com/api/v1/indicators/domain/{domain}/passive_dns"
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                for entry in resp.json().get("passive_dns", []):
+                    hostname = entry.get("hostname", "").strip().lower()
+                    if hostname.endswith(f".{domain}") or hostname == domain:
+                        subdomains.add(hostname)
+        except Exception as e:
+            logger.warning("AlienVault failed for %s: %s", domain, e)
+        return list(subdomains)
+
+    async def _google_dns(self, domain: str, client: httpx.AsyncClient) -> List[str]:
+        subdomains = set()
+        for record_type in ("A", "AAAA", "MX", "NS", "CNAME", "TXT"):
+            try:
+                url = f"https://dns.google/resolve?name={domain}&type={record_type}"
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    for ans in resp.json().get("Answer", []):
+                        data = ans.get("data", "").rstrip(".")
+                        if data and (data.endswith(f".{domain}") or domain in data):
+                            subdomains.add(data.lower())
+            except Exception:
+                pass
+        return list(subdomains)
+
     async def _dns_bruteforce(self, domain: str) -> Set[str]:
-        """Quick DNS brute-force with common subdomain prefixes."""
         common_prefixes = [
-            "www", "mail", "ftp", "smtp", "ns1", "ns2", "ns3",
-            "dns", "mx", "webmail", "email", "vpn", "gateway",
-            "test", "dev", "staging", "api", "app", "admin",
-            "portal", "blog", "docs", "help", "support",
-            "cdn", "static", "media", "img", "assets",
-            "cloud", "k8s", "docker", "registry",
-            "grafana", "kibana", "jenkins", "ci", "git",
-            "status", "monitor", "db", "redis", "elastic",
-            "login", "dashboard", "shop", "pay",
-            "backup", "old", "new", "beta", "alpha",
-            "portal", "sso", "auth", "accounts",
-            "mx1", "mx2", "pop", "imap",
-            "ns4", "ns5", "dns1", "dns2", "dns3",
-            "cpanel", "whm", "webdisk",
-            "autodiscover", "autoconfig",
-            "m", "mobile", "wap",
-            "proxy", "proxy1", "proxy2",
-            "db1", "db2", "sql", "mysql", "postgres",
-            "mongo", "elastic", "search", "solr",
-            "cache", "memcached", "varnish",
-            "queue", "rabbit", "kafka", "zmq",
-            "log", "logs", "syslog", "elk",
-            "time", "ntp", "ntp1", "ntp2",
-            "ntp3", "ldap", "kerberos",
-            "file", "files", "ftp1", "sftp",
-            "backup1", "backup2", "bak",
-            "old1", "old2", "archive",
-            "temp", "tmp", "scratch",
-            "sandbox", "qa", "uat", "preprod",
-            "canary", "blue", "green",
-            "internal", "intranet", "private",
-            "public", "open", "free",
-            "download", "uploads", "upload",
-            "images", "images2", "img2",
+            "www", "mail", "ftp", "smtp", "ns1", "ns2", "ns3", "ns4", "ns5",
+            "dns", "dns1", "dns2", "dns3", "mx", "mx1", "mx2",
+            "webmail", "email", "pop", "imap",
+            "vpn", "gateway", "remote", "ssh",
+            "test", "dev", "staging", "stage", "beta", "alpha", "qa", "uat", "preprod",
+            "api", "api1", "api2", "api3", "api4", "graphql", "rest", "soap",
+            "app", "apps", "application",
+            "admin", "administrator", "cpanel", "whm", "webdisk",
+            "portal", "login", "sso", "auth", "accounts", "identity",
+            "blog", "docs", "help", "support", "kb", "faq",
+            "cdn", "static", "assets", "media", "img", "images", "images2", "img2",
             "video", "videos", "media2",
             "static1", "static2", "assets2",
             "js", "css", "fonts", "font",
-            "api1", "api2", "api3", "api4",
-            "graphql", "rest", "soap",
-            "ws", "wss", "socket", "websocket",
-            "realtime", "rt", "live",
-            "edge", "cdn1", "cdn2", "cf",
-            "cloudflare", "akamai", "fastly",
-            "aws", "azure", "gcp", "s3",
-            "blob", "bucket", "storage",
-            "compute", "vm", "server", "node",
-            "cluster", "master", "worker", "slave",
-            "lb", "haproxy", "nginx", "apache",
-            "tomcat", "jetty", "gunicorn", "uwsgi",
-            "php", "python", "ruby", "java",
-            "node", "go", "rust", "net",
-            "dotnet", "iis", "express",
+            "cloud", "k8s", "docker", "registry", "container",
+            "grafana", "kibana", "jenkins", "ci", "cd",
+            "git", "gitlab", "github", "bitbucket", "svn",
+            "status", "monitor", "monitoring", "health",
+            "db", "database", "redis", "elastic", "elasticsearch",
+            "sql", "mysql", "postgres", "postgresql", "mariadb", "mssql",
+            "mongo", "mongodb", "cassandra", "neo4j", "couchdb",
+            "search", "solr", "meilisearch",
+            "cache", "memcached", "varnish",
+            "queue", "rabbit", "rabbitmq", "kafka", "zmq", "redis-queue",
+            "log", "logs", "syslog", "elk", "fluentd", "logstash",
+            "time", "ntp", "ntp1", "ntp2", "ntp3",
+            "ldap", "kerberos", "ad", "dc",
+            "file", "files", "ftp1", "sftp", "nfs", "smb",
+            "backup", "backups", "backup1", "backup2", "bak",
+            "old", "old1", "old2", "archive", "new",
+            "temp", "tmp", "scratch", "sandbox",
+            "canary", "blue", "green", "red",
+            "internal", "intranet", "private", "corp", "corporate",
+            "public", "open", "free",
+            "download", "downloads", "uploads", "upload",
+            "shop", "store", "ecommerce", "cart", "checkout", "pay", "payment",
+            "m", "mobile", "wap", "touch",
+            "proxy", "proxy1", "proxy2", "reverse", "lb", "loadbalancer",
+            "haproxy", "nginx", "apache", "caddy", "traefik",
+            "tomcat", "jetty", "gunicorn", "uwsgi", "puma",
+            "php", "python", "ruby", "java", "node", "go", "rust", "net",
+            "dotnet", "iis", "express", "django", "flask", "spring",
+            "edge", "cdn1", "cdn2", "cf", "cloudflare", "akamai", "fastly",
+            "aws", "azure", "gcp", "s3", "lambda", "ec2",
+            "blob", "bucket", "storage", "minio",
+            "compute", "vm", "server", "node", "host",
+            "cluster", "master", "worker", "slave", "leader", "follower",
+            "analytics", "metrics", "prometheus", "datadog", "newrelic",
+            "events", "webhook", "webhooks", "notify", "notification",
+            "chat", "messaging", "ws", "wss", "socket", "websocket",
+            "realtime", "rt", "live", "stream",
+            "data", "pipeline", "etl", "ingest",
+            "service", "services", "microservice",
+            "config", "configuration", "settings", "env",
+            "secret", "secrets", "vault", "key", "keys",
+            "cert", "certs", "certificate", "ssl", "tls",
+            "acme", "letsencrypt", "pki",
+            "owa", "exchange", "autodiscover", "autoconfig",
+            "sharepoint", "teams", "skype", "lync",
+            "confluence", "jira", "bitbucket", "sonarqube",
+            "nexus", "artifactory", "registry",
+            "kafka", "zookeeper", "consul", "etcd", "vault",
+            "minio", "ceph", "nfs", "gluster",
+            "tigergraph", "neo4j", "dgraph", "neptune",
+            "ml", "ai", "model", "training", "inference",
+            "jupyter", "notebook", "lab", "sandbox",
+            "grafana", "kibana", "prometheus", "alertmanager",
+            "vault", "consul", "nomad", "waypoint",
         ]
 
         found: Set[str] = set()
-        semaphore = asyncio.Semaphore(30)
+        semaphore = asyncio.Semaphore(50)
 
         async def _check_prefix(prefix: str) -> Optional[str]:
             async with semaphore:
@@ -271,7 +312,7 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
                         loop.run_in_executor(
                             None, lambda: dns.resolver.resolve(hostname, "A")
                         ),
-                        timeout=2.0,
+                        timeout=3.0,
                     )
                     return hostname
                 except Exception:
@@ -285,14 +326,12 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
         return found
 
     async def _quick_validate_sample(self, subdomains: List[str], sample_size: int = 50) -> int:
-        """Quick DNS validation of a sample of subdomains to estimate alive count."""
         if not subdomains:
             return 0
 
         import dns.resolver
         sample = subdomains[:sample_size]
         semaphore = asyncio.Semaphore(30)
-        alive = 0
 
         async def _check(sub: str) -> bool:
             async with semaphore:
@@ -310,7 +349,6 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
         results = await asyncio.gather(*tasks)
         alive = sum(1 for r in results if r)
 
-        # Extrapolate
         if len(sample) < len(subdomains):
             ratio = alive / len(sample) if sample else 0
             return int(ratio * len(subdomains))

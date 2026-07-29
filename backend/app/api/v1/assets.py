@@ -43,7 +43,7 @@ def _assert_scan_belongs_to_org(db: Session, scan_id: str, current_user: User) -
 async def list_subdomains(
     scan_id: Optional[str] = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 2000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -89,7 +89,7 @@ async def list_subdomains(
 async def list_ports(
     scan_id: Optional[str] = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 2000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -126,7 +126,7 @@ async def list_ports(
 async def list_ssl_certificates(
     scan_id: Optional[str] = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 2000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -166,7 +166,7 @@ async def list_ssl_certificates(
 async def list_technologies(
     scan_id: Optional[str] = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 2000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -202,7 +202,7 @@ async def list_technologies(
 async def list_dns_records(
     scan_id: Optional[str] = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 2000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -237,7 +237,7 @@ async def list_dns_records(
 async def list_whois_records(
     scan_id: Optional[str] = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 2000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -746,7 +746,7 @@ async def list_asset_scores(
 async def get_asset_timeline(
     change_type: Optional[str] = Query(None, description="added|removed|modified"),
     entity_type: Optional[str] = Query(None, description="subdomain|port|certificate|technology|dns"),
-    limit: int = 100,
+    limit: int = 2000,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
