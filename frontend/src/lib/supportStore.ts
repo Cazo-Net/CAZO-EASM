@@ -72,10 +72,10 @@ export function useSupportStore() {
   useEffect(() => {
     const listener = () => forceUpdate((c) => c + 1);
     _listeners.add(listener);
-    // Fetch unread count on mount
+    if (!_getToken()) return () => { _listeners.delete(listener); };
     fetchUnread();
-    // Poll for new messages every 10 seconds
     const interval = setInterval(() => {
+      if (!_getToken()) return;
       if (_state.conversationId && _state.isOpen) {
         loadMessages(_state.conversationId);
       }

@@ -23,6 +23,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   deleteNotification,
+  getToken,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -103,8 +104,9 @@ export function NotificationCenter() {
     }
   }, []);
 
-  // Poll unread count every 30 seconds
+  // Poll unread count every 30 seconds (skip if not authenticated)
   useEffect(() => {
+    if (!getToken()) return;
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);

@@ -62,26 +62,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
-        if (
-          error.response?.status === 401 &&
-          !originalRequest._retry &&
-          !originalRequest.url?.includes("/auth/refresh") &&
-          !originalRequest.url?.includes("/auth/me") &&
-          (localStorage.getItem("refresh_token") || sessionStorage.getItem("refresh_token"))
-        ) {
-          originalRequest._retry = true;
-          try {
-            const refreshToken = localStorage.getItem("refresh_token") || sessionStorage.getItem("refresh_token");
-            const { data } = await api.post("/auth/refresh", { refresh_token: refreshToken });
-            const storage = localStorage.getItem("access_token") ? localStorage : sessionStorage;
-            storage.setItem("access_token", data.access_token);
-            if (data.refresh_token) {
-              storage.setItem("refresh_token", data.refresh_token);
+        if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes("/auth/refresh") && !originalRequest.url?.includes("/auth/me")) {
+          const refreshToken = localStorage.getItem("refresh_token") || sessionStorage.getItem("refresh_token");
+          if (refreshToken) {
+            originalRequest._retry = true;
+            try {
+              const { data } = await api.post("/auth/refresh", { refresh_token: refreshToken });
+              const storage = localStorage.getItem("access_token") ? localStorage : sessionStorage;
+              storage.setItem("access_token", data.access_token);
+              if (data.refresh_token) {
+                storage.setItem("refresh_token", data.refresh_token);
+              }
+              setToken(data.access_token);
+              originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+              return api(originalRequest);
+            } catch {
+              apiLogout();
+              setToken(null);
+              setUser(null);
+              router.push("/login");
             }
-            setToken(data.access_token);
-            originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
-            return api(originalRequest);
-          } catch {
+          } else {
             apiLogout();
             setToken(null);
             setUser(null);

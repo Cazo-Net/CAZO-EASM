@@ -4,6 +4,9 @@ After the OSINT engine discovers subdomains, certificates, ports, and CVEs
 for a target domain, this module persists them into the same Asset / AssetRelationship
 tables used by the scan pipeline, so shadow detection, search, host intelligence,
 and change feed all work across both data sources seamlessly.
+
+Also creates Subdomain / Port / SSLCertificate / Technology rows so the
+scan detail page can display results from OSINT scans.
 """
 from __future__ import annotations
 from datetime import datetime, timezone
@@ -15,6 +18,10 @@ from sqlalchemy.orm import Session
 from app.models.asset_inventory import Asset, AssetRelationship
 from app.models.vulnerability import Vulnerability
 from app.models.scan import Scan
+from app.models.asset import Subdomain
+from app.models.port import Port
+from app.models.ssl import SSLCertificate
+from app.models.technology import Technology
 from app.services.osint import IntelResult
 
 logger = logging.getLogger(__name__)
@@ -155,6 +162,10 @@ def import_osint_findings(
         "cert_assets": 0,
         "relationships": 0,
         "vulnerabilities": 0,
+        "scan_subdomains": 0,
+        "scan_ports": 0,
+        "scan_ssl": 0,
+        "scan_technologies": 0,
     }
     _seen_rels: set = set()
 
@@ -213,7 +224,7 @@ def import_osint_findings(
                     _upsert_relationship(db, org_id, hostname_assets[san_name].id, cert_asset.id, "serves", _seen=_seen_rels)
                     counts["relationships"] += 1
 
-    # 5) Vulnerabilities → Vulnerability records (linked to an osint scan)
+    # 5) Create or find the OSINT scan record
     osint_scan = (
         db.query(Scan)
         .filter(Scan.organization_id == org_id, Scan.domain == intel.query, Scan.scan_type == "osint")
@@ -230,12 +241,122 @@ def import_osint_findings(
         db.add(osint_scan)
         db.flush()
 
+    # 6) Create Subdomain rows so the scan detail page can display results
+    scan_subdomains: Dict[str, Subdomain] = {}
+
+    # Root domain subdomain
+    root_sub = Subdomain(
+        scan_id=osint_scan.id,
+        hostname=intel.query,
+        ip_addresses=[ip for sub in intel.subdomains[:1] for ip in sub.ips],
+        is_alive=True,
+        status="active",
+    )
+    db.add(root_sub)
+    db.flush()
+    scan_subdomains[intel.query] = root_sub
+    counts["scan_subdomains"] += 1
+
+    # Child subdomains
+    for sub in intel.subdomains:
+        host = sub.hostname
+        if host in scan_subdomains:
+            continue
+        child_sub = Subdomain(
+            scan_id=osint_scan.id,
+            hostname=host,
+            ip_addresses=sub.ips,
+            is_alive=bool(sub.ips),
+            status="active",
+        )
+        db.add(child_sub)
+        db.flush()
+        scan_subdomains[host] = child_sub
+        counts["scan_subdomains"] += 1
+
+    # 7) Create Port rows linked to the appropriate subdomain
+    for port in intel.ports:
+        # Try to find a subdomain that matches this port's host
+        # Ports from the OSINT engine are typically for the apex domain
+        target_sub = scan_subdomains.get(intel.query) or root_sub
+        existing_port = (
+            db.query(Port)
+            .filter(Port.subdomain_id == target_sub.id, Port.port_number == port.port)
+            .first()
+        )
+        if not existing_port:
+            db.add(Port(
+                subdomain_id=target_sub.id,
+                port_number=port.port,
+                state=port.state,
+                service=port.service or "",
+                banner=(port.banner or "")[:500],
+                version="",
+                status="active",
+            ))
+            counts["scan_ports"] += 1
+
+    # 8) Create SSLCertificate rows linked to the appropriate subdomain
+    for cert in intel.certificates:
+        subject_host = None
+        if cert.subject:
+            subject_host = cert.subject.split("CN=")[-1].split(",")[0].strip().lower() if "CN=" in cert.subject else cert.subject.lower()
+        target_sub = scan_subdomains.get(subject_host) if subject_host else None
+        if not target_sub:
+            target_sub = scan_subdomains.get(intel.query) or root_sub
+
+        existing_cert = (
+            db.query(SSLCertificate)
+            .filter(SSLCertificate.subdomain_id == target_sub.id, SSLCertificate.subject == cert.subject)
+            .first()
+        )
+        if not existing_cert and cert.subject:
+            not_before = None
+            not_after = None
+            try:
+                if cert.not_before:
+                    not_before = datetime.fromisoformat(cert.not_before.replace("Z", "+00:00"))
+                if cert.not_after:
+                    not_after = datetime.fromisoformat(cert.not_after.replace("Z", "+00:00"))
+            except Exception:
+                pass
+
+            db.add(SSLCertificate(
+                subdomain_id=target_sub.id,
+                issuer=cert.issuer or "",
+                subject=cert.subject or "",
+                serial_number=cert.serial or "",
+                not_before=not_before,
+                not_after=not_after,
+                is_valid=True,
+                san=cert.san,
+                status="active",
+            ))
+            counts["scan_ssl"] += 1
+
+    # 9) Create Technology rows linked to the appropriate subdomain
+    for tech_name in intel.technologies:
+        target_sub = scan_subdomains.get(intel.query) or root_sub
+        existing_tech = (
+            db.query(Technology)
+            .filter(Technology.subdomain_id == target_sub.id, Technology.name == tech_name)
+            .first()
+        )
+        if not existing_tech:
+            db.add(Technology(
+                subdomain_id=target_sub.id,
+                name=tech_name,
+                category="detected",
+                confidence=100,
+                status="active",
+            ))
+            counts["scan_technologies"] += 1
+
+    # 10) Vulnerabilities → Vulnerability records (linked to the osint scan)
     for vuln in intel.vulnerabilities:
-        # Try to find the host asset for this vuln
         vuln_host = None
         if vuln.cve_id:
-            # Find a host asset to link to (if possible)
-            host_asset = hostname_assets.get(intel.query)  # apex domain
+            host_asset = hostname_assets.get(intel.query)
             if host_asset:
                 vuln_host = host_asset
         _upsert_vuln(db, org_id, {

@@ -1095,7 +1095,7 @@ export interface OsintResult {
 }
 
 export async function osintLookup(query: string): Promise<OsintResult> {
-  const { data } = await api.get("/osint", { params: { q: query }, timeout: 120000 });
+  const { data } = await api.get("/osint", { params: { q: query }, timeout: 300000 });
   return data;
 }
 

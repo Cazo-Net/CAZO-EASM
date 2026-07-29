@@ -37,7 +37,7 @@ except Exception:  # pragma: no cover - cryptography is a hard dep of FastAPI st
 _USER_AGENT = {
     "User-Agent": "Mozilla/5.0 (compatible; CAZO-EASM-OSINT/1.0; +https://cazo.io)",
 }
-_TIMEOUT = 5
+_TIMEOUT = 15
 
 # Common ports probed for the Shodan-style "ports/services/tech" view.
 _PROBE_PORTS = [80, 443, 22, 8080, 8443]
@@ -49,7 +49,7 @@ _MAX_DNS_RESOLUTIONS = 20
 _MAX_PORT_PROBE_HOSTS = 3
 
 # Hard overall timeout for the entire lookup (seconds).
-_OVERALL_TIMEOUT = 140
+_OVERALL_TIMEOUT = 300
 
 _CVE_PRODUCT_KEYWORDS = [
     "nginx", "apache", "iis", "openssl", "wordpress", "drupal", "joomla",
@@ -146,7 +146,7 @@ def _http_get(url: str, params: Optional[dict] = None, timeout: int = _TIMEOUT):
         raise
 
 
-def _dns_resolve(host: str, timeout: float = 3.0) -> list:
+def _dns_resolve(host: str, timeout: float = 5.0) -> list:
     """Resolve hostname to A records using dnspython."""
     try:
         import dns.resolver
@@ -356,7 +356,7 @@ def _collect_subdomains(domain: str, status: Dict[str, str]) -> List[SubdomainRe
     def _src_crtsh() -> Dict[str, List[str]]:
         result: Dict[str, List[str]] = {}
         try:
-            r = _http_get("https://crt.sh/", params={"q": f".{domain}", "output": "json"}, timeout=10)
+            r = _http_get("https://crt.sh/", params={"q": f".{domain}", "output": "json"}, timeout=20)
             if r.status_code == 200:
                 for entry in r.json():
                     for part in entry.get("name_value", "").split("\n"):
@@ -373,7 +373,7 @@ def _collect_subdomains(domain: str, status: Dict[str, str]) -> List[SubdomainRe
     def _src_alienvault() -> Dict[str, List[str]]:
         result: Dict[str, List[str]] = {}
         try:
-            r = _http_get(f"https://otx.alienvault.com/api/v1/indicators/domain/{domain}/passive_dns", timeout=6)
+            r = _http_get(f"https://otx.alienvault.com/api/v1/indicators/domain/{domain}/passive_dns", timeout=15)
             if r.status_code == 200:
                 for entry in r.json().get("passive_dns", []):
                     hostname = entry.get("hostname", "").strip().lower()
@@ -390,7 +390,7 @@ def _collect_subdomains(domain: str, status: Dict[str, str]) -> List[SubdomainRe
     def _src_rapiddns() -> Dict[str, List[str]]:
         result: Dict[str, List[str]] = {}
         try:
-            r = _http_get(f"https://rapiddns.io/subdomain/{domain}", params={"full": "1"}, timeout=10)
+            r = _http_get(f"https://rapiddns.io/subdomain/{domain}", params={"full": "1"}, timeout=20)
             if r.status_code == 200:
                 for m in re.finditer(r"<td>([\w.-]+\." + re.escape(domain) + r")</td>", r.text):
                     sub = m.group(1).strip().lower()
@@ -407,7 +407,7 @@ def _collect_subdomains(domain: str, status: Dict[str, str]) -> List[SubdomainRe
         for dns_type in ("A", "AAAA", "MX", "NS", "CNAME", "TXT"):
             try:
                 r = _http_get("https://dns.google/resolve",
-                              params={"name": domain, "type": dns_type}, timeout=10)
+                              params={"name": domain, "type": dns_type}, timeout=15)
                 if r.status_code == 200:
                     for ans in r.json().get("Answer", []):
                         data = ans.get("data", "").rstrip(".")
@@ -431,7 +431,7 @@ def _collect_subdomains(domain: str, status: Dict[str, str]) -> List[SubdomainRe
         }
         for f in cf.as_completed(futures):
             try:
-                data = f.result(timeout=8)
+                data = f.result(timeout=20)
                 _merge(futures[f], data)
             except Exception:
                 pass
@@ -556,7 +556,7 @@ def _collect_ports(subdomains: List[SubdomainResult], status: Dict[str, str]) ->
     shodan_techs = []
     def _shodan_lookup(ip: str) -> dict:
         try:
-            r = _http_get(f"https://internetdb.shodan.io/{ip}", timeout=3)
+            r = _http_get(f"https://internetdb.shodan.io/{ip}", timeout=10)
             if r.status_code == 200:
                 return r.json()
         except Exception:
@@ -594,7 +594,7 @@ def _collect_vulns(technologies: List[str], status: Dict[str, str]) -> List[Vuln
     if kev_ids is None:
         kev_ids = set()
         try:
-            r = _http_get("https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", timeout=20)
+            r = _http_get("https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", timeout=30)
             if r.status_code == 200:
                 for v in r.json().get("vulnerabilities", []):
                     kev_ids.add(v.get("cveID"))
@@ -618,7 +618,7 @@ def _collect_vulns(technologies: List[str], status: Dict[str, str]) -> List[Vuln
                 r = _http_get(
                     "https://services.nvd.nist.gov/rest/json/cves/2.0",
                     params={"keywordSearch": kw, "resultsPerPage": 5},
-                    timeout=10,
+                    timeout=20,
                 )
                 if r.status_code != 200:
                     continue
@@ -693,7 +693,7 @@ def _collect_ip_reputation(ips: List[str], status: Dict[str, str]) -> List[Dict[
 
         # IPinfo (free, no key)
         try:
-            r = _http_get(f"https://ipinfo.io/{ip}/json", timeout=10)
+            r = _http_get(f"https://ipinfo.io/{ip}/json", timeout=15)
             if r.status_code == 200:
                 data = r.json()
                 rep["country"] = data.get("country")
@@ -707,7 +707,7 @@ def _collect_ip_reputation(ips: List[str], status: Dict[str, str]) -> List[Dict[
 
         # AbuseIPDB free check (limited, no key for bulk)
         try:
-            r = _http_get("https://api.abuseipdb.com/api/v2/check", params={"ipAddress": ip}, timeout=10)
+            r = _http_get("https://api.abuseipdb.com/api/v2/check", params={"ipAddress": ip}, timeout=15)
             if r.status_code == 200:
                 d = r.json().get("data", {})
                 rep["abuse_confidence"] = d.get("abuseConfidenceScore", 0)
@@ -721,7 +721,7 @@ def _collect_ip_reputation(ips: List[str], status: Dict[str, str]) -> List[Dict[
 
         # GreyNoise Community (free, limited)
         try:
-            r = _http_get(f"https://api.greynoise.io/v3/community/{ip}", timeout=10)
+            r = _http_get(f"https://api.greynoise.io/v3/community/{ip}", timeout=15)
             if r.status_code == 200:
                 d = r.json()
                 rep["noise"] = d.get("noise", False)
@@ -740,7 +740,7 @@ def _collect_whois(domain: str, status: Dict[str, str]) -> Optional[Dict[str, ob
     """Collect WHOIS data via RDAP (free, no key)."""
     try:
         # Use RDAP (free protocol for domain registration data)
-        r = _http_get(f"https://rdap.org/domain/{domain}", timeout=10)
+        r = _http_get(f"https://rdap.org/domain/{domain}", timeout=15)
         if r.status_code == 200:
             data = r.json()
             events = {e.get("eventAction"): e.get("eventDate") for e in data.get("events", [])}
@@ -776,7 +776,7 @@ def _collect_wayback(domain: str, status: Dict[str, str]) -> List[str]:
         r = _http_get(
             "https://web.archive.org/cdx/search/cdx",
             params={"url": f"*.{domain}", "output": "json", "limit": 200, "fl": "original", "collapse": "urlkey"},
-            timeout=10,
+            timeout=20,
         )
         if r.status_code == 200:
             rows = r.json()
@@ -804,7 +804,7 @@ def _collect_reverse_ip(ips: List[str], domain: str, status: Dict[str, str]) -> 
     reverse = []
     for ip in ips[:3]:
         try:
-            r = _http_get(f"https://api.hackertarget.com/reverseiplookup/?q={ip}", timeout=10)
+            r = _http_get(f"https://api.hackertarget.com/reverseiplookup/?q={ip}", timeout=15)
             if r.status_code == 200 and r.text and not r.text.lower().startswith("error"):
                 for line in r.text.strip().splitlines():
                     host = line.strip().lower()

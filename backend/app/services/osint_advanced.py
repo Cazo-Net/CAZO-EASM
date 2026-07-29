@@ -118,7 +118,7 @@ def _collect_email_security(domain: str, status: Dict[str, str]) -> EmailSecurit
     # --- MX Records ---
     try:
         import dns.resolver
-        for rr in dns.resolver.resolve(domain, "MX", lifetime=8):
+        for rr in dns.resolver.resolve(domain, "MX", lifetime=15):
             result.mx_records.append({
                 "host": rr.exchange.to_text().rstrip("."),
                 "priority": str(rr.preference),
@@ -130,7 +130,7 @@ def _collect_email_security(domain: str, status: Dict[str, str]) -> EmailSecurit
     # --- DMARC ---
     try:
         import dns.resolver
-        forrr = dns.resolver.resolve(f"_dmarc.{domain}", "TXT", lifetime=8)
+        forrr = dns.resolver.resolve(f"_dmarc.{domain}", "TXT", lifetime=15)
         for rr in forrr:
             txt = rr.to_text().strip('"')
             if txt.lower().startswith("v=dmarc1"):
@@ -150,7 +150,7 @@ def _collect_email_security(domain: str, status: Dict[str, str]) -> EmailSecurit
     # --- SPF ---
     try:
         import dns.resolver
-        forrr = dns.resolver.resolve(domain, "TXT", lifetime=8)
+        forrr = dns.resolver.resolve(domain, "TXT", lifetime=15)
         for rr in forrr:
             txt = rr.to_text().strip('"')
             if txt.lower().startswith("v=spf1"):
@@ -168,7 +168,7 @@ def _collect_email_security(domain: str, status: Dict[str, str]) -> EmailSecurit
         import dns.resolver
         for sel in dkim_selectors:
             try:
-                forrr = dns.resolver.resolve(f"{sel}._domainkey.{domain}", "TXT", lifetime=3)
+                forrr = dns.resolver.resolve(f"{sel}._domainkey.{domain}", "TXT", lifetime=5)
                 for rr in forrr:
                     txt = rr.to_text()
                     if "p=" in txt.lower():
@@ -186,7 +186,7 @@ def _collect_email_security(domain: str, status: Dict[str, str]) -> EmailSecurit
     import socket
     import ssl
     try:
-        sock = socket.create_connection((domain, 25), timeout=5)
+        sock = socket.create_connection((domain, 25), timeout=10)
         banner = sock.recv(512).decode("utf-8", "ignore").strip()
         result.smtp_banner = banner[:200]
         sock.close()
@@ -225,7 +225,7 @@ def _collect_waf_cdn(domain: str, status: Dict[str, str]) -> WafCdnResult:
         r = requests.get(
             f"https://{domain}",
             headers=_USER_AGENT,
-            timeout=10,
+            timeout=20,
             verify=False,
             allow_redirects=True,
         )
@@ -270,7 +270,7 @@ def _collect_security_headers(domain: str, status: Dict[str, str]) -> SecurityHe
         r = requests.get(
             f"https://{domain}",
             headers=_USER_AGENT,
-            timeout=10,
+            timeout=20,
             verify=False,
             allow_redirects=True,
         )
@@ -378,7 +378,7 @@ def _collect_sensitive_paths(domain: str, status: Dict[str, str]) -> List[Sensit
     def _check(path: str, category: str) -> Optional[SensitivePathResult]:
         try:
             url = f"https://{domain}{path}"
-            r = requests.get(url, headers=_USER_AGENT, timeout=5, verify=False, allow_redirects=False)
+            r = requests.get(url, headers=_USER_AGENT, timeout=10, verify=False, allow_redirects=False)
             if r.status_code in (200, 301, 302, 403) and r.status_code != 404:
                 # Filter out generic error pages
                 body = r.text[:500] if r.status_code == 200 else ""
@@ -398,7 +398,7 @@ def _collect_sensitive_paths(domain: str, status: Dict[str, str]) -> List[Sensit
         futures = {ex.submit(_check, p, c): p for p, c in _SENSITIVE_PATHS}
         for f in cf.as_completed(futures):
             try:
-                result = f.result(timeout=8)
+                result = f.result(timeout=15)
                 if result:
                     found.append(result)
             except Exception:
@@ -467,7 +467,7 @@ def _collect_web_fingerprint(domain: str, status: Dict[str, str]) -> WebFingerpr
         r = requests.get(
             f"https://{domain}",
             headers=_USER_AGENT,
-            timeout=10,
+            timeout=20,
             verify=False,
             allow_redirects=True,
         )
