@@ -1803,35 +1803,30 @@ async def admin_send_support_message(
     db: DBSession = Depends(get_db),
     admin: str = Depends(require_admin),
 ):
-    tables = _table_names(db)
-    if "support_messages" not in tables or "support_conversations" not in tables:
-        raise HTTPException(status_code=400, detail="Support tables not found")
+    try:
+        tables = _table_names(db)
+        if "support_messages" not in tables or "support_conversations" not in tables:
+            raise HTTPException(status_code=400, detail="Support tables not found")
 
-    conv_t = _get_table("support_conversations")
-    msg_t = _get_table("support_messages")
+        conv = db.execute(text("SELECT id FROM support_conversations WHERE id = :cid"), {"cid": conversation_id}).first()
+        if not conv:
+            raise HTTPException(status_code=404, detail="Conversation not found")
 
-    conv = db.query(conv_t).filter(conv_t.c.id == conversation_id).first()
-    if not conv:
-        raise HTTPException(status_code=404, detail="Conversation not found")
+        msg_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
+        db.execute(text("INSERT INTO support_messages (id, conversation_id, sender_type, sender_id, message, created_at) VALUES (:id, :cid, :st, :sid, :msg, :ts)"), {
+            "id": msg_id, "cid": conversation_id, "st": "admin", "sid": admin, "msg": body.get("message", ""), "ts": now
+        })
+        db.execute(text("UPDATE support_conversations SET updated_at = :ts WHERE id = :cid"), {"ts": now, "cid": conversation_id})
+        db.commit()
 
-    msg_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
-    db.execute(msg_t.insert().values(
-        id=msg_id,
-        conversation_id=conversation_id,
-        sender_type="admin",
-        sender_id=admin,
-        message=body.get("message", ""),
-        created_at=now,
-    ))
-    db.execute(
-        conv_t.update()
-        .where(conv_t.c.id == conversation_id)
-        .values(updated_at=now)
-    )
-    db.commit()
-
-    return {"id": msg_id, "sender_type": "admin", "message": body.get("message", "")}
+        return {"id": msg_id, "sender_type": "admin", "message": body.get("message", "")}
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.put("/support/conversations/{conversation_id}/status")
