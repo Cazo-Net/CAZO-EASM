@@ -90,6 +90,9 @@ export function SupportChat() {
                       : "bg-muted/50 text-foreground border border-border/50"
                   )}
                 >
+                  {msg.sender_name && (
+                    <p className="text-[10px] font-medium text-muted-foreground mb-1">{msg.sender_name}</p>
+                  )}
                   {msg.message}
                 </div>
               </div>

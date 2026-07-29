@@ -122,8 +122,7 @@ async def get_messages(
     db.query(SupportMessage).filter(
         SupportMessage.conversation_id == conversation_id,
         SupportMessage.sender_type == "admin",
-        SupportMessage.is_read == False,
-    ).update({"is_read": True})
+    ).filter(SupportMessage.is_read.is_(False)).update({"is_read": True})
     db.commit()
 
     msgs = (
@@ -132,11 +131,20 @@ async def get_messages(
         .order_by(SupportMessage.created_at)
         .all()
     )
+
+    # Resolve sender names
+    user_ids = list(set(m.sender_id for m in msgs if m.sender_type == "user"))
+    user_map = {}
+    if user_ids:
+        users = db.query(User).filter(User.id.in_(user_ids)).all()
+        user_map = {u.id: u.full_name or u.email for u in users}
+
     return {
         "messages": [
             {
                 "id": m.id,
                 "sender_type": m.sender_type,
+                "sender_name": "Support Team" if m.sender_type == "admin" else user_map.get(m.sender_id, "You"),
                 "message": m.message,
                 "created_at": m.created_at.isoformat() if m.created_at else None,
             }
@@ -192,8 +200,8 @@ async def unread_count(
         .filter(
             SupportConversation.user_id == user.id,
             SupportMessage.sender_type == "admin",
-            SupportMessage.is_read == False,
         )
+        .filter(SupportMessage.is_read.is_(False))
         .scalar()
     )
     return {"count": count or 0}

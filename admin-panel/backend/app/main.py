@@ -1815,17 +1815,19 @@ async def admin_send_support_message(
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     msg_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
     db.execute(msg_t.insert().values(
         id=msg_id,
         conversation_id=conversation_id,
         sender_type="admin",
         sender_id=admin,
         message=body.get("message", ""),
+        created_at=now,
     ))
     db.execute(
         conv_t.update()
         .where(conv_t.c.id == conversation_id)
-        .values(updated_at=datetime.now(timezone.utc))
+        .values(updated_at=now)
     )
     db.commit()
 

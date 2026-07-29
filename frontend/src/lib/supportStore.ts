@@ -7,6 +7,7 @@ const API_BASE = "";
 interface Message {
   id: string;
   sender_type: "user" | "admin";
+  sender_name?: string;
   message: string;
   created_at: string;
 }
