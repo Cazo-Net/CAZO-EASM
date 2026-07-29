@@ -1872,6 +1872,33 @@ async def admin_support_unread(
     return {"count": count}
 
 
+@app.delete("/support/conversations/{conversation_id}/messages")
+async def admin_clear_conversation(
+    conversation_id: str,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    tables = _table_names(db)
+    if "support_messages" not in tables:
+        raise HTTPException(status_code=400, detail="Support messages table not found")
+
+    msg_t = _get_table("support_messages")
+    conv_t = _get_table("support_conversations")
+
+    conv = db.query(conv_t).filter(conv_t.c.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    db.execute(msg_t.delete().where(msg_t.c.conversation_id == conversation_id))
+    db.execute(
+        conv_t.update()
+        .where(conv_t.c.id == conversation_id)
+        .values(updated_at=datetime.now(timezone.utc))
+    )
+    db.commit()
+    return {"status": "cleared", "conversation_id": conversation_id}
+
+
 # ── Helpers ────────────────────────────────────────────────────────────
 @app.get("/")
 async def root():

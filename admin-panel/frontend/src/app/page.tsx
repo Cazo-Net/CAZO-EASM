@@ -301,6 +301,16 @@ export default function AdminPage() {
     finally { setSupportSending(false); }
   }, [supportSelected, supportReply, fetchSupportMessages, fetchSupportConversations]);
 
+  const clearConversation = useCallback(async () => {
+    if (!supportSelected) return;
+    if (!confirm("Clear all messages in this conversation?")) return;
+    try {
+      await api.delete(`/support/conversations/${supportSelected}/messages`);
+      setSupportMessages([]);
+      await fetchSupportConversations();
+    } catch (e: any) { setError(getErrorMessage(e)); }
+  }, [supportSelected, fetchSupportConversations]);
+
   const openUserDetail = async (user: any) => {
     setSelectedUser(user);
     setUserMsg("");
@@ -1955,9 +1965,14 @@ export default function AdminPage() {
                       {supportConversations.find((c) => c.id === supportSelected)?.user_name || "Anonymous"}
                     </p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-xs ${supportConversations.find((c) => c.id === supportSelected)?.status === "open" ? "bg-green-500/20 text-green-400" : "bg-zinc-500/20 text-zinc-400"}`}>
-                    {supportConversations.find((c) => c.id === supportSelected)?.status || "unknown"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded text-xs ${supportConversations.find((c) => c.id === supportSelected)?.status === "open" ? "bg-green-500/20 text-green-400" : "bg-zinc-500/20 text-zinc-400"}`}>
+                      {supportConversations.find((c) => c.id === supportSelected)?.status || "unknown"}
+                    </span>
+                    <button onClick={clearConversation} className="px-2 py-0.5 rounded text-xs bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20">
+                      Clear Chat
+                    </button>
+                  </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {supportMessages.map((m) => (

@@ -1,6 +1,7 @@
 """Support chat API routes — user-facing endpoints for conversations and messages."""
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -15,6 +16,13 @@ from app.models.support import SupportConversation, SupportMessage
 from app.models.user import User
 
 router = APIRouter()
+
+# Auto-reply templates
+AUTO_REPLIES = [
+    "Thanks for reaching out! A support agent will be with you shortly.",
+    "We've received your message and prioritized your request.",
+    "In the meantime, you can check our documentation at docs.cazo.io for quick answers.",
+]
 
 
 # ── Schemas ─────────────────────────────────────────────────────────────────
@@ -179,6 +187,26 @@ async def send_message(
     db.add(msg)
     conv.updated_at = datetime.now(timezone.utc)
     db.commit()
+
+    # Auto-reply with a short delay
+    async def _send_auto_replies():
+        for i, reply_text in enumerate(AUTO_REPLIES):
+            await asyncio.sleep(1.5 + i * 1.0)
+            from app.database import SessionLocal
+            reply_db = SessionLocal()
+            try:
+                auto_msg = SupportMessage(
+                    conversation_id=conversation_id,
+                    sender_type="admin",
+                    sender_id="auto-reply",
+                    message=reply_text,
+                )
+                reply_db.add(auto_msg)
+                reply_db.commit()
+            finally:
+                reply_db.close()
+
+    asyncio.create_task(_send_auto_replies())
 
     return {
         "id": msg.id,
