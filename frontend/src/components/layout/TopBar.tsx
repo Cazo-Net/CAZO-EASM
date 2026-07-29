@@ -34,7 +34,6 @@ const routeTitles: Record<string, string> = {
   "/": "CAZO EASM",
   "/dashboard": "Dashboard",
   "/scans": "Scans",
-  "/scanner-v2": "Scanner v2",
   "/assets": "Assets",
   "/reports": "Reports",
   "/settings": "Settings",

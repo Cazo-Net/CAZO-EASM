@@ -27,7 +27,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://*.sentry.io",
       "font-src 'self' data:",
-      "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://*.sentry.io https://sentry.io",
+      "connect-src 'self' http://localhost:8000 http://localhost:9000 ws://localhost:3000 https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://*.sentry.io https://sentry.io",
       "frame-src 'self' https://accounts.google.com https://accounts.google.com",
       "base-uri 'self'",
       "form-action 'self'",

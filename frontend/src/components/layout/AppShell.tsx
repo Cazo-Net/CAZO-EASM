@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { CommandPalette } from "@/components/layout/CommandPalette";
+import { SupportChat } from "@/components/support/SupportChat";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -82,6 +83,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Command Palette */}
         <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+
+        {/* Support Chat Widget */}
+        <SupportChat />
       </div>
     </>
   );

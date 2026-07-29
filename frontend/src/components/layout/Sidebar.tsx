@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Shield,
   LayoutDashboard,
@@ -12,6 +12,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   LogOut,
   Bug,
   Network,
@@ -62,8 +63,6 @@ const navSections = [
     label: "DISCOVERY",
     items: [
       { href: "/scans", label: "Scans", icon: ScanSearch },
-      { href: "/scanner-v2", label: "Scanner v2", icon: Radar },
-      { href: "/search", label: "Search", icon: Search },
       { href: "/intel", label: "Intelligence", icon: Zap },
       { href: "/blockchain", label: "Blockchain Intel", icon: Wallet },
       { href: "/darkweb", label: "Dark Web Intel", icon: Eye },
@@ -111,6 +110,37 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
+
+  // Track which sections are collapsed (keyed by label)
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  // Auto-expand sections that contain the active page
+  const activeSectionLabels = useMemo(() => {
+    const active = new Set<string>();
+    for (const section of navSections) {
+      for (const item of section.items) {
+        if (isActive(item.href)) {
+          active.add(section.label);
+        }
+      }
+    }
+    return active;
+  }, [pathname]);
+
+  function isSectionExpanded(label: string): boolean {
+    if (label in collapsedSections) {
+      return !collapsedSections[label];
+    }
+    // Default: OVERVIEW always expanded, others expanded unless collapsed
+    return activeSectionLabels.has(label);
+  }
+
+  function toggleSection(label: string) {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }));
+  }
 
   function isActive(href: string) {
     return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -202,58 +232,123 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-3 sidebar-scroll" aria-label="Main menu">
-          {navSections.map((section) => (
-            <div key={section.label} className="mb-4">
-              {!collapsed && (
-                <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/40 font-mono">
-                  {section.label}
-                </p>
-              )}
-              <div className="space-y-0.5">
-                {section.items.map((item) => {
-                  const active = isActive(item.href);
-                  const link = (
-                    <Link
-                      key={item.href}
-                      href={item.href}
+          {navSections.map((section) => {
+            const expanded = collapsed ? false : isSectionExpanded(section.label);
+            return (
+              <div key={section.label} className="mb-4">
+                {!collapsed && (
+                  <button
+                    onClick={() => toggleSection(section.label)}
+                    className="mb-1.5 flex w-full items-center justify-between px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/40 font-mono hover:text-muted-foreground/70 transition-colors"
+                    aria-expanded={expanded}
+                  >
+                    <span>{section.label}</span>
+                    <ChevronDown
                       className={cn(
-                        "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
-                        active
-                          ? "bg-phosphor/8 text-phosphor shadow-glow-sm"
-                          : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                        "h-3 w-3 transition-transform duration-200",
+                        expanded ? "rotate-0" : "-rotate-90"
                       )}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      {active && (
-                        <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-phosphor to-cyan-signal" />
-                      )}
-                      <item.icon
-                        className={cn(
-                          "h-4 w-4 shrink-0 transition-colors duration-200",
-                          active
-                            ? "text-phosphor"
-                            : "text-muted-foreground group-hover:text-foreground"
-                        )}
-                      />
-                      {!collapsed && <span className="truncate">{item.label}</span>}
-                    </Link>
-                  );
-
-                  if (collapsed) {
-                    return (
-                      <Tooltip key={item.href}>
-                        <TooltipTrigger asChild>{link}</TooltipTrigger>
-                        <TooltipContent side="right" sideOffset={8}>
-                          {item.label}
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  }
-                  return <div key={item.href}>{link}</div>;
-                })}
+                    />
+                  </button>
+                )}
+                {expanded && (
+                  <div className="space-y-0.5">
+                    {section.items.map((item) => {
+                      const active = isActive(item.href);
+                      const link = (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={cn(
+                            "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                            active
+                              ? "bg-phosphor/8 text-phosphor shadow-glow-sm"
+                              : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                          )}
+                          aria-current={active ? "page" : undefined}
+                        >
+                          {active && (
+                            <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-phosphor to-cyan-signal" />
+                          )}
+                          <item.icon
+                            className={cn(
+                              "h-4 w-4 shrink-0 transition-colors duration-200",
+                              active
+                                ? "text-phosphor"
+                                : "text-muted-foreground group-hover:text-foreground"
+                            )}
+                          />
+                          <span className="truncate">{item.label}</span>
+                        </Link>
+                      );
+                      return <div key={item.href}>{link}</div>;
+                    })}
+                  </div>
+                )}
+                {!collapsed && !expanded && (
+                  <div className="space-y-0.5">
+                    {section.items
+                      .filter((item) => isActive(item.href))
+                      .map((item) => {
+                        const link = (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className="group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium bg-phosphor/8 text-phosphor shadow-glow-sm"
+                            aria-current="page"
+                          >
+                            <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-phosphor to-cyan-signal" />
+                            <item.icon className="h-4 w-4 shrink-0 text-phosphor" />
+                            <span className="truncate">{item.label}</span>
+                          </Link>
+                        );
+                        return <div key={item.href}>{link}</div>;
+                      })}
+                  </div>
+                )}
+                {collapsed && (
+                  <div className="space-y-0.5">
+                    {section.items.map((item) => {
+                      const active = isActive(item.href);
+                      const link = (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={cn(
+                            "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                            active
+                              ? "bg-phosphor/8 text-phosphor shadow-glow-sm"
+                              : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                          )}
+                          aria-current={active ? "page" : undefined}
+                        >
+                          {active && (
+                            <div className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-phosphor to-cyan-signal" />
+                          )}
+                          <item.icon
+                            className={cn(
+                              "h-4 w-4 shrink-0 transition-colors duration-200",
+                              active
+                                ? "text-phosphor"
+                                : "text-muted-foreground group-hover:text-foreground"
+                            )}
+                          />
+                        </Link>
+                      );
+                      return (
+                        <Tooltip key={item.href}>
+                          <TooltipTrigger asChild>{link}</TooltipTrigger>
+                          <TooltipContent side="right" sideOffset={8}>
+                            {item.label}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Bottom Section */}

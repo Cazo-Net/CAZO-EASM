@@ -30,6 +30,7 @@ from app.models.role import Role
 from app.models.passkey import Passkey
 from app.models.comment import AssetComment
 from app.models.platform_log import PlatformLog
+from app.models.support import SupportConversation, SupportMessage
 
 __all__ = [
     "User", "Organization", "Project", "Scan", "ScanJob", "Subdomain",
@@ -43,4 +44,5 @@ __all__ = [
     "ApiKey",
     "FeatureFlag", "Role", "Passkey", "AssetComment",
     "PlatformLog",
+    "SupportConversation", "SupportMessage",
 ]

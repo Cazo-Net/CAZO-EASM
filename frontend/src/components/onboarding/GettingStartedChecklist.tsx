@@ -35,8 +35,8 @@ const CHECKLIST_ITEMS: ChecklistItem[] = [
     label: "Run your first scan",
     description: "Enter a domain and let the engine map your surface.",
     icon: Radar,
-    href: "/scanner-v2",
-    hrefLabel: "Open Scanner",
+    href: "/scans",
+    hrefLabel: "Open Scans",
   },
   {
     id: "review_findings",

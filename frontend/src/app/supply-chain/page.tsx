@@ -23,7 +23,7 @@ import { RiskSummary } from "@/components/supply-chain/RiskSummary";
 import { VendorGrid } from "@/components/supply-chain/VendorGrid";
 import { DataFlowDiagram } from "@/components/supply-chain/DataFlowDiagram";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = "";
 
 interface Technology {
   name: string;

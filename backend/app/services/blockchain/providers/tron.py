@@ -100,7 +100,8 @@ class TronProvider(ChainProvider):
             logger.warning("TronGrid unavailable, returning simulated data: %s", e)
             return self._simulated_wallet(address)
 
-        account = data.get("data", [{}])[0]
+        accounts = data.get("data", [])
+        account = accounts[0] if accounts else None
         if not account:
             return self._simulated_wallet(address)
 
@@ -125,11 +126,8 @@ class TronProvider(ChainProvider):
             balance_native=balance_sun / 1_000_000,
             native_symbol="TRX",
             tx_count=tx_count,
-            risk_score=RiskScore(
-                address=address,
-                chain=Chain.TRON,
-                risk_band=RiskBand.LOW,
-            ),
+            risk_score=15,
+            risk_band=RiskBand.LOW,
             evidence=evidence,
         )
 

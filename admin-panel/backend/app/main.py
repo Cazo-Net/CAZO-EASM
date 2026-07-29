@@ -12,6 +12,7 @@ from jose import jwt, JWTError
 import psutil
 import os
 import time
+import uuid
 
 from app.config import settings
 from app.database import get_db, engine, check_db_health
@@ -1684,6 +1685,188 @@ async def list_travel_rule_records(
         jurisdiction=getattr(r, "jurisdiction", None),
         checked_at=str(getattr(r, "checked_at", "")),
     ) for r in rows]
+
+
+# ── Support Chat (Admin) ──────────────────────────────────────────────
+
+@app.get("/support/conversations")
+async def admin_list_support_conversations(
+    status: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    tables = _table_names(db)
+    if "support_conversations" not in tables:
+        return {"conversations": [], "total": 0}
+
+    conv_t = _get_table("support_conversations")
+    msg_t = _get_table("support_messages")
+    users_t = _get_table("users") if "users" in tables else None
+
+    q = db.query(conv_t)
+    if status:
+        q = q.filter(conv_t.c.status == status)
+    total = q.count()
+    rows = q.order_by(desc(conv_t.c.updated_at)).offset(skip).limit(limit).all()
+
+    results = []
+    for r in rows:
+        # Get user name
+        user_name = "Unknown"
+        if users_t:
+            u = db.query(users_t).filter(users_t.c.id == r.user_id).first()
+            if u:
+                user_name = getattr(u, "full_name", None) or getattr(u, "email", "Unknown")
+
+        # Get last message
+        last_msg_row = (
+            db.query(msg_t)
+            .filter(msg_t.c.conversation_id == r.id)
+            .order_by(desc(msg_t.c.created_at))
+            .first()
+        )
+        last_msg = last_msg_row.message[:100] if last_msg_row else None
+
+        # Get unread count (admin messages that user hasn't read are not relevant here;
+        # we count user messages that admin hasn't seen)
+        unread = db.query(func.count(msg_t.c.id)).filter(
+            msg_t.c.conversation_id == r.id,
+            msg_t.c.sender_type == "user",
+            msg_t.c.is_read == False,
+        ).scalar() or 0
+
+        results.append({
+            "id": r.id,
+            "user_id": r.user_id,
+            "user_name": user_name,
+            "subject": r.subject,
+            "status": r.status,
+            "created_at": str(getattr(r, "created_at", "")),
+            "updated_at": str(getattr(r, "updated_at", "")),
+            "last_message": last_msg,
+            "unread_count": unread,
+        })
+
+    return {"conversations": results, "total": total}
+
+
+@app.get("/support/conversations/{conversation_id}/messages")
+async def admin_get_support_messages(
+    conversation_id: str,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    tables = _table_names(db)
+    if "support_messages" not in tables:
+        return {"messages": []}
+
+    msg_t = _get_table("support_messages")
+
+    # Mark user messages as read by admin
+    db.execute(
+        msg_t.update()
+        .where(msg_t.c.conversation_id == conversation_id, msg_t.c.sender_type == "user", msg_t.c.is_read == False)
+        .values(is_read=True)
+    )
+    db.commit()
+
+    rows = (
+        db.query(msg_t)
+        .filter(msg_t.c.conversation_id == conversation_id)
+        .order_by(msg_t.c.created_at)
+        .all()
+    )
+    return {
+        "messages": [
+            {
+                "id": m.id,
+                "sender_type": m.sender_type,
+                "sender_id": m.sender_id,
+                "message": m.message,
+                "is_read": m.is_read,
+                "created_at": str(getattr(m, "created_at", "")),
+            }
+            for m in rows
+        ]
+    }
+
+
+@app.post("/support/conversations/{conversation_id}/messages")
+async def admin_send_support_message(
+    conversation_id: str,
+    body: dict,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    tables = _table_names(db)
+    if "support_messages" not in tables or "support_conversations" not in tables:
+        raise HTTPException(status_code=400, detail="Support tables not found")
+
+    conv_t = _get_table("support_conversations")
+    msg_t = _get_table("support_messages")
+
+    conv = db.query(conv_t).filter(conv_t.c.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    msg_id = str(uuid.uuid4())
+    db.execute(msg_t.insert().values(
+        id=msg_id,
+        conversation_id=conversation_id,
+        sender_type="admin",
+        sender_id=admin,
+        message=body.get("message", ""),
+        is_read=False,
+    ))
+    db.execute(
+        conv_t.update()
+        .where(conv_t.c.id == conversation_id)
+        .values(updated_at=datetime.now(timezone.utc))
+    )
+    db.commit()
+
+    return {"id": msg_id, "sender_type": "admin", "message": body.get("message", "")}
+
+
+@app.put("/support/conversations/{conversation_id}/status")
+async def admin_update_support_status(
+    conversation_id: str,
+    body: dict,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    tables = _table_names(db)
+    if "support_conversations" not in tables:
+        raise HTTPException(status_code=400, detail="Support table not found")
+
+    conv_t = _get_table("support_conversations")
+    new_status = body.get("status", "open")
+    db.execute(
+        conv_t.update()
+        .where(conv_t.c.id == conversation_id)
+        .values(status=new_status, updated_at=datetime.now(timezone.utc))
+    )
+    db.commit()
+    return {"status": new_status}
+
+
+@app.get("/support/unread")
+async def admin_support_unread(
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    tables = _table_names(db)
+    if "support_messages" not in tables:
+        return {"count": 0}
+
+    msg_t = _get_table("support_messages")
+    count = db.query(func.count(msg_t.c.id)).filter(
+        msg_t.c.sender_type == "user",
+        msg_t.c.is_read == False,
+    ).scalar() or 0
+    return {"count": count}
 
 
 # ── Helpers ────────────────────────────────────────────────────────────

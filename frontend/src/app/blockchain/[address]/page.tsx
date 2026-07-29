@@ -28,7 +28,7 @@ import { SectionCard } from "@/components/common/SectionCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = "";
 
 function getRiskColor(score: number): string {
   if (score >= 80) return "text-red-400 bg-red-500/10 border-red-500/20";
@@ -46,12 +46,12 @@ function AddressDetailContent() {
 
   const CHAIN_TOKENS: Record<string, string> = {
     ethereum: "ETH", bitcoin: "BTC", solana: "SOL", polygon: "MATIC",
-    bsc: "BNB", arbitrum: "ETH", optimism: "ETH", base: "ETH",
+    bnb: "BNB", arbitrum: "ETH", optimism: "ETH", base: "ETH",
     avalanche: "AVAX", tron: "TRX",
   };
   const CHAIN_EXPLORERS: Record<string, string> = {
     ethereum: "etherscan.io", bitcoin: "blockstream.info", solana: "solscan.io",
-    polygon: "polygonscan.com", bsc: "bscscan.com", arbitrum: "arbiscan.com",
+    polygon: "polygonscan.com", bnb: "bscscan.com", arbitrum: "arbiscan.com",
     optimism: "optimistic.etherscan.io", base: "basescan.org",
     avalanche: "snowtrace.io", tron: "tronscan.org",
   };

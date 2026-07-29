@@ -9,6 +9,7 @@ import {
   RefreshCw, BarChart3, HardDrive, Cpu, MemoryStick, CheckCircle,
   XCircle, Loader2, LogOut, Globe, Bell, FileText, Fingerprint,
   Flag, Lock, Clock, Terminal, Eye, Mail, Zap, Settings, Shield, GitBranch, List,
+  MessageSquare,
 } from "lucide-react";
 
 function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
@@ -32,7 +33,7 @@ function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
   );
 }
 
-type Tab = "overview" | "users" | "orgs" | "scans" | "vulns" | "assets" | "sessions" | "audit" | "logs" | "notifications" | "apikeys" | "flags" | "database" | "system" | "blockchain";
+type Tab = "overview" | "users" | "orgs" | "scans" | "vulns" | "assets" | "sessions" | "audit" | "logs" | "notifications" | "apikeys" | "flags" | "database" | "system" | "blockchain" | "support";
 
 const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "overview", label: "Overview", icon: BarChart3 },
@@ -49,6 +50,7 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "flags", label: "Feature Flags", icon: Flag },
   { id: "database", label: "Database", icon: Database },
   { id: "blockchain", label: "Blockchain", icon: Zap },
+  { id: "support", label: "Support", icon: MessageSquare },
   { id: "system", label: "System", icon: Server },
 ];
 
@@ -264,6 +266,41 @@ export default function AdminPage() {
     } catch (e: any) { setError(getErrorMessage(e)); }
   }, []);
 
+  // Support state
+  const [supportConversations, setSupportConversations] = useState<any[]>([]);
+  const [supportSelected, setSupportSelected] = useState<string | null>(null);
+  const [supportMessages, setSupportMessages] = useState<any[]>([]);
+  const [supportReply, setSupportReply] = useState("");
+  const [supportSending, setSupportSending] = useState(false);
+
+  const fetchSupportConversations = useCallback(async () => {
+    try {
+      const res = await api.get("/support/conversations");
+      setSupportConversations(res.data.conversations || []);
+    }
+    catch (e: any) { setError(getErrorMessage(e)); }
+  }, []);
+
+  const fetchSupportMessages = useCallback(async (conversationId: string) => {
+    try {
+      const res = await api.get(`/support/conversations/${conversationId}/messages`);
+      setSupportMessages(res.data.messages || []);
+    }
+    catch (e: any) { setError(getErrorMessage(e)); }
+  }, []);
+
+  const sendSupportReply = useCallback(async () => {
+    if (!supportSelected || !supportReply.trim()) return;
+    setSupportSending(true);
+    try {
+      await api.post(`/support/conversations/${supportSelected}/reply`, { message: supportReply });
+      setSupportReply("");
+      await fetchSupportMessages(supportSelected);
+      await fetchSupportConversations();
+    } catch (e: any) { setError(getErrorMessage(e)); }
+    finally { setSupportSending(false); }
+  }, [supportSelected, supportReply, fetchSupportMessages, fetchSupportConversations]);
+
   const openUserDetail = async (user: any) => {
     setSelectedUser(user);
     setUserMsg("");
@@ -333,7 +370,13 @@ export default function AdminPage() {
     if (tab === "database") fetchDbStats();
     if (tab === "blockchain") fetchBlockchain();
     if (tab === "system") fetchProcesses();
+    if (tab === "support") fetchSupportConversations();
   }, [tab, authenticated]);
+
+  // Fetch messages when conversation is selected
+  useEffect(() => {
+    if (supportSelected) fetchSupportMessages(supportSelected);
+  }, [supportSelected, fetchSupportMessages]);
 
   const doAction = async (key: string, fn: () => Promise<any>, refresh?: () => void) => {
     setActionLoading(key);
@@ -1858,6 +1901,107 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── SUPPORT TAB ──────────────────────────────────────── */}
+      {tab === "support" && (
+        <div className="flex gap-4 h-[calc(100vh-200px)]">
+          {/* Conversation list */}
+          <div className="w-80 shrink-0 rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden flex flex-col">
+            <div className="p-3 border-b border-zinc-800">
+              <h3 className="text-sm font-semibold">Conversations</h3>
+              <p className="text-xs text-zinc-500">{supportConversations.length} total</p>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {supportConversations.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSupportSelected(c.id)}
+                  className={`w-full text-left px-3 py-3 border-b border-zinc-800/50 hover:bg-zinc-800/50 transition-colors ${supportSelected === c.id ? "bg-zinc-800/70" : ""}`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium truncate max-w-[160px]">{c.user_email || "Anonymous"}</span>
+                    <span className={`h-2 w-2 rounded-full ${c.status === "open" ? "bg-green-500" : c.status === "closed" ? "bg-zinc-500" : "bg-yellow-500"}`} />
+                  </div>
+                  <p className="text-xs text-zinc-500 truncate">{c.subject || "No subject"}</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-[10px] text-zinc-600">{c.unread_count || 0} unread</span>
+                    <span className="text-[10px] text-zinc-600">{fmtDate(c.created_at)}</span>
+                  </div>
+                </button>
+              ))}
+              {supportConversations.length === 0 && (
+                <div className="text-center py-8 text-zinc-500 text-xs">No conversations</div>
+              )}
+            </div>
+            <div className="p-2 border-t border-zinc-800">
+              <button onClick={fetchSupportConversations} className="w-full px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-xs hover:bg-zinc-700 flex items-center justify-center gap-1.5">
+                <RefreshCw className="h-3 w-3" /> Refresh
+              </button>
+            </div>
+          </div>
+
+          {/* Message thread */}
+          <div className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900 flex flex-col overflow-hidden">
+            {supportSelected ? (
+              <>
+                <div className="p-3 border-b border-zinc-800 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold">
+                      {supportConversations.find((c) => c.id === supportSelected)?.subject || "Support Conversation"}
+                    </h3>
+                    <p className="text-xs text-zinc-500">
+                      {supportConversations.find((c) => c.id === supportSelected)?.user_email || "Anonymous"}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded text-xs ${supportConversations.find((c) => c.id === supportSelected)?.status === "open" ? "bg-green-500/20 text-green-400" : "bg-zinc-500/20 text-zinc-400"}`}>
+                    {supportConversations.find((c) => c.id === supportSelected)?.status || "unknown"}
+                  </span>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {supportMessages.map((m) => (
+                    <div key={m.id} className={`flex ${m.sender_type === "admin" ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[70%] rounded-lg px-3 py-2 ${m.sender_type === "admin" ? "bg-blue-500/10 border border-blue-500/20" : "bg-zinc-800 border border-zinc-700"}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-medium text-zinc-400">{m.sender_type === "admin" ? "Admin" : m.sender_name || "User"}</span>
+                          <span className="text-[10px] text-zinc-600">{fmtDate(m.created_at)}</span>
+                        </div>
+                        <p className="text-xs text-zinc-300">{m.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {supportMessages.length === 0 && (
+                    <div className="text-center py-8 text-zinc-500 text-xs">No messages yet</div>
+                  )}
+                </div>
+                <div className="p-3 border-t border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={supportReply}
+                      onChange={(e) => setSupportReply(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && sendSupportReply()}
+                      placeholder="Type a reply..."
+                      className="flex-1 px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm focus:outline-none focus:border-blue-500"
+                      disabled={supportSending}
+                    />
+                    <button
+                      onClick={sendSupportReply}
+                      disabled={!supportReply.trim() || supportSending}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium ${supportReply.trim() && !supportSending ? "bg-blue-500 hover:bg-blue-600 text-white" : "bg-zinc-800 text-zinc-500 cursor-not-allowed"}`}
+                    >
+                      {supportSending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-zinc-500 text-sm">
+                Select a conversation to view
+              </div>
+            )}
+          </div>
         </div>
       )}
 
