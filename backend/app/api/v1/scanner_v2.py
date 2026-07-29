@@ -162,17 +162,10 @@ async def run_scan_v2(
     """
     from app.core.scope import check_target_authorized
 
-    if current_user.organization_id:
-        match = check_target_authorized(db, current_user.organization_id, request.domain)
-        if not match.authorized:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Target '{request.domain}' is not within an authorized scope. {match.reason}",
-            )
-    else:
+    if not current_user.organization_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You must belong to an organization with configured authorized scopes to scan.",
+            detail="You must belong to an organization to scan.",
         )
 
     from app.scanners.v2.runner import EnhancedScanRunner

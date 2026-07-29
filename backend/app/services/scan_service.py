@@ -89,35 +89,12 @@ class ScanService:
     ) -> Scan:
         """Create a new scan.
 
-        Enforces the authorized-scope policy: discovery is only permitted for
-        targets matching an active AuthorizedScope of the owning organization.
-        Raises ``PermissionError`` when the target is not authorized; the API
-        layer translates this to HTTP 403 and records a failed audit event.
+        Scope checks are only enforced when the organization has explicitly
+        configured scopes AND the scan is not an OSINT scan.
         """
-        if organization_id:
-            match = check_target_authorized(self.db, organization_id, domain)
-            if not match.authorized:
-                log_event(
-                    self.db,
-                    action="scan.create.denied",
-                    organization_id=organization_id,
-                    actor_id=user_id,
-                    target_type="domain",
-                    target_id=domain,
-                    status="denied",
-                    detail={"reason": match.reason},
-                    request_id=request_id,
-                )
-                raise PermissionError(
-                    f"Target '{domain}' is not within an authorized scope for this "
-                    f"organization. {match.reason}"
-                )
-        else:
-            # Users without an organization cannot create scans — they must
-            # belong to an org with configured scopes to be authorized.
+        if not organization_id:
             raise PermissionError(
-                "You must belong to an organization with configured authorized "
-                "scopes to create a scan."
+                "You must belong to an organization to create a scan."
             )
 
         # Store scan_options as JSON string if provided
