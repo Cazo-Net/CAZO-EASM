@@ -6,10 +6,10 @@ External Attack Surface Management (EASM) platform for authorized security asses
 
 ```
 easm-platform/
-├── backend/          # FastAPI (port 8000) — 46+ models, 36+ API routers
+├── backend/          # FastAPI (port 8000) — 48+ models, 38+ API routers
 │   └── app/
 │       ├── services/blockchain/   # Blockchain Intelligence (consolidated)
-│       │   ├── providers/         # ChainProvider ABC + ETH/BTC providers
+│       │   ├── providers/         # ChainProvider ABC + ETH/BTC/TRON providers
 │       │   ├── labels/            # Curated labels (13 entities)
 │       │   ├── clustering/        # Address clustering heuristics
 │       │   ├── graph/             # NetworkX graph analytics
@@ -45,7 +45,7 @@ easm-platform/
 - **OSINT Intelligence** — Cached OSINT data aggregation
 - **Multi-tenant** — Organization, project, and role-based access
 - **Scanner V2** — Multi-stage pipeline: Asset Discovery → DNS Intelligence → Network Intelligence → Technology Fingerprint → Certificate Analysis → Risk Evaluation → Graph Mapping. Supports partial success reporting, cloud bucket scanning, vendor-type tagging, and 15-risky-port alignment.
-- **Blockchain Intelligence** — On-chain analytics for Ethereum (Etherscan API) and Bitcoin (Blockstream API).
+- **Blockchain Intelligence** — On-chain analytics for Ethereum (Etherscan API), Bitcoin (Blockstream API), and TRON (TronGrid API).
   - **Core**: Wallet summary, transaction history with pagination, contract detection, token balances
   - **Attribution**: 13 curated entity labels (exchanges, DeFi, stablecoins, sanctioned addresses)
   - **Risk Engine**: Multi-factor risk scoring with sanctions-aware escalation
@@ -58,13 +58,15 @@ easm-platform/
   - **Case Management**: Investigation cases, annotations, member assignments, audit trail
   - **External Intel**: OFAC SDN sanctions list, Etherscan labels, Chainalysis placeholder
   - **Enterprise Hardening**: Per-endpoint rate limiting, RBAC (admin/analyst/viewer), audit logging
-  - **28 API endpoints** covering all capabilities
-- **Dark Web Intelligence** — Dark web monitoring framework with domain models for mentions, onion services, credential exposures, threat actors, and monitoring targets. Frontend search UI with threat-level badges and source icons.
+  - **30+ API endpoints** covering all capabilities
+- **Dark Web Intelligence** — Dark web monitoring framework with domain models for mentions, onion services, credential exposures, threat actors, and monitoring targets. Frontend search UI with threat-level badges, source icons, and fuzzy matching across 18+ threat categories.
+- **Support Chat Widget** — Floating chat button (CAZO logo + green dot indicator) with real-time messaging between users and admins. User creates conversations, admin replies from admin panel Support tab. Polls for new messages every 10 seconds.
+- **Collapsible Sidebar** — Sections (DISCOVERY, OUTPUT, RESOURCES, COLLABORATION) are collapsible with chevron toggle. Active pages auto-expand their section.
 - **WebAuthn Passkeys** — Passwordless authentication support
 - **REST API** — Full API with JWT + API key authentication
 
 ### Admin Panel (Standalone)
-- **13 management tabs** — Overview, Users, Organizations, Scans, Vulnerabilities, Assets, Sessions, Audit Log, Notifications, API Keys, Feature Flags, Database, System
+- **14 management tabs** — Overview, Users, Organizations, Scans, Vulnerabilities, Assets, Sessions, Audit Log, Notifications, API Keys, Feature Flags, Database, System, Blockchain, Support
 - **User control** — Profile editing, password reset, role change, MFA enforcement, session revocation, account enable/disable/unlock
 - **Organization management** — Plan, status, MFA enforcement, user/scan/project counts
 - **Scan management** — Status monitoring, cancellation, scan history
@@ -77,6 +79,8 @@ easm-platform/
 - **Feature flags** — Toggle features by plan
 - **System monitoring** — CPU, memory, disk, processes, network I/O, load average
 - **Database inspection** — Table row counts, schema introspection
+- **Blockchain** — Provider stats, OFAC sanctions, curated labels, watches, alerts, cases, travel rule, graph sync, search, compliance
+- **Support** — View all user conversations, message thread, reply, mark read, update status
 
 ## Tech Stack
 
@@ -91,7 +95,7 @@ easm-platform/
 | Auth | JWT + API Keys + WebAuthn Passkeys + TOTP MFA |
 | Task Queue | Celery + Redis |
 | Scanners | subfinder, dnspython, nmap, wappalyzer, nuclei, httpx |
-| Blockchain | Etherscan API, Blockstream.info API |
+| Blockchain | Etherscan API, Blockstream.info API, TronGrid API |
 | Graph | NetworkX (in-memory), Neo4j (optional) |
 | ML | scikit-learn (IsolationForest), pandas, numpy |
 | PDF | fpdf2 |
@@ -217,7 +221,8 @@ docker-compose up -d
 | `/api/v1/findings` | Evidence center |
 | `/api/v1/shadow-assets` | Shadow asset detection |
 | `/api/v1/osint` | OSINT intelligence |
-| `/api/v1/blockchain` | Blockchain intelligence (28 endpoints) |
+| `/api/v1/blockchain` | Blockchain intelligence (30+ endpoints) |
+| `/api/v1/support` | Support chat (conversations, messages, unread) |
 
 #### Blockchain Intelligence Endpoints
 
@@ -259,6 +264,16 @@ docker-compose up -d
 | `POST /cases/{id}/members` | Add team member |
 | `GET /cases/stats` | Case statistics |
 
+#### Support Chat Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `POST /support/conversations` | Create new conversation with initial message |
+| `GET /support/conversations` | List current user's conversations |
+| `GET /support/conversations/{id}/messages` | Get messages (marks admin messages as read) |
+| `POST /support/conversations/{id}/messages` | Send message in conversation |
+| `GET /support/unread` | Get total unread admin messages |
+
 ### Admin Panel API (port 9000)
 
 | Endpoint | Purpose |
@@ -281,8 +296,21 @@ docker-compose up -d
 | `GET /system/processes` | Running processes |
 | `GET /database/stats` | Table row counts |
 | `GET /database/table/{name}` | Schema introspection |
+| `GET /blockchain/stats` | Blockchain stats |
+| `GET /blockchain/providers` | Blockchain providers |
+| `GET /blockchain/ofac` | OFAC sanctions list |
+| `GET /blockchain/labels` | Curated labels |
+| `GET /blockchain/watches` | Watch lists |
+| `GET /blockchain/alerts` | Alerts |
+| `GET /blockchain/cases` | Cases |
+| `GET /blockchain/travel-rule` | Travel rule records |
+| `GET /support/conversations` | List all support conversations |
+| `GET /support/conversations/{id}/messages` | Get conversation messages |
+| `POST /support/conversations/{id}/messages` | Reply to conversation |
+| `PUT /support/conversations/{id}/status` | Update conversation status |
+| `GET /support/unread` | Total unread user messages |
 
-## Database Schema (50 tables)
+## Database Schema (52 tables)
 
 | Category | Tables |
 |----------|--------|
@@ -295,6 +323,7 @@ docker-compose up -d
 | **Notifications** | notifications, notification_preferences, notification_email_log, notification_triggers |
 | **Intelligence** | risk_scores, reports, canvases, canvas_nodes, canvas_edges, osint_cache |
 | **Governance** | authorized_scopes, audit_logs, audit_events, tags, asset_tags, favorites, feature_flags, invitations |
+| **Support** | support_conversations, support_messages |
 
 ## License
 
