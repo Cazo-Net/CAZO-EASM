@@ -396,7 +396,7 @@ async def readiness_check():
 
 
 # Import and include routers
-from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2, logs, blockchain, darkweb, webhooks, integrations, support, billing  # noqa: E402
+from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2, logs, blockchain, darkweb, webhooks, integrations, support  # noqa: E402
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(auth_google.router, prefix="/api/v1/auth", tags=["Google OAuth"])
@@ -436,10 +436,13 @@ app.include_router(darkweb.router, prefix="/api/v1/darkweb", tags=["Dark Web Int
 app.include_router(support.router, prefix="/api/v1/support", tags=["Support Chat"])
 app.include_router(webhooks.router, prefix="/api/v1/webhooks", tags=["Webhooks"])
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["Integrations"])
-app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
 
 
+# Billing: plans, checkout, Stripe webhooks; plan limits answer HTTP 402.
+from app.api.v1 import billing  # noqa: E402
 from app.billing.entitlements import PlanLimitExceeded  # noqa: E402
+
+app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
 
 
 @app.exception_handler(PlanLimitExceeded)

@@ -148,14 +148,14 @@ async def accept_invitation(
         raise HTTPException(status_code=404, detail="Invitation not found")
     if invitation.status != "pending":
         raise HTTPException(status_code=400, detail="Invitation already used")
+    # Plan seat allowance of the organization being joined (HTTP 402 if full).
+    if current_user.organization_id != invitation.organization_id:
+        from app.billing.entitlements import check_seat_available
+        check_seat_available(db, invitation.organization_id, joining=True)
     if invitation.expires_at < datetime.now(timezone.utc):
         invitation.status = "expired"
         db.commit()
         raise HTTPException(status_code=400, detail="Invitation expired")
-
-    if current_user.organization_id != invitation.organization_id:
-        from app.billing.entitlements import check_seat_available
-        check_seat_available(db, invitation.organization_id, joining=True)
 
     current_user.organization_id = invitation.organization_id
     # Defense in depth: never grant owner via invitation (ownership is only

@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.core.permissions import require_permission, Permission
+from app.billing.guards import schedule_plan_guard
 
 router = APIRouter()
 
@@ -490,16 +491,12 @@ class ScheduleResponse(BaseModel):
     enabled: bool
 
 
-@router.post("/schedule", response_model=ScheduleResponse)
+@router.post("/schedule", response_model=ScheduleResponse, dependencies=[Depends(schedule_plan_guard)])
 async def create_schedule(
     request: ScheduleCreateRequest,
-    db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),
 ):
     """Create a scheduled scan that runs automatically."""
-    from app.billing.entitlements import check_schedule_allowed
-    check_schedule_allowed(db, current_user.organization_id, request.domain, request.interval_hours)
-
     import uuid
     from app.services.scan_scheduler import get_scheduler, ScheduleConfig
 

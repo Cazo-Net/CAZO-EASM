@@ -234,6 +234,15 @@ class TestLimits:
         assert body["usage"]["root_domains"] == {"used": 1, "limit": 1, "unlimited": False}
 
 
+    def test_schedule_api_frequency_402(self, client, auth_headers, enforce):
+        headers = {"Authorization": auth_headers["Authorization"]}
+        client.post("/api/v1/organizations", json={"name": "Acme"}, headers=headers)
+        resp = client.post("/api/v1/scanner-v2/schedule",
+                           json={"domain": "example.com", "interval_hours": 24}, headers=headers)
+        assert resp.status_code == 402
+        assert resp.json()["detail"]["metric"] == "scan_frequency"
+
+
 # ── Stripe ───────────────────────────────────────────────────────────────
 
 

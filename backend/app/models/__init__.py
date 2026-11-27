@@ -1,5 +1,6 @@
 from app.models.user import User
 from app.models.organization import Organization
+from app.models.billing import BillingSubscription, BillingInvoice, BillingEvent  # noqa: F401
 from app.models.project import Project
 from app.models.scan import Scan, ScanJob
 from app.models.asset import Subdomain
@@ -31,7 +32,6 @@ from app.models.passkey import Passkey
 from app.models.comment import AssetComment
 from app.models.platform_log import PlatformLog
 from app.models.support import SupportConversation, SupportMessage
-from app.models.billing import BillingSubscription, BillingInvoice, BillingEvent
 
 __all__ = [
     "User", "Organization", "Project", "Scan", "ScanJob", "Subdomain",
@@ -46,5 +46,4 @@ __all__ = [
     "FeatureFlag", "Role", "Passkey", "AssetComment",
     "PlatformLog",
     "SupportConversation", "SupportMessage",
-    "BillingSubscription", "BillingInvoice", "BillingEvent",
 ]
