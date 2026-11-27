@@ -124,11 +124,15 @@ class SecurityFindingsScanner(EnhancedBaseScanner):
         if not any(k.startswith("DKIM_") for k in domain_records):
             findings.append(self._finding(target, "Missing DKIM record", "medium", "dns", "dns/missing-dkim"))
 
-        # HTTP misconfiguration
-        try:
-            await self._http_checks(scan_results, findings, kwargs.get("root_domain") or target)
-        except Exception as e:
-            logger.warning("HTTP misconfig checks failed: %s", e)
+        # HTTP header and exposed-path checks used to run here, flagging any
+        # 200/403 as a finding. The web-exposure scanner now does them per
+        # web service with content validation; opt back in with
+        # config["legacy_http_checks"] = True.
+        if self.config.get("legacy_http_checks"):
+            try:
+                await self._http_checks(scan_results, findings, kwargs.get("root_domain") or target)
+            except Exception as e:
+                logger.warning("HTTP misconfig checks failed: %s", e)
 
         findings.sort(key=lambda f: _SEVERITY_RANK.get(f.get("severity", "unknown"), 9))
         return ScanResult(success=True, scanner=self.name, target=target,

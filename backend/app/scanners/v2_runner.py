@@ -38,22 +38,28 @@ class V2ScanRunner:
         """Execute a full scan using the v2 pipeline."""
         options = options or {}
 
-        # Map v1 options to v2 config
+        # Depth comes from the scan profile (quick / standard / deep). Before
+        # this, every full scan was silently cut down to 10 ports and the
+        # apex domain only.
+        from app.scanners.v2.profiles import resolve_profile
+
+        depth = options.get("depth") or ("quick" if options.get("port_mode") == "quick" else None)
+        profile = resolve_profile("full", {"depth": depth} if depth else options)
         config = {
+            **profile.to_config(),
             "timeout": options.get("timeout", 30),
             "max_retries": options.get("max_retries", 2),
             "scanner_concurrency": options.get("scanner_concurrency", 10),
-            "top_ports": options.get("ports") or [80, 443, 8080, 8443, 22, 21, 25, 53, 3306, 5432],
             "max_subdomains": options.get("max_subdomains", 0),
+            "pipeline_timeout": profile.pipeline_timeout_s,
         }
+        if options.get("ports"):
+            config["top_ports"] = [int(p) for p in options["ports"] if str(p).isdigit()]
 
-        # Build pipeline stage filter from v1 options
+        # Network-intelligence already enriches open ports with nmap -sV when
+        # nmap is installed; the standalone nmap scanner would scan again.
         included = None
-        excluded = None
-
-        port_mode = options.get("port_mode", "full")
-        if port_mode == "quick":
-            config["top_ports"] = [80, 443, 8080, 8443]
+        excluded = {"nmap-intelligence"}
 
         # Wrap v1-style progress callback to v2 style
         async def _v2_progress(stage: str, message: str, progress: float, metadata: dict = None) -> None:
@@ -123,6 +129,9 @@ class V2ScanRunner:
             "ports": ports_data if isinstance(ports_data, dict) else {},
             "technologies": tech_data if isinstance(tech_data, dict) else {},
             "vulnerabilities": assets.get("vulnerabilities", []),
+            "http_services": assets.get("http_services", []),
+            "scan_profile": result.get("profile"),
+            "summary": result.get("summary", {}),
             "whois": whois_data,
             "risk_score": risk,
             "graph": graph,

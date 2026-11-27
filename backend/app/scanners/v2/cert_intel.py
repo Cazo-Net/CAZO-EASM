@@ -31,6 +31,72 @@ WEAK_CIPHERS = {"RC4", "DES", "3DES", "NULL", "EXPORT", "MD5", "anon"}
 STRONG_CIPHERS = {"AESGCM", "CHACHA20", "AES256"}
 
 
+def _parse_der_certificate(der: bytes) -> Dict[str, Any]:
+    """Leaf certificate details via cryptography (works without verification)."""
+    from cryptography import x509
+    from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, rsa
+    from cryptography.x509.oid import ExtensionOID, NameOID
+
+    cert = x509.load_der_x509_certificate(der)
+
+    def _name(n: "x509.Name") -> Dict[str, str]:
+        out: Dict[str, str] = {}
+        for oid, key in ((NameOID.COMMON_NAME, "commonName"), (NameOID.ORGANIZATION_NAME, "organizationName"),
+                         (NameOID.COUNTRY_NAME, "countryName")):
+            attrs = n.get_attributes_for_oid(oid)
+            if attrs:
+                out[key] = str(attrs[0].value)
+        return out
+
+    try:
+        san = cert.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME).value
+        san_list = [str(x) for x in san.get_values_for_type(x509.DNSName)]
+    except x509.ExtensionNotFound:
+        san_list = []
+
+    key = cert.public_key()
+    if isinstance(key, rsa.RSAPublicKey):
+        key_type, bits = "RSA", key.key_size
+    elif isinstance(key, ec.EllipticCurvePublicKey):
+        key_type, bits = "EC", key.curve.key_size
+    elif isinstance(key, ed25519.Ed25519PublicKey):
+        key_type, bits = "Ed25519", 256
+    elif isinstance(key, dsa.DSAPublicKey):
+        key_type, bits = "DSA", key.key_size
+    else:
+        key_type, bits = type(key).__name__, None
+
+    not_before = cert.not_valid_before_utc
+    not_after = cert.not_valid_after_utc
+    try:
+        sig = cert.signature_hash_algorithm.name if cert.signature_hash_algorithm else ""
+    except Exception:  # noqa: BLE001
+        sig = ""
+    return {
+        "subject": _name(cert.subject),
+        "issuer": _name(cert.issuer),
+        "serial_number": format(cert.serial_number, "x"),
+        "san": san_list,
+        "not_before": not_before.isoformat(),
+        "not_after": not_after.isoformat(),
+        "key_type": key_type,
+        "key_bits": bits,
+        "signature_algorithm": sig,
+        "_days_left": (not_after - datetime.now(timezone.utc)).days,
+    }
+
+
+def _hostname_matches(host: str, sans: List[str], cn: Optional[str]) -> bool:
+    names = [n.lower() for n in (sans or ([cn] if cn else []))]
+    host = host.lower()
+    for n in names:
+        if n == host:
+            return True
+        if n.startswith("*.") and host.count(".") == n.count(".") and host.endswith(n[1:]):
+            return True
+    return False
+
+
 @register_scanner(
     name="certificate-intelligence",
     category=ScannerCategory.CERTIFICATE_ANALYSIS,
@@ -50,40 +116,62 @@ class CertificateIntelligenceScanner(EnhancedBaseScanner):
     category = ScannerCategory.CERTIFICATE_ANALYSIS
     priority = ScannerPriority.NORMAL
 
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        super().__init__(config)
+        self.max_endpoints = int(self.config.get("tls_max_endpoints", 10))
+        self.timeout = max(float(self.timeout), 120.0)
+        self.max_retries = min(self.max_retries, 1)
+
     async def scan(self, target: str, **kwargs) -> ScanResult:
-        # Analyze TLS on common HTTPS ports
-        ports = [443, 8443]
-        results = {}
-        errors = []
+        """Inspect TLS on every in-scope HTTPS/TLS endpoint the port scan found.
 
-        for port in ports:
-            try:
-                cert_data = await self._analyze_tls(target, port)
-                if cert_data:
-                    results[str(port)] = cert_data
-            except Exception as e:
-                errors.append(f"Port {port}: {e}")
+        ``tls_endpoints`` comes from the pipeline and only contains hosts that
+        passed the scope gate; without it only the target is checked.
+        """
+        import asyncio
 
-        # Check CT logs
+        endpoints = list(kwargs.get("tls_endpoints") or [])
+        if not endpoints:
+            endpoints = [(target, 443), (target, 8443)]
+        root = kwargs.get("root_domain") or target
+        from app.core.target_guard import host_in_scope
+        endpoints = [(h, int(p)) for h, p in endpoints if host_in_scope(h, root)][: self.max_endpoints]
+
+        sem = asyncio.Semaphore(5)
+        by_host: Dict[str, Dict[str, Any]] = {}
+        errors: List[str] = []
+
+        async def _one(host: str, port: int) -> None:
+            async with sem:
+                try:
+                    data = await asyncio.wait_for(
+                        asyncio.to_thread(self._analyze_tls_sync, host, port), timeout=30)
+                except Exception as e:  # noqa: BLE001
+                    errors.append(f"{host}:{port}: {e}")
+                    return
+                if data:
+                    by_host.setdefault(host, {})[str(port)] = data
+
+        await asyncio.gather(*(_one(h, p) for h, p in endpoints))
+
         ct_data = await self._check_ct_logs(target)
-
-        # Check HSTS preload
         hsts_data = await self._check_hsts(target)
-
-        # Build comprehensive result
-        analysis = self._build_analysis(results, ct_data, hsts_data)
+        apex = by_host.get(target, {})
+        findings = self._tls_findings(by_host)
 
         return ScanResult(
             success=True,
             scanner=self.name,
             target=target,
             data={
-                "hosts": {target: results},
-                "certificates": results,
+                "hosts": by_host,
+                "certificates": apex,
+                "endpoints_checked": len(endpoints),
                 "ct_logs": ct_data,
                 "hsts": hsts_data,
-                "analysis": analysis,
-                "alerts": self._generate_alerts(results, hsts_data),
+                "analysis": self._build_analysis(apex, ct_data, hsts_data),
+                "alerts": self._generate_alerts(apex, hsts_data),
+                "findings": findings,
             },
             errors=errors,
         )
@@ -92,64 +180,125 @@ class CertificateIntelligenceScanner(EnhancedBaseScanner):
         return bool(target and "." in target)
 
     async def _analyze_tls(self, host: str, port: int) -> Optional[Dict[str, Any]]:
-        """Analyze TLS configuration and certificate."""
-        try:
-            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
+        import asyncio
+        return await asyncio.to_thread(self._analyze_tls_sync, host, port)
 
-            # Capture all supported protocols and ciphers
-            sock = socket.create_connection((host, port), timeout=3)
-            ssl_sock = ctx.wrap_socket(sock, server_hostname=host)
+    def _analyze_tls_sync(self, host: str, port: int) -> Optional[Dict[str, Any]]:
+        """Handshake, parse the leaf certificate, check trust and legacy TLS.
 
-            cert = ssl_sock.getpeercert(binary_form=False)
-            cipher = ssl_sock.cipher()
-            version = ssl_sock.version()
-
-            ssl_sock.close()
-            sock.close()
-
-            if not cert:
-                return None
-
-            # Parse certificate details
-            subject = dict(x[0] for x in cert.get("subject", ()))
-            issuer = dict(x[0] for x in cert.get("issuer", ()))
-            san_list = []
-            for ext_type, ext_value in cert.get("subjectAltName", ()):
-                if ext_type == "DNS":
-                    san_list.append(ext_value)
-
-            # Parse validity
-            not_before = cert.get("notBefore", "")
-            not_after = cert.get("notAfter", "")
-            days_until_expiry = self._days_until(not_after)
-            is_valid = days_until_expiry is not None and days_until_expiry > 0
-
-            # Calculate grade
-            grade = self._calculate_grade(
-                version, cipher, days_until_expiry, issuer, is_valid
-            )
-
-            return {
-                "subject": subject,
-                "issuer": issuer,
-                "san": san_list,
-                "not_before": not_before,
-                "not_after": not_after,
-                "days_until_expiry": days_until_expiry,
-                "is_valid": is_valid,
-                "protocol": version,
-                "cipher_suite": cipher[0] if cipher else None,
-                "cipher_bits": cipher[2] if cipher else None,
-                "grade": grade,
-                "self_signed": issuer.get("commonName") == subject.get("commonName"),
-                "wildcard": any(s.startswith("*.") for s in san_list),
-            }
-
-        except Exception as e:
-            logger.warning("TLS analysis failed for %s:%d: %s", host, port, e)
+        Up to three short handshakes per endpoint: one to read the
+        certificate, one with normal verification to learn whether browsers
+        would trust it, and one restricted to TLS 1.0/1.1 to see whether
+        outdated protocols are still accepted. No data is sent.
+        """
+        from app.core.target_guard import check_public_target
+        if not check_public_target(host).allowed:
             return None
+
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        try:
+            with socket.create_connection((host, port), timeout=5) as sock:
+                with ctx.wrap_socket(sock, server_hostname=host) as ssock:
+                    der = ssock.getpeercert(binary_form=True)
+                    cipher = ssock.cipher()
+                    version = ssock.version()
+        except Exception as e:  # noqa: BLE001
+            logger.info("TLS handshake failed for %s:%d: %s", host, port, e)
+            return None
+        if not der:
+            return None
+
+        info = _parse_der_certificate(der)
+        days_until_expiry = info.pop("_days_left", None)
+
+        trust_error = None
+        try:
+            vctx = ssl.create_default_context()
+            with socket.create_connection((host, port), timeout=5) as sock:
+                with vctx.wrap_socket(sock, server_hostname=host):
+                    pass
+        except ssl.SSLCertVerificationError as e:
+            trust_error = getattr(e, "verify_message", None) or str(e)
+        except Exception as e:  # noqa: BLE001 — network trouble, not a trust verdict
+            trust_error = None
+            logger.debug("verify handshake failed for %s:%d: %s", host, port, e)
+
+        legacy: List[str] = []
+        try:
+            lctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            lctx.check_hostname = False
+            lctx.verify_mode = ssl.CERT_NONE
+            lctx.minimum_version = ssl.TLSVersion.TLSv1
+            lctx.maximum_version = ssl.TLSVersion.TLSv1_1
+            lctx.set_ciphers("ALL:@SECLEVEL=0")
+            with socket.create_connection((host, port), timeout=5) as sock:
+                with lctx.wrap_socket(sock, server_hostname=host) as lsock:
+                    if lsock.version():
+                        legacy.append(lsock.version())
+        except Exception:  # noqa: BLE001 — refused (good) or not supported locally
+            pass
+
+        hostname_match = _hostname_matches(host, info.get("san", []), info["subject"].get("commonName"))
+        is_valid = bool(days_until_expiry is not None and days_until_expiry > 0 and not trust_error)
+        grade = self._calculate_grade(version, cipher, days_until_expiry, info["issuer"], is_valid)
+        if legacy and grade in ("A+", "A"):
+            grade = "B"
+        if (info.get("key_type") == "RSA" and (info.get("key_bits") or 0) < 2048) or \
+                "sha1" in (info.get("signature_algorithm") or "").lower():
+            grade = "C" if grade in ("A+", "A", "B") else grade
+
+        return {
+            **info,
+            "host": host,
+            "port": port,
+            "days_until_expiry": days_until_expiry,
+            "is_valid": is_valid,
+            "trusted": trust_error is None,
+            "trust_error": trust_error,
+            "hostname_match": hostname_match,
+            "protocol": version,
+            "legacy_protocols": legacy,
+            "cipher_suite": cipher[0] if cipher else None,
+            "cipher_bits": cipher[2] if cipher else None,
+            "grade": grade,
+            "self_signed": info["issuer"] == info["subject"],
+            "wildcard": any(s.startswith("*.") for s in info.get("san", [])),
+        }
+
+    def _tls_findings(self, by_host: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Endpoint-level TLS problems (expiry/validity is reported by security-findings)."""
+        out: List[Dict[str, Any]] = []
+
+        def _f(tid: str, name: str, sev: str, host: str, port: str, desc: str) -> None:
+            out.append({
+                "template_id": tid, "name": name, "severity": sev, "vuln_type": "tls",
+                "host": host, "matched_at": f"{host}:{port}", "description": desc,
+                "tags": ["tls"], "extracted_results": [], "reference": [],
+            })
+
+        for host, ports in by_host.items():
+            for port, c in ports.items():
+                if c.get("legacy_protocols"):
+                    _f("tls/legacy-protocol", "Outdated TLS versions accepted", "medium", host, port,
+                       f"{host}:{port} still accepts {', '.join(c['legacy_protocols'])}. Disable TLS 1.0 and 1.1.")
+                if c.get("hostname_match") is False:
+                    _f("tls/hostname-mismatch", "TLS certificate does not match host name", "medium", host, port,
+                       f"The certificate on {host}:{port} is issued for {', '.join(c.get('san', [])[:5]) or c['subject'].get('commonName', '?')}.")
+                if c.get("self_signed"):
+                    _f("tls/self-signed", "Self-signed TLS certificate", "medium", host, port,
+                       f"{host}:{port} presents a self-signed certificate.")
+                if c.get("key_type") == "RSA" and (c.get("key_bits") or 0) < 2048:
+                    _f("tls/weak-key", "Weak RSA key", "high", host, port,
+                       f"{host}:{port} uses a {c.get('key_bits')}-bit RSA key.")
+                if "sha1" in (c.get("signature_algorithm") or "").lower():
+                    _f("tls/sha1-signature", "Certificate signed with SHA-1", "medium", host, port,
+                       f"{host}:{port} certificate uses {c.get('signature_algorithm')}.")
+                if c.get("trust_error") and not c.get("self_signed") and c.get("hostname_match") is not False:
+                    _f("tls/untrusted", "TLS certificate not trusted", "high", host, port,
+                       f"{host}:{port}: {c['trust_error']}.")
+        return out
 
     async def _check_ct_logs(self, domain: str) -> Dict[str, Any]:
         """Check Certificate Transparency logs for recent certificates."""
