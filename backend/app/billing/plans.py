@@ -9,9 +9,14 @@ priced by root domain, billed annually or quarterly, no free tier at launch.
 * MSSP        USD   200/client/month (min 10)  3 domains + 250 hosts per client
 * Extra root domain: USD 100/month each
 
-User seats and monthly scan counts are not in the business plan; the numbers
-below are placeholders. Everything here can be overridden without a code
-change through ``BILLING_PLANS_JSON``, for example::
+User seats and monthly scans (confirmed defaults, 27 Nov 2026):
+
+* Trial 2 users / 10 scans, Essentials 5 / 100, Business 15 / 400,
+  Plus 40 / 1,000, MSSP unlimited users / 100 scans per client.
+
+Any price or limit can be changed without a code change through the
+``BILLING_PLANS_JSON`` environment variable; only the keys you give are
+replaced. For example, more seats on Business and MYR prices::
 
     {"business": {"prices": {"usd": 100000, "myr": 450000}, "limits": {"users": 20}},
      "addon_extra_domain": {"prices": {"myr": 45000}}}

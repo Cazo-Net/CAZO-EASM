@@ -8,7 +8,7 @@ enforced, and how to set up payments in test mode.
 From the business plan (27 Nov 2026). Prices are per month, billed per term
 (annual = 12 months, quarterly = 3 months).
 
-| Plan | Price (USD) | Root domains | Hosts | Scheduled scans | Users* | Scans/month* |
+| Plan | Price (USD) | Root domains | Hosts | Scheduled scans | Users\* | Scans/month\* |
 |---|---|---|---|---|---|---|
 | Trial (every new org) | free | 1 | 50 | weekly | 2 | 10 |
 | Essentials | 500 | 3 | 250 | weekly | 5 | 100 |
@@ -17,10 +17,13 @@ From the business plan (27 Nov 2026). Prices are per month, billed per term
 | MSSP (min 10 clients) | 200 per client | 3 per client | 250 per client | daily | unlimited | 100 per client |
 | Extra root domain | 100 each | +1 | | | | |
 
-\* Not in the business plan; placeholders.
+\* Not in the business plan. These are the confirmed defaults (27 Nov 2026).
 
-The catalog lives in `backend/app/billing/plans.py`. Change prices or limits
-without a deploy of new code by setting `BILLING_PLANS_JSON`, for example:
+The catalog lives in `backend/app/billing/plans.py`. Change any price or limit
+without a code change by setting the `BILLING_PLANS_JSON` environment variable
+on the backend and restarting it. Only the keys you give are replaced. Limit
+keys are `root_domains`, `hosts`, `users` and `scans_per_month`; `null` means
+unlimited. For example:
 
 ```json
 {"business": {"prices": {"usd": 100000, "myr": 450000}, "limits": {"users": 20}},
