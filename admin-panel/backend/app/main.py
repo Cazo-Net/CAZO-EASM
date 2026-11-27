@@ -343,9 +343,31 @@ class ProcessInfo(BaseModel):
 # ── Auth ──────────────────────────────────────────────────────────────
 @app.post("/auth/login", response_model=TokenResponse)
 async def admin_login(req: LoginRequest):
-    if req.email != settings.ADMIN_EMAIL or req.password != settings.ADMIN_PASSWORD:
+    import hmac
+    from app.config import WEAK_ADMIN_PASSWORDS
+
+    if settings.ADMIN_PASSWORD in WEAK_ADMIN_PASSWORDS or len(settings.ADMIN_PASSWORD) < 12:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin login is disabled until a strong ADMIN_PASSWORD (12+ characters) is set on the server",
+        )
+
+    # Simple per-process brute-force brake: 5 failures -> 15 minute pause.
+    now = time.time()
+    _ADMIN_FAILS[:] = [t for t in _ADMIN_FAILS if now - t < 900]
+    if len(_ADMIN_FAILS) >= 5:
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Try again later.")
+
+    email_ok = hmac.compare_digest(req.email.strip().lower().encode(), settings.ADMIN_EMAIL.strip().lower().encode())
+    pw_ok = hmac.compare_digest(req.password.encode(), settings.ADMIN_PASSWORD.encode())
+    if not (email_ok and pw_ok):
+        _ADMIN_FAILS.append(now)
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    return TokenResponse(access_token=create_admin_token(req.email))
+    _ADMIN_FAILS.clear()
+    return TokenResponse(access_token=create_admin_token(settings.ADMIN_EMAIL))
+
+
+_ADMIN_FAILS: list = []
 
 
 @app.get("/auth/me")

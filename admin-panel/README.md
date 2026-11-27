@@ -25,7 +25,7 @@ npm run dev
 ## Default Credentials
 
 - Email: `admin@cazo.io`
-- Password: `admin123`
+- Password: set `ADMIN_PASSWORD` (12+ characters); admin login is refused while it is unset or a default
 
 Set via environment variables:
 ```bash

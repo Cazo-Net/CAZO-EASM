@@ -26,13 +26,17 @@ class Settings(BaseSettings):
     USE_SQLITE: bool = os.getenv("USE_SQLITE", "true").lower() in ("1", "true", "yes")
 
     # Admin panel own auth (separate from EASM)
-    ADMIN_JWT_SECRET: str = os.getenv("ADMIN_JWT_SECRET", "admin-panel-secret-change-in-production")
+    # No usable default: an unset secret is replaced by a random one at startup
+    # (admin sessions then end on restart). The old hard-coded default let
+    # anyone forge admin tokens.
+    ADMIN_JWT_SECRET: str = os.getenv("ADMIN_JWT_SECRET", "")
     ADMIN_JWT_ALGORITHM: str = "HS256"
     ADMIN_JWT_EXPIRE_MINUTES: int = 60
 
     # Admin credentials (override via env in production)
     ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@cazo.io")
-    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin123")
+    # Must be set via env. Login is refused while it is empty or a known default.
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "")
 
     # CORS
     CORS_ORIGINS: list = ["http://localhost:3001", "http://localhost:9000"]
@@ -47,3 +51,10 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+_WEAK_JWT_SECRETS = {"", "admin-panel-secret-change-in-production", "change-me", "secret"}
+if settings.ADMIN_JWT_SECRET in _WEAK_JWT_SECRETS:
+    import secrets as _secrets
+    settings.ADMIN_JWT_SECRET = _secrets.token_hex(32)
+
+WEAK_ADMIN_PASSWORDS = {"", "admin123", "admin", "password", "changeme", "change-me"}

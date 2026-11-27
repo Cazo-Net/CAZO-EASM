@@ -8,7 +8,7 @@ External Attack Surface Management (EASM) platform with Shadow Asset Detection, 
 ## Important Details
 - Backend: FastAPI + SQLAlchemy + SQLite (dev), PostgreSQL (prod via Docker Compose), JWT auth
 - Frontend: Next.js 14 + React + TypeScript + Tailwind CSS
-- Admin login: `admin@cazo.io` / `H3xcore0119`
+- Admin login: set via ADMIN_EMAIL / ADMIN_PASSWORD env vars (never commit credentials)
 - PowerShell 5.1 shell — no `&&`, no `grep`, no `tail`; use `;` and `Select-String`
 - Dev servers: frontend `http://localhost:3000`, backend `http://localhost:8000`
 - Python 3.14 on dev machine — run uvicorn WITHOUT `--reload` (FD limit crash on Windows)
