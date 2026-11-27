@@ -346,8 +346,9 @@ def scope_mode() -> str:
     """How strictly scans are gated by authorized scopes.
 
     * ``verified``   — target must match a scope whose ownership is proven
-                       (DNS TXT, or set by a platform admin). Production default.
+                       (DNS TXT, or set by a platform admin). Strictest.
     * ``registered`` — target must match any scope the organization added.
+                       Production default.
     * ``open``       — no scope check (development default).
 
     Internal and private addresses are blocked in every mode.
@@ -359,7 +360,7 @@ def scope_mode() -> str:
         return mode
     if getattr(settings, "REQUIRE_VERIFIED_SCOPE", False):
         return "verified"
-    return "verified" if is_production() else "open"
+    return "registered" if is_production() else "open"
 
 
 @dataclass

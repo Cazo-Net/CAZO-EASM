@@ -116,7 +116,10 @@ class TestAuthorizeScanTarget:
         monkeypatch.setattr(settings, "SCOPE_ENFORCEMENT", "")
         monkeypatch.setattr(settings, "REQUIRE_VERIFIED_SCOPE", False)
         monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+        assert scope_mode() == "registered"
+        monkeypatch.setattr(settings, "REQUIRE_VERIFIED_SCOPE", True)
         assert scope_mode() == "verified"
+        monkeypatch.setattr(settings, "REQUIRE_VERIFIED_SCOPE", False)
         monkeypatch.setattr(settings, "ENVIRONMENT", "development")
         assert scope_mode() == "open"
 
@@ -415,3 +418,22 @@ def test_osint_import_needs_asset_or_scan_permission(client, verified_mode, org_
         db.close()
     r = client.post("/api/v1/osint/import", params={"q": "mine.com"}, headers=org_user["headers"])
     assert r.status_code == 403 and isinstance(r.json()["detail"], str)  # permission, not scope
+
+
+def test_registered_mode_needs_a_listed_scope_but_no_proof(client, public_dns, org_user, monkeypatch):
+    """Production default: the domain must be on the scope list; nothing is added implicitly."""
+    monkeypatch.setattr(settings, "SCOPE_ENFORCEMENT", "registered")
+    db = TestingSessionLocal()
+    try:
+        auth = authorize_scan_target(db, org_user["org_id"], "acme.com", actor_id=org_user["user_id"])
+        assert not auth.authorized
+        assert db.query(AuthorizedScope).filter_by(organization_id=org_user["org_id"]).count() == 0
+
+        db.add(AuthorizedScope(organization_id=org_user["org_id"], scope_type="wildcard",
+                               value="*.acme.com", verified=False))
+        db.commit()
+        assert authorize_scan_target(db, org_user["org_id"], "app.acme.com").authorized
+        assert not authorize_scan_target(db, org_user["org_id"], "other.com").authorized
+        assert not authorize_scan_target(db, org_user["org_id"], "127.0.0.1").authorized
+    finally:
+        db.close()

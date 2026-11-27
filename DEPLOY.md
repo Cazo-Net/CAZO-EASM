@@ -76,22 +76,26 @@ and weekly maintenance jobs, once across all workers.
 - **Queue health**: `GET /health/scans` shows the mode, job counts and how long
   the oldest job has been waiting. If that keeps growing, no worker is running.
 - **Scope**: with `ENVIRONMENT=production` the default is
-  `SCOPE_ENFORCEMENT=verified`. A customer who scans a new domain gets the DNS
-  TXT record to publish (also shown on the Authorized Scopes page with a
-  Verify button). IP and CIDR scopes are verified by a platform administrator
-  (set `verified = true` on the `authorized_scopes` row from the admin panel or
-  SQL). Private, loopback and cloud-metadata addresses are always blocked.
+  `SCOPE_ENFORCEMENT=registered`: a target must be on the organization's
+  Authorized Scopes list, which an organization admin maintains. This records
+  who claimed which domain but does not prove ownership. Set
+  `SCOPE_ENFORCEMENT=verified` to also require proof: domains are verified with
+  a DNS TXT record (shown on the Authorized Scopes page with a Verify button),
+  IP and CIDR scopes by a platform administrator (set `verified = true` on the
+  `authorized_scopes` row from the admin panel or SQL). Private, loopback and
+  cloud-metadata addresses are always blocked.
 
 ### Upgrading an existing deployment
 
 - Scope enforcement was switched off in an earlier release; this one turns it
-  back on in production (`SCOPE_ENFORCEMENT=verified`). After the upgrade,
-  existing customers' scans and schedules are refused until each domain is
-  verified with the DNS TXT record shown on the Scopes page. Schedule owners
-  get a notification when a scheduled scan is skipped for this reason.
-- To roll out gradually, deploy with `SCOPE_ENFORCEMENT=registered` (a domain
-  only has to be on the Scopes list) or `open` (previous behaviour), ask
-  customers to verify, then switch to `verified`.
+  back on in production as `SCOPE_ENFORCEMENT=registered`. After the upgrade,
+  scans and schedules for a domain are refused until an organization admin
+  adds that domain on the Scopes page. Schedule owners get a notification when
+  a scheduled scan is skipped for this reason.
+- `registered` does not prove ownership: an organization admin can list any
+  public domain. Verification is already available on the Scopes page, so ask
+  customers to publish their TXT records, then switch to
+  `SCOPE_ENFORCEMENT=verified`. `open` restores the previous behaviour.
 - Only people who can manage the organization can add a domain to the scope
   list; other members see "not in your authorized scope" until an admin adds it.
 - OSINT lookups (`/api/v1/osint`) follow the same scope rules as scans.

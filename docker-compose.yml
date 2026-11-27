@@ -108,7 +108,7 @@ services:
       # Scans go to the durable queue and run in the scan-worker service.
       - SCAN_EXECUTION_MODE=queue
       - RUN_EMBEDDED_WORKER=false
-      - SCOPE_ENFORCEMENT=${SCOPE_ENFORCEMENT:-verified}
+      - SCOPE_ENFORCEMENT=${SCOPE_ENFORCEMENT:-registered}
       - DEBUG=false
       - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:3000"]}
@@ -146,7 +146,7 @@ services:
       - DB_MAX_OVERFLOW=10
       - REDIS_URL=redis://redis:6379/0
       - SCAN_EXECUTION_MODE=queue
-      - SCOPE_ENFORCEMENT=${SCOPE_ENFORCEMENT:-verified}
+      - SCOPE_ENFORCEMENT=${SCOPE_ENFORCEMENT:-registered}
       - SCAN_WORKER_CONCURRENCY=${SCAN_WORKER_CONCURRENCY:-3}
       - SCAN_MAX_RUNNING_PER_ORG=${SCAN_MAX_RUNNING_PER_ORG:-2}
       - EMAIL_PROVIDER=${EMAIL_PROVIDER:-log}

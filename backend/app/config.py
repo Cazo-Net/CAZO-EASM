@@ -93,7 +93,7 @@ class Settings(BaseSettings):
     REQUIRE_VERIFIED_SCOPE: bool = os.getenv("REQUIRE_VERIFIED_SCOPE", "false").lower() in ("1", "true", "yes")
 
     # Scan-time scope gate: "verified" | "registered" | "open". Empty means
-    # "verified" in production and "open" elsewhere. See app/core/scope.py.
+    # "registered" in production and "open" elsewhere. See app/core/scope.py.
     SCOPE_ENFORCEMENT: str = os.getenv("SCOPE_ENFORCEMENT", "")
 
     # ── Scan execution ──────────────────────────────────────────────
