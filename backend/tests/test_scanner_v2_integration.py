@@ -600,6 +600,13 @@ class TestAnalyzeEndpoint:
         db = TestingSessionLocal()
         user = db.query(User).filter(User.email == auth_headers["email"]).first()
         if user:
+            # Schedules belong to an organization (and are scope-checked).
+            from app.models.organization import Organization
+            import uuid
+            org = Organization(name="Sched Org", slug=f"sched-{uuid.uuid4().hex[:8]}")
+            db.add(org)
+            db.flush()
+            user.organization_id = org.id
             user.role = "admin"
             db.commit()
         db.close()
@@ -629,6 +636,13 @@ class TestScheduleAPI:
         db = TestingSessionLocal()
         user = db.query(User).filter(User.email == auth_headers["email"]).first()
         if user:
+            # Schedules belong to an organization (and are scope-checked).
+            from app.models.organization import Organization
+            import uuid
+            org = Organization(name="Sched Org", slug=f"sched-{uuid.uuid4().hex[:8]}")
+            db.add(org)
+            db.flush()
+            user.organization_id = org.id
             user.role = "admin"
             db.commit()
         db.close()
@@ -652,6 +666,13 @@ class TestScheduleAPI:
         db = TestingSessionLocal()
         user = db.query(User).filter(User.email == auth_headers["email"]).first()
         if user:
+            # Schedules belong to an organization (and are scope-checked).
+            from app.models.organization import Organization
+            import uuid
+            org = Organization(name="Sched Org", slug=f"sched-{uuid.uuid4().hex[:8]}")
+            db.add(org)
+            db.flush()
+            user.organization_id = org.id
             user.role = "admin"
             db.commit()
         db.close()
@@ -671,6 +692,13 @@ class TestScheduleAPI:
         db = TestingSessionLocal()
         user = db.query(User).filter(User.email == auth_headers["email"]).first()
         if user:
+            # Schedules belong to an organization (and are scope-checked).
+            from app.models.organization import Organization
+            import uuid
+            org = Organization(name="Sched Org", slug=f"sched-{uuid.uuid4().hex[:8]}")
+            db.add(org)
+            db.flush()
+            user.organization_id = org.id
             user.role = "admin"
             db.commit()
         db.close()

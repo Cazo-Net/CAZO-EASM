@@ -171,7 +171,15 @@ class NmapPortScanner(BaseScanner):
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
-                stdout, stderr = await proc.communicate()
+                try:
+                    stdout, stderr = await proc.communicate()
+                except BaseException:
+                    # Cancelled (scan timeout / worker shutdown): never leave
+                    # an orphaned nmap process running.
+                    if proc.returncode is None:
+                        proc.kill()
+                        await asyncio.shield(proc.wait())
+                    raise
             except FileNotFoundError as e:
                 raise RuntimeError(f"nmap binary not found: {self.binary}") from e
 

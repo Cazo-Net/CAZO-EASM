@@ -10,7 +10,7 @@ from app.models.risk import RiskScore
 from app.models.vulnerability import Vulnerability
 from app.scanners.runner import ScanRunner
 from app.database import SessionLocal
-from app.core.scope import check_target_authorized
+from app.core.scope import authorize_scan_target, ScanAuthorization
 from app.services.audit import log_event
 from app.services.notification_service import dispatch_notification
 from app.config import settings
@@ -24,6 +24,14 @@ logger = logging.getLogger(__name__)
 
 # Enforce max concurrent scans for v1 engine
 _scan_semaphore_v1 = asyncio.Semaphore(getattr(settings, "MAX_CONCURRENT_SCANS", 5))
+
+
+class ScopeDenied(PermissionError):
+    """Raised when a scan target is not authorized for the organization."""
+
+    def __init__(self, authorization: ScanAuthorization):
+        super().__init__(authorization.reason)
+        self.authorization = authorization
 
 
 class ScanService:
@@ -87,15 +95,32 @@ class ScanService:
         request_id: Optional[str] = None,
         engine: str = "v1",
     ) -> Scan:
-        """Create a new scan.
+        """Create a new scan after checking the target is authorized.
 
-        Scope checks are only enforced when the organization has explicitly
-        configured scopes AND the scan is not an OSINT scan.
+        Every scan must belong to an organization, point at a public target,
+        and (depending on ``SCOPE_ENFORCEMENT``) match one of the
+        organization's verified scopes. Raises :class:`ScopeDenied` otherwise;
+        the API turns that into HTTP 403 with verification instructions.
         """
-        if not organization_id:
-            raise PermissionError(
-                "You must belong to an organization to create a scan."
-            )
+        # DNS lookups block, so keep them off the event loop.
+        auth = await asyncio.to_thread(
+            authorize_scan_target, self.db, organization_id, domain, actor_id=user_id,
+        )
+        if not auth.authorized:
+            if organization_id:
+                log_event(
+                    self.db,
+                    action="scan.create.denied",
+                    organization_id=organization_id,
+                    actor_id=user_id,
+                    target_type="domain",
+                    target_id=auth.target or domain,
+                    status="denied",
+                    detail={"reason": auth.reason},
+                    request_id=request_id,
+                )
+            raise ScopeDenied(auth)
+        domain = auth.target
 
         # Store scan_options as JSON string if provided
         scan_options_json = json.dumps(scan_options) if scan_options else None

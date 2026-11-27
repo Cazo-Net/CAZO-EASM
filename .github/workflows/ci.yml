@@ -11,6 +11,19 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: easm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -32,7 +45,20 @@ jobs:
         env:
           RATE_LIMIT_ENABLED: "false"
           USE_SQLITE: "true"
+          PYTHONPATH: "."
+          # Enables the Postgres-only queue concurrency tests.
+          TEST_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/easm_test
         run: pytest -q
+
+      - name: Migrations apply to an empty Postgres
+        env:
+          USE_SQLITE: "false"
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/easm_migrate
+          PYTHONPATH: "."
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE easm_migrate"
+          python -m app.db_migrate
+          python -m app.db_migrate   # second run must be a no-op
 
   frontend:
     runs-on: ubuntu-latest

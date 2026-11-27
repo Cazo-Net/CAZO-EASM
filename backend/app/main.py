@@ -88,9 +88,23 @@ async def lifespan(app: FastAPI):
     _reap_stuck_scans()
     _configure_dns()
 
-    # Start scan scheduler
-    from app.services.scan_scheduler import scan_scheduler
-    await scan_scheduler.start()
+    # Scans run from the durable job queue. Scheduled scans and periodic
+    # maintenance are run by scan workers, not by every API process.
+    from app.services.scan_dispatch import execution_mode
+    from app.core.scope import scope_mode
+    from app.workers.scan_worker import start_embedded_worker, stop_embedded_worker
+    _exec_mode = execution_mode()
+    _embedded = _exec_mode == "queue" and settings.RUN_EMBEDDED_WORKER
+    if _embedded:
+        await start_embedded_worker()
+    logger.info(
+        "Scan execution: mode=%s, embedded_worker=%s, scope_enforcement=%s",
+        _exec_mode, _embedded, scope_mode(),
+    )
+    if _exec_mode == "queue" and not _embedded:
+        logger.info("Scans are queued for external scan workers (python -m app.workers.scan_worker)")
+    if scope_mode() == "open":
+        logger.warning("SCOPE_ENFORCEMENT=open: any organization can scan any public target")
 
     # Initialize Neo4j graph database
     from app.blockchain.infrastructure.graph.neo4j_driver import driver as neo4j_driver
@@ -122,8 +136,8 @@ async def lifespan(app: FastAPI):
     await neo4j_driver.close()
     await os_client.close()
 
-    # Stop scan scheduler
-    await scan_scheduler.stop()
+    # Stop the embedded scan worker (running jobs go back to the queue)
+    await stop_embedded_worker()
     logger.info("Application shutting down")
 
 
@@ -148,6 +162,13 @@ def _reap_stuck_scans() -> None:
     """
     from app.database import SessionLocal
     from app.models.scan import Scan
+    from app.services.scan_dispatch import execution_mode
+
+    if execution_mode() == "queue":
+        # Queued scans are owned by scan workers, which recover their own
+        # dead jobs from heartbeats. Failing "old" running scans here would
+        # kill healthy long scans whenever the API restarts.
+        return
 
     timeout = timedelta(minutes=30)
     cutoff = datetime.now(timezone.utc) - timeout
@@ -368,6 +389,40 @@ async def root():
 async def health_check():
     """Liveness probe — process is up and accepting connections."""
     return {"status": "healthy"}
+
+
+@app.get("/health/scans")
+async def scan_queue_health():
+    """Scan queue status: execution mode, job counts and oldest waiting job.
+
+    A growing ``oldest_pending_seconds`` means no scan worker is running or
+    workers are saturated.
+    """
+    import asyncio
+    from app.database import SessionLocal
+    from app.services.job_queue import queue_stats
+    from app.services.scan_dispatch import execution_mode
+    from app.core.scope import scope_mode
+    from app.workers.scan_worker import embedded_worker
+
+    def _stats():
+        db = SessionLocal()
+        try:
+            return queue_stats(db)
+        finally:
+            db.close()
+
+    try:
+        stats = await asyncio.to_thread(_stats)
+    except Exception:  # noqa: BLE001
+        stats = {"error": "queue unavailable"}
+    w = embedded_worker()
+    return {
+        "execution_mode": execution_mode(),
+        "scope_enforcement": scope_mode(),
+        "embedded_worker": {"running": True, "active_jobs": w.active_jobs} if w else {"running": False},
+        "queue": stats,
+    }
 
 
 @app.get("/ready")

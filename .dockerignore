@@ -1,0 +1,23 @@
+# Images are built from the repository root (see backend/Dockerfile,
+# frontend/Dockerfile, scan-engine/Dockerfile.scan), so this file applies.
+**/.git
+**/node_modules
+**/.next
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.venv
+**/venv
+**/.env
+**/.env.*
+!**/.env.example
+**/*.db
+**/*.sqlite3
+**/.coverage
+**/htmlcov
+backend/data
+backend/reports/*
+backend/uploads/*
+docs/*.pdf
+admin-panel/**/node_modules

@@ -26,36 +26,48 @@ from app.models.v2_scanner import MonitorSchedule, ScanHistory, AssetLifecycle, 
 # (SQLite serializes writes via file locking, so there is no "database is
 # locked" race). Isolation between tests is provided by wiping all rows at the
 # start of every test. create_all runs exactly once, up front.
-_DB_PATH = os.path.join(tempfile.gettempdir(), f"easm_test_{os.getpid()}.db")
-if os.path.exists(_DB_PATH):
-    try:
-        os.remove(_DB_PATH)
-    except OSError:
-        pass
-
-engine = create_engine(
-    f"sqlite:///{_DB_PATH}",
-    connect_args={"check_same_thread": False, "timeout": 30},
-)
-# Enable WAL so commits from one connection (the per-request API session) are
-# immediately visible to other connections (e.g. the scan background task that
-# opens its own SessionLocal). Without WAL, the default rollback journal can
-# leave a background task reading a stale snapshot and failing to find a just
-# created scan.
+import app.database as _appdb  # noqa: E402
 from sqlalchemy import event  # noqa: E402
 
-@event.listens_for(engine, "connect")
-def _set_sqlite_pragmas(dbapi_con, con_record):
-    cursor = dbapi_con.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.close()
+# This module is loaded twice when a test does ``from tests.conftest import
+# TestingSessionLocal`` (once as pytest's ``conftest``, once as
+# ``tests.conftest``). Building a second database would delete the file the
+# first engine is using ("file is not a database" / "no such table"), so the
+# test database is created once and reused.
+if getattr(_appdb, "_test_engine", None) is None:
+    _DB_PATH = os.path.join(tempfile.gettempdir(), f"easm_test_{os.getpid()}.db")
+    if os.path.exists(_DB_PATH):
+        try:
+            os.remove(_DB_PATH)
+        except OSError:
+            pass
 
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base.metadata.create_all(bind=engine)
+    engine = create_engine(
+        f"sqlite:///{_DB_PATH}",
+        connect_args={"check_same_thread": False, "timeout": 30},
+    )
+
+    # Enable WAL so commits from one connection (the per-request API session)
+    # are immediately visible to other connections (e.g. the scan background
+    # task that opens its own SessionLocal).
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragmas(dbapi_con, con_record):
+        cursor = dbapi_con.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.close()
+
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base.metadata.create_all(bind=engine)
+
+    _appdb._test_engine = engine
+    _appdb._test_session_factory = TestingSessionLocal
+    _appdb._test_db_path = _DB_PATH
+else:
+    engine = _appdb._test_engine
+    TestingSessionLocal = _appdb._test_session_factory
+    _DB_PATH = _appdb._test_db_path
 
 # Make the application use this same test database engine/session factory.
-import app.database as _appdb  # noqa: E402
-
 _appdb.engine = engine
 _appdb.SessionLocal = TestingSessionLocal
 

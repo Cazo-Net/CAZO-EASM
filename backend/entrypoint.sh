@@ -1,19 +1,19 @@
 #!/bin/sh
+# Container entrypoint. Usage: sh entrypoint.sh <mode>
+#   api          migrate the database, then serve the API (gunicorn + uvicorn workers)
+#   scan-worker  run queued scans, scheduled scans and periodic jobs
+#   migrate      only bring the database schema up to date
+#   worker|beat  legacy Celery worker / beat (only if SCAN_EXECUTION_MODE=celery)
 set -e
 
 run_migrations() {
-    echo "Running database schema bootstrap..."
-
-    # The application creates the full base schema idempotently via
-    # Base.metadata.create_all at startup (app.database.init_db). This is the
-    # reliable, single source of truth for table creation across environments.
-    echo "Ensuring base schema exists (create_all)..."
-    python -c "from app.database import init_db; init_db(); print('Schema bootstrap complete.')"
-
-    # Alembic migrations are applied best-effort on top for additive changes.
-    # They must not abort startup if the schema already matches.
-    echo "Applying Alembic migrations (best-effort)..."
-    alembic upgrade head || echo "WARNING: alembic upgrade head reported issues; relying on create_all bootstrap."
+    if [ "${SKIP_MIGRATIONS:-false}" = "true" ]; then
+        echo "SKIP_MIGRATIONS=true: not touching the database schema."
+        return
+    fi
+    echo "Bringing the database schema up to date..."
+    # Fails loudly: a broken migration must stop the deploy, not be ignored.
+    python -m app.db_migrate
 }
 
 case "$1" in
@@ -22,11 +22,19 @@ case "$1" in
         echo "Starting API server..."
         exec gunicorn app.main:app \
             -k uvicorn.workers.UvicornWorker \
-            --bind 0.0.0.0:8000 \
-            --workers "${WEB_CONCURRENCY:-4}" \
+            --bind "0.0.0.0:${PORT:-8000}" \
+            --workers "${WEB_CONCURRENCY:-2}" \
             --timeout "${WEB_TIMEOUT:-120}" \
+            --graceful-timeout "${WEB_GRACEFUL_TIMEOUT:-30}" \
             --access-logfile - \
             --error-logfile -
+        ;;
+    scan-worker)
+        if [ "${RUN_MIGRATIONS_ON_WORKER:-false}" = "true" ]; then
+            run_migrations
+        fi
+        echo "Starting scan worker..."
+        exec python -m app.workers.scan_worker
         ;;
     worker)
         echo "Starting Celery worker..."

@@ -1,4 +1,8 @@
-"""Scheduled scan executor — runs scans on a schedule based on monitor_schedules.
+"""Scheduled scan helpers backed by ``monitor_schedules``.
+
+Scheduled scans are executed by scan workers (see ``app/services/periodic.py``),
+which create a real, saved scan for each due schedule. This in-memory
+scheduler class remains for callers that manage schedules programmatically.
 
 This module provides:
 - A background task that periodically checks for due scans
@@ -26,9 +30,9 @@ class ScheduleConfig:
     interval_hours: int
     scan_type: str
     enabled: bool
-    created_by: int
-    organization_id: Optional[int] = None
-    project_id: Optional[int] = None
+    created_by: str
+    organization_id: Optional[str] = None
+    project_id: Optional[str] = None
     last_run: Optional[float] = field(default=None, repr=False)
 
 
@@ -195,15 +199,15 @@ class ScanScheduler:
             logger.error("Failed to update last_run for schedule %s: %s", config.id, e)
 
     async def _run_loop(self) -> None:
-        """Main scheduler loop — checks for due scans every 60 seconds."""
+        """Every 60 seconds, turn due schedules into queued scans.
+
+        Kept for backwards compatibility. Scan workers already run this tick
+        (``app.services.periodic``); this loop is only used if something
+        calls ``start()`` explicitly.
+        """
         while self._running:
             try:
-                due_scans = self.get_due_scans()
-                for config in due_scans:
-                    try:
-                        await self._execute_scheduled_scan(config)
-                    except Exception as e:
-                        logger.error("Failed to execute scheduled scan %s: %s", config.id, e)
+                await asyncio.to_thread(self._tick)
                 await asyncio.sleep(60)
             except asyncio.CancelledError:
                 break
@@ -211,41 +215,16 @@ class ScanScheduler:
                 logger.error("Scheduler loop error: %s", e)
                 await asyncio.sleep(60)
 
-    async def _execute_scheduled_scan(self, config: ScheduleConfig) -> None:
-        """Execute a scheduled scan."""
-        from app.scanners.v2.runner import EnhancedScanRunner
+    @staticmethod
+    def _tick() -> None:
+        import app.database as database
+        from app.services.periodic import run_due_schedules
 
-        logger.info("Executing scheduled scan %s for %s", config.id, config.domain)
-        config.last_run = time.time()
-        self._update_last_run_in_db(config)
-
-        runner = EnhancedScanRunner()
-        scan_config = {
-            "timeout": 30,
-            "top_ports": [80, 443, 8080, 8443, 22, 21, 25, 53, 3306, 5432],
-        }
-
+        db = database.SessionLocal()
         try:
-            if config.scan_type == "quick":
-                result = await runner.run_quick_scan(
-                    domain=config.domain,
-                    config=scan_config,
-                )
-            else:
-                result = await runner.run_scan(
-                    domain=config.domain,
-                    config=scan_config,
-                )
-
-            logger.info(
-                "Scheduled scan %s completed: risk_score=%s",
-                config.id,
-                result.get("risk_score", {}).get("risk_score", "N/A"),
-            )
-
-        except Exception as e:
-            logger.error("Scheduled scan %s failed: %s", config.id, e)
-            raise
+            run_due_schedules(db)
+        finally:
+            db.close()
 
 
 # Singleton
