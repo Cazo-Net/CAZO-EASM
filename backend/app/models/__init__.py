@@ -31,6 +31,7 @@ from app.models.passkey import Passkey
 from app.models.comment import AssetComment
 from app.models.platform_log import PlatformLog
 from app.models.support import SupportConversation, SupportMessage
+from app.models.billing import BillingSubscription, BillingInvoice, BillingEvent
 
 __all__ = [
     "User", "Organization", "Project", "Scan", "ScanJob", "Subdomain",
@@ -45,4 +46,5 @@ __all__ = [
     "FeatureFlag", "Role", "Passkey", "AssetComment",
     "PlatformLog",
     "SupportConversation", "SupportMessage",
+    "BillingSubscription", "BillingInvoice", "BillingEvent",
 ]

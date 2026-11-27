@@ -168,6 +168,9 @@ async def run_scan_v2(
             detail="You must belong to an organization to scan.",
         )
 
+    from app.billing.entitlements import check_scan_allowed
+    check_scan_allowed(db, current_user.organization_id, request.domain, counts_toward_quota=False)
+
     from app.scanners.v2.runner import EnhancedScanRunner
 
     runner = EnhancedScanRunner()
@@ -490,9 +493,13 @@ class ScheduleResponse(BaseModel):
 @router.post("/schedule", response_model=ScheduleResponse)
 async def create_schedule(
     request: ScheduleCreateRequest,
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),
 ):
     """Create a scheduled scan that runs automatically."""
+    from app.billing.entitlements import check_schedule_allowed
+    check_schedule_allowed(db, current_user.organization_id, request.domain, request.interval_hours)
+
     import uuid
     from app.services.scan_scheduler import get_scheduler, ScheduleConfig
 

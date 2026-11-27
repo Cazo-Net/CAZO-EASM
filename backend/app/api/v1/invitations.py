@@ -73,6 +73,10 @@ async def create_invitation(
     if existing:
         raise HTTPException(status_code=400, detail="Invitation already pending for this email")
 
+    # Plan seat allowance (pending invitations hold a seat). HTTP 402 if full.
+    from app.billing.entitlements import check_seat_available
+    check_seat_available(db, current_user.organization_id)
+
     token = token_urlsafe(32)
     invitation = Invitation(
         email=data.email,
@@ -148,6 +152,10 @@ async def accept_invitation(
         invitation.status = "expired"
         db.commit()
         raise HTTPException(status_code=400, detail="Invitation expired")
+
+    if current_user.organization_id != invitation.organization_id:
+        from app.billing.entitlements import check_seat_available
+        check_seat_available(db, invitation.organization_id, joining=True)
 
     current_user.organization_id = invitation.organization_id
     # Defense in depth: never grant owner via invitation (ownership is only
