@@ -402,3 +402,16 @@ def test_osint_sockets_refuse_internal_hosts(public_dns):
     assert osint._probe_port("127.0.0.1", 80).state == "filtered"
     assert osint._grab_cert_sans("169.254.169.254") is None
     osint._connectable.cache_clear()
+
+
+def test_osint_import_needs_asset_or_scan_permission(client, verified_mode, org_user):
+    from app.models.user import User
+
+    db = TestingSessionLocal()
+    try:
+        db.get(User, org_user["user_id"]).role = "viewer"
+        db.commit()
+    finally:
+        db.close()
+    r = client.post("/api/v1/osint/import", params={"q": "mine.com"}, headers=org_user["headers"])
+    assert r.status_code == 403 and isinstance(r.json()["detail"], str)  # permission, not scope

@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.osint_cache import OsintCache
 from app.api.deps import get_current_user
+from app.core.permissions import Permission, require_any_permission
 from app.core.scope import authorize_scan_target
 from app.services import osint
 from app.services.osint_import import import_osint_findings
@@ -113,7 +114,7 @@ async def osint_lookup(
 async def osint_import(
     q: str = Query(..., description="Domain to import OSINT findings for"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN)),
 ):
     """Run OSINT lookup and import findings into the Asset Inventory.
 
