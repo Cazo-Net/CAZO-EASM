@@ -396,6 +396,9 @@ async def readiness_check():
 
 
 # Import and include routers
+from fastapi import Depends  # noqa: E402
+from app.api.deps import get_current_user  # noqa: E402
+# blockchain and darkweb have no per-route auth, so the whole router requires a login.
 from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2, logs, blockchain, darkweb, webhooks, integrations, support  # noqa: E402
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
@@ -431,8 +434,8 @@ app.include_router(search.router, prefix="/api/v1/search", tags=["Search"])
 app.include_router(osint.router, prefix="/api/v1/osint", tags=["OSINT Intelligence"])
 app.include_router(scanner_v2.router, prefix="/api/v1/scanner-v2", tags=["Scanner v2"])
 app.include_router(logs.router, prefix="/api/v1/logs", tags=["Platform Logs"])
-app.include_router(blockchain.router, prefix="/api/v1/blockchain", tags=["Blockchain Intelligence"])
-app.include_router(darkweb.router, prefix="/api/v1/darkweb", tags=["Dark Web Intelligence"])
+app.include_router(blockchain.router, prefix="/api/v1/blockchain", tags=["Blockchain Intelligence"], dependencies=[Depends(get_current_user)])
+app.include_router(darkweb.router, prefix="/api/v1/darkweb", tags=["Dark Web Intelligence"], dependencies=[Depends(get_current_user)])
 app.include_router(support.router, prefix="/api/v1/support", tags=["Support Chat"])
 app.include_router(webhooks.router, prefix="/api/v1/webhooks", tags=["Webhooks"])
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["Integrations"])

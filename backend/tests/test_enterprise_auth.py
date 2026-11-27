@@ -184,7 +184,7 @@ class TestInvitations:
         db_session.add(admin)
         db_session.commit()
         db_session.refresh(admin)
-        token = create_access_token(data={"sub": admin.id, "role": admin.role})
+        token = create_access_token(data={"sub": admin.id, "role": admin.role, "tv": 0})
         return {"Authorization": f"Bearer {token}"}
 
     def test_create_invitation(self, client, db_session):
@@ -216,7 +216,7 @@ class TestInvitations:
         db_session.commit()
         db_session.refresh(user)
 
-        token = create_access_token(data={"sub": user.id, "role": user.role})
+        token = create_access_token(data={"sub": user.id, "role": user.role, "tv": 0})
         headers = {"Authorization": f"Bearer {token}"}
 
         resp = client.post("/api/v1/invitations", json={
@@ -235,7 +235,7 @@ class TestAdminEndpoints:
         db_session.add(admin)
         db_session.commit()
         db_session.refresh(admin)
-        token = create_access_token(data={"sub": admin.id, "role": admin.role})
+        token = create_access_token(data={"sub": admin.id, "role": admin.role, "tv": 0})
         return {"Authorization": f"Bearer {token}"}
 
     def test_admin_list_users(self, client, db_session):

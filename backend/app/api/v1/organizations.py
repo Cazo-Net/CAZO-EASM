@@ -196,6 +196,10 @@ async def delete_organization(
         detail={"name": org.name},
     )
 
+    # Detach members first so nobody keeps an owner/admin role without an org.
+    db.query(User).filter(User.organization_id == org_id).update(
+        {"organization_id": None, "role": "member"}, synchronize_session=False
+    )
     db.delete(org)
     db.commit()
     return {"message": "Organization deleted successfully"}
@@ -238,14 +242,30 @@ async def update_member_role(
     if not target_user:
         raise HTTPException(status_code=404, detail="Member not found")
 
-    if target_user.id == current_user.id and current_user.role == "owner":
+    if target_user.id == current_user.id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot change your own role"
         )
 
+    # Only the owner may touch the owner or hand out ownership. Granting
+    # "owner" is an ownership transfer: the current owner becomes an admin.
+    is_owner = current_user.role == "owner"
+    if target_user.role == "owner" and not is_owner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the organization owner can change the owner's role",
+        )
+    if role_data.role == "owner" and not is_owner:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the organization owner can transfer ownership",
+        )
+
     old_role = target_user.role
     target_user.role = role_data.role
+    if role_data.role == "owner":
+        current_user.role = "admin"
     db.commit()
     db.refresh(target_user)
 
@@ -283,6 +303,12 @@ async def remove_organization_member(
             detail="Cannot remove yourself from the organization"
         )
 
+    if target_user.role == "owner":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The organization owner cannot be removed",
+        )
+
     log_event(
         db,
         action="org.member.removed",
@@ -294,7 +320,7 @@ async def remove_organization_member(
     )
 
     target_user.organization_id = None
-    target_user.role = "analyst"
+    target_user.role = "member"
     db.commit()
 
     return {"message": "Member removed from organization"}

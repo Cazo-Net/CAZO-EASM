@@ -14,6 +14,7 @@ from app.models.user import User
 from app.models.asset_inventory import Asset, AssetRelationship
 from app.models.asset_score import AssetScore
 from app.api.deps import get_current_user
+from app.core.permissions import require_permission, require_any_permission, Permission
 from app.repositories.assets import get_asset_graph as repository_get_asset_graph
 from app.services.scoring import compute_asset_scores
 from app.services.change_detector import get_timeline
@@ -702,7 +703,7 @@ async def get_inventory_graph(
 @router.post("/scores/recompute")
 async def recompute_scores(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.MANAGE_ASSETS)),
 ):
     """Recompute health/exposure scores for the organization's assets."""
     if not current_user.organization_id:

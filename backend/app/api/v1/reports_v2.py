@@ -12,6 +12,7 @@ from app.models.scan import Scan
 from app.models.vulnerability import Vulnerability
 from app.models.asset_score import AssetScore
 from app.api.deps import get_current_user
+from app.core.permissions import require_permission, require_any_permission, Permission
 from app.schemas.report_v2 import (
     ExecutiveReport, ExecAsset, ExecutiveReportRequest, ExecutiveReportGenerated,
 )
@@ -112,7 +113,7 @@ async def get_executive_report(
 async def generate_executive_report(
     payload: ExecutiveReportRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.GENERATE_REPORT)),
 ):
     """Generate the executive report in the requested format.
 

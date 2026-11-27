@@ -3,11 +3,15 @@
 Provides passkey registration and authentication endpoints
 for passwordless login.
 
-SECURITY NOTE: Full WebAuthn assertion signature verification (using py_webauthn
-or equivalent) is recommended for production. The current implementation accepts
-the credential_id and checks it against the DB, which is sufficient for the
-registration flow but should be hardened with cryptographic signature verification
-before production deployment.
+SECURITY: passkey registration and sign-in are DISABLED.
+
+The previous implementation never verified the WebAuthn attestation or the
+assertion signature: anyone who knew (or fetched, via authenticate/begin?email=)
+a user's credential_id could POST it to authenticate/complete and receive a full
+session for that account. Until real verification exists (py_webauthn with a
+server-stored challenge, signature + sign-count checks and a configurable RP ID),
+the register/authenticate endpoints return 501. Listing and removing existing
+passkey rows still works so users can clean up.
 """
 
 import logging
@@ -27,6 +31,11 @@ from app.services.audit import log_auth_event
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+_DISABLED = HTTPException(
+    status_code=501,
+    detail="Passkeys are not available yet. Please sign in with your password.",
+)
 
 WEBAUTHN_RP_NAME = "CAZO EASM"
 WEBAUTHN_RP_ID = "localhost"
@@ -67,6 +76,8 @@ async def register_passkey_begin(
     Returns a PublicKeyCredentialCreationOptions dictionary
     that the client uses to create a new credential.
     """
+    raise _DISABLED
+
     existing_credentials = db.query(Passkey).filter(
         Passkey.user_id == current_user.id,
         Passkey.is_active,
@@ -128,6 +139,8 @@ async def register_passkey_complete(
 
     Receives the credential created by the authenticator and stores it.
     """
+    raise _DISABLED
+
     credential_id = credential_data.get("credential_id", "")
     public_key = credential_data.get("public_key", "")
     device_name = credential_data.get("device_name", "Passkey")
@@ -183,6 +196,8 @@ async def authenticate_passkey_begin(
 
     Returns a PublicKeyCredentialRequestOptions dictionary.
     """
+    raise _DISABLED
+
     user = db.query(User).filter(User.email == email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -231,6 +246,8 @@ async def authenticate_passkey_complete(
 
     Verifies the credential and returns JWT tokens.
     """
+    raise _DISABLED
+
     credential_id = auth_data.get("credential_id", "")
 
     passkey = db.query(Passkey).filter(

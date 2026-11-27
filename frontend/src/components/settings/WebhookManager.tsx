@@ -132,7 +132,7 @@ export function WebhookManager() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/webhooks/`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+          Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
         },
       });
       if (res.ok) {
@@ -188,7 +188,7 @@ export function WebhookManager() {
         method,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+          Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
         },
         body: JSON.stringify(payload),
       });
@@ -212,7 +212,7 @@ export function WebhookManager() {
         const res = await fetch(`${API_BASE}/api/v1/webhooks/${id}`, {
           method: "DELETE",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+            Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
           },
         });
         if (res.ok) {
@@ -234,7 +234,7 @@ export function WebhookManager() {
       const res = await fetch(`${API_BASE}/api/v1/webhooks/${id}/test`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+          Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
         },
       });
       const data = await res.json();
@@ -256,7 +256,7 @@ export function WebhookManager() {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+            Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
           },
           body: JSON.stringify({ is_active: !webhook.is_active }),
         });

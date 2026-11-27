@@ -99,7 +99,7 @@ class OrganizationMemberRoleUpdate(BaseModel):
     @field_validator("role")
     @classmethod
     def validate_role(cls, v: str) -> str:
-        allowed_roles = ["owner", "admin", "security_manager", "analyst", "viewer"]
+        allowed_roles = ["owner", "admin", "security_manager", "analyst", "member", "viewer"]
         if v not in allowed_roles:
             raise ValueError(f"Role must be one of: {', '.join(allowed_roles)}")
         return v

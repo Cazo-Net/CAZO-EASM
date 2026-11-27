@@ -24,6 +24,7 @@ from app.models.user import User
 from app.models.webhook import Webhook, WEBHOOK_EVENT_TYPES
 from app.services.webhook_dispatch import dispatch_webhook
 from app.api.deps import get_current_user
+from app.core.permissions import require_permission, require_any_permission, Permission
 
 router = APIRouter()
 
@@ -85,7 +86,7 @@ class WebhookTestResponse(BaseModel):
 async def create_webhook(
     body: WebhookCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.MANAGE_WEBHOOKS)),
 ):
     """Create a new webhook."""
     # Validate event types
@@ -181,7 +182,7 @@ async def update_webhook(
     webhook_id: str,
     body: WebhookUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.MANAGE_WEBHOOKS)),
 ):
     """Update a webhook."""
     webhook = (
@@ -210,7 +211,7 @@ async def update_webhook(
 async def delete_webhook(
     webhook_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.MANAGE_WEBHOOKS)),
 ):
     """Delete a webhook."""
     webhook = (
@@ -232,7 +233,7 @@ async def delete_webhook(
 async def test_webhook(
     webhook_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.MANAGE_WEBHOOKS)),
 ):
     """Send a test event to the webhook."""
     webhook = (

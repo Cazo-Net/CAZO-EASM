@@ -5,6 +5,7 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.api_key import APIKeyCreate, APIKeyResponse
 from app.api.deps import get_current_user
+from app.core.permissions import require_permission, require_any_permission, Permission
 from app.core.security import generate_api_key, hash_api_key
 from datetime import datetime, timezone
 
@@ -30,7 +31,7 @@ async def list_api_keys(
 async def create_api_key(
     key_data: APIKeyCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_permission(Permission.MANAGE_API_KEYS))
 ):
     """Create a new API key (replaces existing)."""
     raw_key = generate_api_key()
