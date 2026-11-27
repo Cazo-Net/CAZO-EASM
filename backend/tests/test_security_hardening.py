@@ -138,3 +138,19 @@ def test_email_change_requires_password(client):
     assert client.put("/api/v1/users/me", headers=h, json={"email": "new@test.io"}).status_code == 400
     r = client.put("/api/v1/users/me", headers=h, json={"email": "new@test.io", "current_password": PW})
     assert r.status_code == 200 and r.json()["email_verified"] is False
+
+
+def test_spoofed_forwarded_for_does_not_change_client_ip():
+    """With one trusted proxy, only the proxy-appended (right-most) entry counts."""
+    from types import SimpleNamespace
+    from app.config import settings
+    from app.core.client_ip import get_client_ip
+    req = SimpleNamespace(headers={"x-forwarded-for": "6.6.6.6, 203.0.113.9"}, client=SimpleNamespace(host="10.0.0.1"))
+    old = settings.TRUSTED_PROXY_HOPS
+    try:
+        settings.TRUSTED_PROXY_HOPS = 1
+        assert get_client_ip(req) == "203.0.113.9"
+        settings.TRUSTED_PROXY_HOPS = 0
+        assert get_client_ip(req) == "6.6.6.6"
+    finally:
+        settings.TRUSTED_PROXY_HOPS = old

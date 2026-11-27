@@ -73,10 +73,8 @@ _PROBE_PATHS = {"/health", "/ready"}
 
 
 def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    from app.core.client_ip import get_client_ip
+    return get_client_ip(request)
 
 
 @asynccontextmanager
@@ -331,7 +329,18 @@ async def rate_limit_middleware(request: Request, call_next):
 
     # Stricter limit for login/register endpoints
     path = request.url.path
-    is_auth_endpoint = path in ("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/forgot-password")
+    # Every unauthenticated credential / token endpoint gets the strict bucket.
+    # (Login also has a per-email limit inside the handler, which a spoofed IP
+    # cannot get around.)
+    is_auth_endpoint = path in (
+        "/api/v1/auth/login",
+        "/api/v1/auth/register",
+        "/api/v1/auth/forgot-password",
+        "/api/v1/auth/reset-password",
+        "/api/v1/auth/verify-email",
+        "/api/v1/auth/2fa/verify-login",
+        "/api/v1/auth/google",
+    ) or path.startswith("/api/v1/passkeys/authenticate")
     max_requests = LOGIN_RATE_LIMIT if is_auth_endpoint else GLOBAL_RATE_LIMIT
     bucket = "auth" if is_auth_endpoint else "global"
 

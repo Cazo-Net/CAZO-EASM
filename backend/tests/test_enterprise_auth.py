@@ -2,7 +2,7 @@ from datetime import datetime, timezone, timedelta
 
 
 class TestBruteForceProtection:
-    def test_lockout_after_5_failed_attempts(self, client):
+    def test_same_ip_blocked_after_5_failed_attempts(self, client):
         client.post("/api/v1/auth/register", json={
             "email": "lock@test.com", "password": "LockPass1!", "full_name": "Lock User",
         })
@@ -13,8 +13,44 @@ class TestBruteForceProtection:
         resp = client.post("/api/v1/auth/login", json={
             "email": "lock@test.com", "password": "LockPass1!",
         })
+        assert resp.status_code == 429
+        assert "failed attempts" in resp.json()["detail"].lower()
+
+    def test_account_locked_after_20_failures_from_many_ips(self, client):
+        client.post("/api/v1/auth/register", json={
+            "email": "lock2@test.com", "password": "LockPass1!", "full_name": "Lock User",
+        })
+        from app.config import settings
+        old = settings.TRUSTED_PROXY_HOPS
+        settings.TRUSTED_PROXY_HOPS = 1
+        try:
+            for i in range(20):
+                client.post("/api/v1/auth/login", headers={"X-Forwarded-For": f"10.0.{i // 4}.{i}"},
+                            json={"email": "lock2@test.com", "password": "WrongPass1!"})
+            resp = client.post("/api/v1/auth/login", headers={"X-Forwarded-For": "10.9.9.9"},
+                               json={"email": "lock2@test.com", "password": "LockPass1!"})
+        finally:
+            settings.TRUSTED_PROXY_HOPS = old
         assert resp.status_code == 423
         assert "locked" in resp.json()["detail"].lower()
+
+    def test_other_ip_not_blocked_by_attacker(self, client):
+        """5 failures from one IP must not lock the real user out from another."""
+        client.post("/api/v1/auth/register", json={
+            "email": "dos@test.com", "password": "LockPass1!", "full_name": "Dos User",
+        })
+        from app.config import settings
+        old = settings.TRUSTED_PROXY_HOPS
+        settings.TRUSTED_PROXY_HOPS = 1
+        try:
+            for _ in range(6):
+                client.post("/api/v1/auth/login", headers={"X-Forwarded-For": "203.0.113.5"},
+                            json={"email": "dos@test.com", "password": "WrongPass1!"})
+            resp = client.post("/api/v1/auth/login", headers={"X-Forwarded-For": "198.51.100.7"},
+                               json={"email": "dos@test.com", "password": "LockPass1!"})
+        finally:
+            settings.TRUSTED_PROXY_HOPS = old
+        assert resp.status_code == 200
 
     def test_successful_login_resets_failed_attempts(self, client):
         client.post("/api/v1/auth/register", json={

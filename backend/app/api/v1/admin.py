@@ -119,6 +119,8 @@ async def enable_user(
     user.failed_login_attempts = 0
     user.locked_until = None
     db.commit()
+    from app.core.rate_limit import get_failure_limiter
+    get_failure_limiter().clear_prefix(f"loginfail:{user.id}:")
     return {"message": "User enabled"}
 
 
@@ -136,6 +138,8 @@ async def unlock_user(
     user.failed_login_attempts = 0
     user.locked_until = None
     db.commit()
+    from app.core.rate_limit import get_failure_limiter
+    get_failure_limiter().clear_prefix(f"loginfail:{user.id}:")
     return {"message": "User unlocked"}
 
 

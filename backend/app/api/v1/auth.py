@@ -27,7 +27,15 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-MAX_FAILED_ATTEMPTS = 5
+# Two layers against password guessing:
+# - per email + client IP: 5 failures -> that IP is blocked for that account
+#   for 15 minutes (stops one attacker without locking the real user out);
+# - per account: 20 failures from anywhere -> account locked 15 minutes
+#   (stops distributed guessing; needs 4x more attempts to abuse as a DoS).
+# Plus a per-email request limit that a spoofed IP header can't get around.
+MAX_FAILED_ATTEMPTS = 20
+MAX_FAILED_PER_IP = 5
+LOGIN_PER_EMAIL_PER_MINUTE = 10
 LOCKOUT_MINUTES = 15
 RESET_TOKEN_EXPIRY_MINUTES = 30
 
@@ -40,11 +48,34 @@ def find_user_by_email(db: Session, email: str):
 
 
 def _client_ip(request: Request) -> str:
-    return request.client.host if request.client else "unknown"
+    from app.core.client_ip import get_client_ip
+    return get_client_ip(request)
+
+
+def _ip_fail_key(user: User, request: Request) -> str:
+    return f"loginfail:{user.id}:{_client_ip(request)}"
+
+
+def _check_login_throttles(db: Session, user: User, request: Request) -> None:
+    """Per-email rate limit, per (account, IP) failure block, account lock."""
+    from app.config import settings
+    from app.core.rate_limit import get_rate_limiter, get_failure_limiter
+    if settings.RATE_LIMIT_ENABLED and not get_rate_limiter().is_allowed(
+        f"auth-user:{user.id}", LOGIN_PER_EMAIL_PER_MINUTE
+    ):
+        raise HTTPException(status_code=429, detail="Too many sign-in attempts. Wait a minute and try again.")
+    if get_failure_limiter().count(_ip_fail_key(user, request)) >= MAX_FAILED_PER_IP:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many failed attempts. Try again in {LOCKOUT_MINUTES} minutes or reset your password.",
+        )
+    _raise_if_locked(db, user)
 
 
 def _register_failed_attempt(db: Session, user: User, request: Request, reason: str) -> None:
     """Count a failed password / 2FA attempt and lock the account after too many."""
+    from app.core.rate_limit import get_failure_limiter
+    get_failure_limiter().is_allowed(_ip_fail_key(user, request), 10**6)
     user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
     if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
         user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=LOCKOUT_MINUTES)
@@ -91,6 +122,8 @@ def issue_session_tokens(db: Session, user: User, request: Request, method: str 
     user.locked_until = None
     user.last_login = datetime.now(timezone.utc)
     db.commit()
+    from app.core.rate_limit import get_failure_limiter
+    get_failure_limiter().clear(_ip_fail_key(user, request))
 
     token_version = user.token_version or 0
     access_token = create_access_token(
@@ -248,7 +281,7 @@ async def login(login_data: UserLogin, request: Request, db: Session = Depends(g
                        success=False, detail={"email": login_data.email, "reason": "user_not_found"})
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
-    _raise_if_locked(db, user)
+    _check_login_throttles(db, user, request)
 
     if not user.hashed_password or not verify_password(login_data.password, user.hashed_password):
         _register_failed_attempt(db, user, request, "wrong_password")
@@ -277,7 +310,7 @@ async def verify_2fa_login(data: TwoFactorLogin, request: Request, db: Session =
     if payload.get("tv") != (user.token_version or 0):
         raise HTTPException(status_code=401, detail="Login step expired. Please sign in again.")
 
-    _raise_if_locked(db, user)
+    _check_login_throttles(db, user, request)
 
     code = (data.code or "").strip().replace(" ", "")
     ok = False
