@@ -21,8 +21,8 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import stripe
 from sqlalchemy.orm import Session
@@ -65,9 +65,7 @@ def is_configured() -> bool:
     mode = stripe_mode()
     if mode == "off":
         return False
-    if mode == "live" and not settings.BILLING_ALLOW_LIVE_KEYS:
-        return False
-    return True
+    return mode == "test" or settings.BILLING_ALLOW_LIVE_KEYS
 
 
 def _key() -> str:
@@ -82,7 +80,7 @@ def _key() -> str:
     return settings.STRIPE_SECRET_KEY
 
 
-def _as_dict(obj: Any) -> Dict[str, Any]:
+def _as_dict(obj: Any) -> dict[str, Any]:
     if obj is None:
         return {}
     if isinstance(obj, dict):
@@ -97,13 +95,13 @@ def _as_dict(obj: Any) -> Dict[str, Any]:
     return json.loads(str(obj))
 
 
-def _ts(value: Optional[int]) -> Optional[datetime]:
-    return datetime.fromtimestamp(value, tz=timezone.utc) if value else None
+def _ts(value: int | None) -> datetime | None:
+    return datetime.fromtimestamp(value, tz=UTC) if value else None
 
 
-def _aware(dt: Optional[datetime]) -> Optional[datetime]:
+def _aware(dt: datetime | None) -> datetime | None:
     if dt is not None and dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+        return dt.replace(tzinfo=UTC)
     return dt
 
 
@@ -142,7 +140,7 @@ def get_or_create_subscription_row(db: Session, org: Organization) -> BillingSub
     return sub
 
 
-def ensure_customer(db: Session, org: Organization, email: Optional[str]) -> str:
+def ensure_customer(db: Session, org: Organization, email: str | None) -> str:
     sub = get_or_create_subscription_row(db, org)
     if sub.stripe_customer_id:
         return sub.stripe_customer_id
@@ -184,7 +182,7 @@ def _line_items(plan, interval: str, quantity: int, extra_domains: int, currency
     spec = INTERVALS[interval]
 
     def item(plan_id: str, unit_amount: int, qty: int) -> dict:
-        price_data: Dict[str, Any] = {
+        price_data: dict[str, Any] = {
             "currency": currency,
             "product": ensure_product(plan_id),
             "unit_amount": unit_amount,
@@ -206,14 +204,14 @@ def _line_items(plan, interval: str, quantity: int, extra_domains: int, currency
 def create_checkout_session(
     db: Session,
     org: Organization,
-    user_email: Optional[str],
+    user_email: str | None,
     *,
     plan_id: str,
     interval: str,
     quantity: int = 1,
     extra_domains: int = 0,
     payment: str = "subscription",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Start a Stripe Checkout session, or change an existing subscription in place.
 
     Returns ``{"url": ...}`` to redirect to, or ``{"updated": True}`` when an
@@ -249,7 +247,7 @@ def create_checkout_session(
         "extra_domains": str(extra_domains),
         "payment": payment,
     }
-    params: Dict[str, Any] = {
+    params: dict[str, Any] = {
         "customer": customer_id,
         "client_reference_id": org.id,
         "line_items": _line_items(plan, interval, quantity, extra_domains, currency, payment == "subscription"),
@@ -288,7 +286,7 @@ def change_subscription(db: Session, sub: BillingSubscription, plan_id: str, int
     remote = _as_dict(stripe.Subscription.retrieve(sub.stripe_subscription_id, api_key=key))
     existing = [i["id"] for i in remote.get("items", {}).get("data", [])]
     new_items = _line_items(plan, interval, quantity, extra_domains, currency, recurring=True)
-    items: List[Dict[str, Any]] = [{"id": item_id, "deleted": True} for item_id in existing]
+    items: list[dict[str, Any]] = [{"id": item_id, "deleted": True} for item_id in existing]
     items.extend(new_items)
     metadata = {
         "organization_id": sub.organization_id,
@@ -319,8 +317,8 @@ def _sync_org_plan(db: Session, org_id: str, plan_id: str) -> None:
         org.plan = plan_id
 
 
-def _find_sub(db: Session, *, org_id: Optional[str] = None, customer: Optional[str] = None,
-              subscription: Optional[str] = None) -> Optional[BillingSubscription]:
+def _find_sub(db: Session, *, org_id: str | None = None, customer: str | None = None,
+              subscription: str | None = None) -> BillingSubscription | None:
     q = db.query(BillingSubscription)
     if subscription:
         row = q.filter(BillingSubscription.stripe_subscription_id == subscription).first()
@@ -335,7 +333,7 @@ def _find_sub(db: Session, *, org_id: Optional[str] = None, customer: Optional[s
     return None
 
 
-def _period(obj: Dict[str, Any]):
+def _period(obj: dict[str, Any]):
     start = obj.get("current_period_start")
     end = obj.get("current_period_end")
     if start is None or end is None:
@@ -347,7 +345,7 @@ def _period(obj: Dict[str, Any]):
     return _ts(start), _ts(end)
 
 
-def apply_stripe_subscription(db: Session, obj: Dict[str, Any]) -> Optional[BillingSubscription]:
+def apply_stripe_subscription(db: Session, obj: dict[str, Any]) -> BillingSubscription | None:
     """Mirror a Stripe Subscription object onto the org's billing row."""
     meta = obj.get("metadata") or {}
     sub = _find_sub(db, org_id=meta.get("organization_id"), customer=obj.get("customer"),
@@ -386,7 +384,7 @@ def apply_stripe_subscription(db: Session, obj: Dict[str, Any]) -> Optional[Bill
     return sub
 
 
-def apply_prepaid_session(db: Session, session: Dict[str, Any]) -> Optional[BillingSubscription]:
+def apply_prepaid_session(db: Session, session: dict[str, Any]) -> BillingSubscription | None:
     """Grant a prepaid term once its checkout session is paid. Idempotent."""
     if session.get("payment_status") != "paid":
         return None
@@ -404,7 +402,7 @@ def apply_prepaid_session(db: Session, session: Dict[str, Any]) -> Optional[Bill
     sub = get_or_create_subscription_row(db, org)
     interval = meta.get("interval") if meta.get("interval") in INTERVALS else "year"
     months = INTERVALS[interval]["months"]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     current_end = _aware(sub.current_period_end)
     same_plan = sub.plan == meta.get("plan") and subscription_is_current(sub) and current_end
     start = current_end if same_plan and current_end > now else now
@@ -452,7 +450,7 @@ def apply_prepaid_session(db: Session, session: Dict[str, Any]) -> Optional[Bill
     return sub
 
 
-def apply_invoice(db: Session, inv: Dict[str, Any], failed: bool = False) -> None:
+def apply_invoice(db: Session, inv: dict[str, Any], failed: bool = False) -> None:
     """Record a Stripe invoice from a subscription and flag failed payments."""
     sub = _find_sub(db, customer=inv.get("customer"))
     if sub is None:
@@ -485,7 +483,7 @@ def apply_invoice(db: Session, inv: Dict[str, Any], failed: bool = False) -> Non
     db.commit()
 
 
-def fulfil_checkout_session(db: Session, session: Dict[str, Any]) -> None:
+def fulfil_checkout_session(db: Session, session: dict[str, Any]) -> None:
     mode = session.get("mode")
     if mode == "subscription" and session.get("subscription"):
         remote = stripe.Subscription.retrieve(session["subscription"], api_key=_key())
@@ -506,7 +504,7 @@ def fulfil_checkout_session(db: Session, session: Dict[str, Any]) -> None:
             )
 
 
-def handle_webhook(db: Session, payload: bytes, signature: Optional[str]) -> str:
+def handle_webhook(db: Session, payload: bytes, signature: str | None) -> str:
     """Verify and apply a Stripe webhook. Returns the event type."""
     if not settings.STRIPE_WEBHOOK_SECRET:
         raise BillingNotConfigured("STRIPE_WEBHOOK_SECRET is not set.")
@@ -535,7 +533,7 @@ def handle_webhook(db: Session, payload: bytes, signature: Optional[str]) -> str
             apply_invoice(db, obj)
         elif event_type == "invoice.payment_failed":
             apply_invoice(db, obj, failed=True)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         db.rollback()
         record.error = str(exc)[:2000]
         db.add(record)
@@ -546,7 +544,7 @@ def handle_webhook(db: Session, payload: bytes, signature: Optional[str]) -> str
     return event_type
 
 
-def retrieve_checkout_session(db: Session, org: Organization, session_id: str) -> Dict[str, Any]:
+def retrieve_checkout_session(db: Session, org: Organization, session_id: str) -> dict[str, Any]:
     """Look up a session for the success page and apply it if the webhook has not yet."""
     session = _as_dict(stripe.checkout.Session.retrieve(session_id, api_key=_key()))
     if session.get("client_reference_id") != org.id:
@@ -566,7 +564,7 @@ def retrieve_checkout_session(db: Session, org: Organization, session_id: str) -
 # ── Self-service management ──────────────────────────────────────────────
 
 
-def portal_url(db: Session, org: Organization, email: Optional[str]) -> str:
+def portal_url(db: Session, org: Organization, email: str | None) -> str:
     customer = ensure_customer(db, org, email)
     session = stripe.billing_portal.Session.create(
         customer=customer, return_url=frontend_url("/billing"), api_key=_key()
@@ -574,7 +572,7 @@ def portal_url(db: Session, org: Organization, email: Optional[str]) -> str:
     return session.url
 
 
-def setup_session_url(db: Session, org: Organization, email: Optional[str]) -> str:
+def setup_session_url(db: Session, org: Organization, email: str | None) -> str:
     """Checkout in setup mode: add a card for future renewals."""
     customer = ensure_customer(db, org, email)
     session = stripe.checkout.Session.create(
@@ -591,7 +589,7 @@ def setup_session_url(db: Session, org: Organization, email: Optional[str]) -> s
     return session.url
 
 
-def list_payment_methods(sub: Optional[BillingSubscription]) -> List[Dict[str, Any]]:
+def list_payment_methods(sub: BillingSubscription | None) -> list[dict[str, Any]]:
     if sub is None or not sub.stripe_customer_id:
         return []
     key = _key()
@@ -613,7 +611,7 @@ def list_payment_methods(sub: Optional[BillingSubscription]) -> List[Dict[str, A
     return out
 
 
-def _owned_pm(sub: Optional[BillingSubscription], pm_id: str) -> Dict[str, Any]:
+def _owned_pm(sub: BillingSubscription | None, pm_id: str) -> dict[str, Any]:
     if sub is None or not sub.stripe_customer_id:
         raise BillingError("No payment methods on file.")
     pm = _as_dict(stripe.PaymentMethod.retrieve(pm_id, api_key=_key()))
@@ -622,7 +620,7 @@ def _owned_pm(sub: Optional[BillingSubscription], pm_id: str) -> Dict[str, Any]:
     return pm
 
 
-def set_default_payment_method(sub: Optional[BillingSubscription], pm_id: str) -> None:
+def set_default_payment_method(sub: BillingSubscription | None, pm_id: str) -> None:
     _owned_pm(sub, pm_id)
     key = _key()
     stripe.Customer.modify(sub.stripe_customer_id,
@@ -632,12 +630,12 @@ def set_default_payment_method(sub: Optional[BillingSubscription], pm_id: str) -
                                    default_payment_method=pm_id, api_key=key)
 
 
-def detach_payment_method(sub: Optional[BillingSubscription], pm_id: str) -> None:
+def detach_payment_method(sub: BillingSubscription | None, pm_id: str) -> None:
     _owned_pm(sub, pm_id)
     stripe.PaymentMethod.detach(pm_id, api_key=_key())
 
 
-def set_cancel_at_period_end(db: Session, sub: Optional[BillingSubscription], cancel: bool) -> BillingSubscription:
+def set_cancel_at_period_end(db: Session, sub: BillingSubscription | None, cancel: bool) -> BillingSubscription:
     if sub is None or not subscription_is_current(sub):
         raise BillingError("There is no active plan to change.")
     if sub.payment_mode == "subscription" and sub.stripe_subscription_id:

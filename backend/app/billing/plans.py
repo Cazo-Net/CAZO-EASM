@@ -26,7 +26,6 @@ import copy
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
 
 from app.config import settings
 
@@ -35,12 +34,12 @@ logger = logging.getLogger(__name__)
 LIMIT_KEYS = ("root_domains", "hosts", "users", "scans_per_month")
 
 # interval id -> (label, months, Stripe recurring interval, interval_count)
-INTERVALS: Dict[str, dict] = {
+INTERVALS: dict[str, dict] = {
     "year": {"label": "Annual", "months": 12, "stripe_interval": "year", "stripe_interval_count": 1},
     "quarter": {"label": "Quarterly", "months": 3, "stripe_interval": "month", "stripe_interval_count": 3},
 }
 
-_DEFAULT_CATALOG: Dict[str, dict] = {
+_DEFAULT_CATALOG: dict[str, dict] = {
     # Every organization without a paid plan. Not sold; enough to try the product.
     "free": {
         "name": "Trial",
@@ -145,15 +144,15 @@ class Plan:
     per_client: bool = False
     addon: bool = False
     min_quantity: int = 1
-    prices: Dict[str, int] = field(default_factory=dict)
-    limits: Dict[str, Optional[int]] = field(default_factory=dict)
+    prices: dict[str, int] = field(default_factory=dict)
+    limits: dict[str, int | None] = field(default_factory=dict)
     scan_frequency: str = "weekly"
-    features: List[str] = field(default_factory=list)
+    features: list[str] = field(default_factory=list)
 
-    def monthly_price(self, currency: str) -> Optional[int]:
+    def monthly_price(self, currency: str) -> int | None:
         return self.prices.get(currency.lower())
 
-    def term_price(self, currency: str, interval: str) -> Optional[int]:
+    def term_price(self, currency: str, interval: str) -> int | None:
         monthly = self.monthly_price(currency)
         if monthly is None:
             return None
@@ -170,7 +169,7 @@ def _merge(base: dict, override: dict) -> dict:
     return out
 
 
-def _load_catalog() -> Dict[str, Plan]:
+def _load_catalog() -> dict[str, Plan]:
     raw = copy.deepcopy(_DEFAULT_CATALOG)
     if settings.BILLING_PLANS_JSON:
         try:
@@ -186,10 +185,10 @@ def _load_catalog() -> Dict[str, Plan]:
     return catalog
 
 
-_catalog: Optional[Dict[str, Plan]] = None
+_catalog: dict[str, Plan] | None = None
 
 
-def catalog() -> Dict[str, Plan]:
+def catalog() -> dict[str, Plan]:
     global _catalog
     if _catalog is None:
         _catalog = _load_catalog()
@@ -202,12 +201,12 @@ def reload_catalog() -> None:
     _catalog = None
 
 
-def get_plan(plan_id: Optional[str]) -> Plan:
+def get_plan(plan_id: str | None) -> Plan:
     plans = catalog()
     return plans.get(plan_id or FREE_PLAN_ID) or plans[FREE_PLAN_ID]
 
 
-def purchasable_plans() -> List[Plan]:
+def purchasable_plans() -> list[Plan]:
     return [p for p in catalog().values() if p.purchasable]
 
 
@@ -215,9 +214,9 @@ def billing_currency() -> str:
     return (settings.BILLING_CURRENCY or "usd").lower()
 
 
-def plan_limits(plan: Plan, quantity: int = 1, extra_domains: int = 0) -> Dict[str, Optional[int]]:
+def plan_limits(plan: Plan, quantity: int = 1, extra_domains: int = 0) -> dict[str, int | None]:
     """Allowances for an organization on ``plan``."""
-    limits: Dict[str, Optional[int]] = {}
+    limits: dict[str, int | None] = {}
     multiplier = max(quantity, 1) if plan.per_client else 1
     for key in LIMIT_KEYS:
         value = plan.limits.get(key)
@@ -227,7 +226,7 @@ def plan_limits(plan: Plan, quantity: int = 1, extra_domains: int = 0) -> Dict[s
     return limits
 
 
-def order_total(plan: Plan, interval: str, quantity: int, extra_domains: int, currency: str) -> Optional[int]:
+def order_total(plan: Plan, interval: str, quantity: int, extra_domains: int, currency: str) -> int | None:
     """Total for one billing term in the smallest currency unit."""
     base = plan.term_price(currency, interval)
     if base is None:

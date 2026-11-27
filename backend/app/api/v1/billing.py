@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -60,8 +59,8 @@ class ManualPlanRequest(BaseModel):
     plan: str
     clients: int = Field(1, ge=1, le=10_000)
     extra_domains: int = Field(0, ge=0, le=500)
-    period_end: Optional[datetime] = None
-    note: Optional[str] = Field(None, max_length=1000)
+    period_end: datetime | None = None
+    note: str | None = Field(None, max_length=1000)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────
@@ -193,7 +192,7 @@ async def get_billing_overview(
     org = _org(db, current_user)
     ent = get_entitlement(db, org.id)
     used = usage(db, org.id)
-    sub: Optional[BillingSubscription] = ent.subscription
+    sub: BillingSubscription | None = ent.subscription
     return {
         "organization_id": org.id,
         "plan": _plan_out(ent.plan, billing_currency()) | {"limits": ent.limits},
@@ -303,7 +302,7 @@ async def list_invoices(
     current_user: User = Depends(require_permission(Permission.MANAGE_ORG)),
 ):
     org = _org(db, current_user)
-    rows: List[BillingInvoice] = (
+    rows: list[BillingInvoice] = (
         db.query(BillingInvoice)
         .filter(BillingInvoice.organization_id == org.id)
         .order_by(BillingInvoice.created_at.desc())
@@ -377,7 +376,7 @@ async def set_manual_plan(
     sub.payment_mode = "manual"
     sub.quantity = req.clients if plan.per_client else 1
     sub.extra_domains = req.extra_domains
-    sub.current_period_start = datetime.now(timezone.utc)
+    sub.current_period_start = datetime.now(UTC)
     sub.current_period_end = req.period_end
     sub.cancel_at_period_end = req.period_end is not None
     sub.note = req.note

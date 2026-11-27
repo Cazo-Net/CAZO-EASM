@@ -16,8 +16,7 @@ from __future__ import annotations
 
 import ipaddress
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional, Set
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -57,7 +56,7 @@ class PlanLimitExceeded(Exception):
     Turned into HTTP 402 by the handler registered in app.main.
     """
 
-    def __init__(self, metric: str, limit: Optional[int], used: int, plan: Plan, message: str):
+    def __init__(self, metric: str, limit: int | None, used: int, plan: Plan, message: str):
         super().__init__(message)
         self.metric = metric
         self.limit = limit
@@ -108,18 +107,18 @@ class Entitlement:
     status: str
     quantity: int
     extra_domains: int
-    limits: Dict[str, Optional[int]]
-    period_end: Optional[datetime]
-    subscription: Optional[object]
+    limits: dict[str, int | None]
+    period_end: datetime | None
+    subscription: object | None
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
-def _aware(dt: Optional[datetime]) -> Optional[datetime]:
+def _aware(dt: datetime | None) -> datetime | None:
     if dt is not None and dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
+        return dt.replace(tzinfo=UTC)
     return dt
 
 
@@ -133,7 +132,7 @@ def get_subscription(db: Session, organization_id: str):
     )
 
 
-def subscription_is_current(sub, now: Optional[datetime] = None) -> bool:
+def subscription_is_current(sub, now: datetime | None = None) -> bool:
     """True when ``sub`` still grants its plan (including the grace period)."""
     if sub is None or sub.status not in ACTIVE_STATUSES:
         return False
@@ -144,7 +143,7 @@ def subscription_is_current(sub, now: Optional[datetime] = None) -> bool:
     return now <= end + timedelta(days=settings.BILLING_GRACE_DAYS)
 
 
-def get_entitlement(db: Session, organization_id: Optional[str]) -> Entitlement:
+def get_entitlement(db: Session, organization_id: str | None) -> Entitlement:
     sub = get_subscription(db, organization_id) if organization_id else None
     if subscription_is_current(sub):
         plan = get_plan(sub.plan)
@@ -169,12 +168,12 @@ def get_entitlement(db: Session, organization_id: Optional[str]) -> Entitlement:
 # ── Usage ────────────────────────────────────────────────────────────────
 
 
-def _month_start(now: Optional[datetime] = None) -> datetime:
+def _month_start(now: datetime | None = None) -> datetime:
     now = now or _utcnow()
     return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
-def monitored_root_domains(db: Session, organization_id: str) -> Set[str]:
+def monitored_root_domains(db: Session, organization_id: str) -> set[str]:
     from app.models.scan import Scan
 
     rows = (
@@ -233,7 +232,7 @@ def count_seats(db: Session, organization_id: str) -> int:
     return members + pending
 
 
-def usage(db: Session, organization_id: str) -> Dict[str, int]:
+def usage(db: Session, organization_id: str) -> dict[str, int]:
     return {
         "root_domains": len(monitored_root_domains(db, organization_id)),
         "hosts": count_hosts(db, organization_id),
@@ -245,13 +244,13 @@ def usage(db: Session, organization_id: str) -> Dict[str, int]:
 # ── Checks ───────────────────────────────────────────────────────────────
 
 
-def _over(limit: Optional[int], used: int) -> bool:
+def _over(limit: int | None, used: int) -> bool:
     return limit is not None and used >= limit
 
 
 def check_scan_allowed(
     db: Session,
-    organization_id: Optional[str],
+    organization_id: str | None,
     domain: str,
     *,
     counts_toward_quota: bool = True,
@@ -291,7 +290,7 @@ def check_scan_allowed(
             )
 
 
-def check_schedule_allowed(db: Session, organization_id: Optional[str], domain: str, interval_hours: int) -> None:
+def check_schedule_allowed(db: Session, organization_id: str | None, domain: str, interval_hours: int) -> None:
     """Scheduled scans: root-domain allowance plus the plan's scan frequency."""
     if not settings.BILLING_ENFORCE_LIMITS or not organization_id:
         return
@@ -306,7 +305,7 @@ def check_schedule_allowed(db: Session, organization_id: Optional[str], domain: 
         )
 
 
-def check_seat_available(db: Session, organization_id: Optional[str], *, joining: bool = False) -> None:
+def check_seat_available(db: Session, organization_id: str | None, *, joining: bool = False) -> None:
     """Raise if the org has no free user seat.
 
     ``joining`` is for accepting an invitation: that invitation already holds a

@@ -5,10 +5,21 @@ than the unused ``subscriptions``/``invoices`` tables from Alembic revision
 g0h1i2j3k4l5, whose columns cannot hold plan quantities or prepaid terms and
 which may or may not exist depending on how a database was built.
 """
-from sqlalchemy import Column, String, DateTime, Boolean, Integer, Text, ForeignKey, Index
-from sqlalchemy.sql import func
-from app.database import Base
 import uuid
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.sql import func
+
+from app.database import Base
 
 
 class BillingSubscription(Base):

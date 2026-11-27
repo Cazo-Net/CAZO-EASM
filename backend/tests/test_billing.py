@@ -7,7 +7,7 @@ import hashlib
 import hmac
 import json
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -63,7 +63,7 @@ def _subscribe(db, org, plan, quantity=1, extra=0, end_days=365, status="active"
     sub = BillingSubscription(
         organization_id=org.id, plan=plan, status=status, quantity=quantity, extra_domains=extra,
         payment_mode="manual",
-        current_period_end=datetime.now(timezone.utc) + timedelta(days=end_days),
+        current_period_end=datetime.now(UTC) + timedelta(days=end_days),
     )
     db.add(sub)
     db.commit()
@@ -186,7 +186,7 @@ class TestLimits:
         for _ in range(10):
             _scan(db_session, org, "example.com")
         # Last month's scans do not count
-        _scan(db_session, org, "example.com", when=datetime.now(timezone.utc) - timedelta(days=40))
+        _scan(db_session, org, "example.com", when=datetime.now(UTC) - timedelta(days=40))
         with pytest.raises(PlanLimitExceeded) as exc:
             check_scan_allowed(db_session, org.id, "example.com")
         assert exc.value.metric == "scans_per_month"
@@ -390,8 +390,8 @@ class TestWebhooks:
         sub = db_session.query(BillingSubscription).filter_by(organization_id=org.id).one()
         assert sub.plan == "essentials" and sub.payment_mode == "prepaid"
         end = sub.current_period_end
-        end = end if end.tzinfo else end.replace(tzinfo=timezone.utc)
-        assert timedelta(days=360) < end - datetime.now(timezone.utc) < timedelta(days=370)
+        end = end if end.tzinfo else end.replace(tzinfo=UTC)
+        assert timedelta(days=360) < end - datetime.now(UTC) < timedelta(days=370)
         assert db_session.query(BillingInvoice).filter_by(organization_id=org.id).count() == 1
 
         # Applying the same session again (success page after the webhook) does nothing
