@@ -1,13 +1,14 @@
 """Models for v2 scanner tables — monitor_schedules, scan_history, asset_lifecycle, notification_triggers."""
 from datetime import datetime, timezone
 from sqlalchemy import (
-    Column, String, Integer, Float, Boolean, Text, DateTime, ForeignKey, func
+    Column, String, Integer, Float, Boolean, Text, DateTime, ForeignKey, Index, func
 )
 from app.database import Base
 
 
 class MonitorSchedule(Base):
     __tablename__ = "monitor_schedules"
+    __table_args__ = (Index("ix_monitor_schedules_due", "enabled", "next_run_at"),)
 
     id = Column(String(36), primary_key=True)
     domain = Column(String(255), nullable=False, index=True)

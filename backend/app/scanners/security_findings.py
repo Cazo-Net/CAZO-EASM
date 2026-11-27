@@ -13,6 +13,8 @@ environments where Nuclei (or outbound access to its template feed) is absent.
 from typing import Any, Dict, List, Optional
 
 import httpx
+
+from app.core.target_guard import GUARDED_HOOKS
 from app.scanners.base import BaseScanner
 from app.scanners.registry import register_scanner, ScannerCategory
 import logging
@@ -297,7 +299,7 @@ class SecurityFindingsScanner(BaseScanner):
                 probe_tasks = [probe(p, _, fn, sev, tid) for p, _, fn, sev, tid in self._EXPOSED_FILES + self._ADMIN_PANELS]
                 await asyncio.gather(*probe_tasks, return_exceptions=True)
 
-        async with httpx.AsyncClient(verify=False, timeout=5, follow_redirects=True) as client:
+        async with httpx.AsyncClient(verify=False, timeout=5, follow_redirects=True, event_hooks=GUARDED_HOOKS) as client:
             host_tasks = [_check_host(client, h) for h in sorted(h for h in hosts if h)]
             await asyncio.gather(*host_tasks, return_exceptions=True)
 

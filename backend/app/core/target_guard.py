@@ -24,6 +24,7 @@ _HOST_RE = re.compile(
 _INTERNAL_SUFFIXES = (
     ".localhost", ".local", ".internal", ".intranet", ".lan", ".home.arpa",
     ".corp", ".private", ".svc", ".cluster.local", ".railway.internal",
+    ".default", ".kube-system", ".docker", ".consul", ".test", ".invalid", ".example",
 )
 _INTERNAL_NAMES = {"localhost", "metadata", "metadata.google.internal", "instance-data"}
 
@@ -160,3 +161,65 @@ def host_in_scope(host: str, root_domain: Optional[str]) -> bool:
     host = normalize_target(host)
     root = normalize_target(root_domain)
     return host == root or host.endswith("." + root)
+
+
+async def probe_allowed(host: str, root_domain: Optional[str]) -> bool:
+    """May a scanner actively connect to ``host`` during a scan of ``root_domain``?
+
+    Hosts turned up *during* a scan (certificate SANs, reverse DNS, zone
+    transfers, subdomain sources) are untrusted input: they can name other
+    companies' servers or internal addresses. Only hosts under the authorized
+    root domain that resolve to public addresses are probed. Everything else
+    is still recorded as a discovery, just never connected to.
+    """
+    import asyncio
+
+    if not host_in_scope(host, root_domain):
+        logger.info("Not probing %s: outside the authorized domain %s", host, root_domain)
+        return False
+    check = await asyncio.to_thread(check_public_target, host)
+    if not check.allowed:
+        logger.info("Not probing %s: %s", host, check.reason)
+    return check.allowed
+
+
+async def filter_probe_targets(hosts: Iterable[str], root_domain: Optional[str]) -> List[str]:
+    import asyncio
+
+    hosts = list(hosts)
+    flags = await asyncio.gather(*(probe_allowed(h, root_domain) for h in hosts))
+    return [h for h, ok in zip(hosts, flags) if ok]
+
+
+# ── Outbound HTTP guard ──────────────────────────────────────────────────────
+_HOST_VERDICTS: dict = {}
+_VERDICT_TTL = 60.0
+
+
+async def block_internal_requests(request) -> None:
+    """httpx request hook: refuse requests (and redirects) to internal hosts.
+
+    Scanners follow redirects, and a public site can redirect to
+    ``http://169.254.169.254/`` or an internal name. Attach with
+    ``httpx.AsyncClient(event_hooks=GUARDED_HOOKS)``.
+    """
+    import asyncio
+    import time
+
+    import httpx
+
+    host = request.url.host
+    now = time.monotonic()
+    cached = _HOST_VERDICTS.get(host)
+    if cached and now - cached[1] < _VERDICT_TTL:
+        allowed = cached[0]
+    else:
+        allowed = (await asyncio.to_thread(check_public_target, host)).allowed
+        if len(_HOST_VERDICTS) > 5000:
+            _HOST_VERDICTS.clear()
+        _HOST_VERDICTS[host] = (allowed, now)
+    if not allowed:
+        raise httpx.RequestError(f"Blocked request to non-public host {host}", request=request)
+
+
+GUARDED_HOOKS = {"request": [block_internal_requests]}

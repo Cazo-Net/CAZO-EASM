@@ -383,6 +383,42 @@ def _matching_scopes(db: Session, organization_id: str, target: str) -> List[Aut
     return [s for s in get_scopes_for_org(db, organization_id) if _target_matches_scope(s, target)]
 
 
+def _actor_may_register_scopes(db: Session, actor_id: Optional[str]) -> bool:
+    """Only people who can manage the organization's scopes may add one implicitly."""
+    if not actor_id:
+        return False
+    from app.core.permissions import Permission, check_custom_permission, check_permission
+    from app.models.user import User
+
+    user = db.query(User).filter(User.id == actor_id).first()
+    if not user:
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    role = getattr(user, "role", None) or ""
+    try:
+        return bool(check_custom_permission(role, Permission.MANAGE_ORG, db, user.organization_id))
+    except Exception:  # noqa: BLE001 - a permission lookup failure must not grant access
+        return check_permission(role, Permission.MANAGE_ORG)
+
+
+def _audit_auto_registered(db: Session, scope: AuthorizedScope, actor_id: Optional[str]) -> None:
+    try:
+        from app.services.audit import log_event
+
+        log_event(
+            db,
+            action="scope.create",
+            organization_id=scope.organization_id,
+            actor_id=actor_id,
+            target_type="scope",
+            target_id=scope.id,
+            detail={"scope_type": scope.scope_type, "value": scope.value, "auto_registered": True},
+        )
+    except Exception:  # noqa: BLE001 - auditing must never block the scan request
+        logger.warning("Could not write audit entry for auto-registered scope %s", scope.id, exc_info=True)
+
+
 def authorize_scan_target(
     db: Session,
     organization_id: Optional[str],
@@ -427,7 +463,11 @@ def authorize_scan_target(
 
     if matches:
         scope = matches[0]
-    elif auto_register and mode == "verified" and is_valid_scope_value("wildcard", f"*.{target}"):
+    elif (
+        auto_register and mode == "verified"
+        and is_valid_scope_value("wildcard", f"*.{target}")
+        and _actor_may_register_scopes(db, actor_id)
+    ):
         scope = AuthorizedScope(
             organization_id=organization_id,
             scope_type="wildcard",
@@ -440,6 +480,7 @@ def authorize_scan_target(
         db.add(scope)
         db.commit()
         db.refresh(scope)
+        _audit_auto_registered(db, scope, actor_id)
     else:
         return ScanAuthorization(
             False, target,

@@ -82,6 +82,20 @@ and weekly maintenance jobs, once across all workers.
   (set `verified = true` on the `authorized_scopes` row from the admin panel or
   SQL). Private, loopback and cloud-metadata addresses are always blocked.
 
+### Upgrading an existing deployment
+
+- Scope enforcement was switched off in an earlier release; this one turns it
+  back on in production (`SCOPE_ENFORCEMENT=verified`). After the upgrade,
+  existing customers' scans and schedules are refused until each domain is
+  verified with the DNS TXT record shown on the Scopes page. Schedule owners
+  get a notification when a scheduled scan is skipped for this reason.
+- To roll out gradually, deploy with `SCOPE_ENFORCEMENT=registered` (a domain
+  only has to be on the Scopes list) or `open` (previous behaviour), ask
+  customers to verify, then switch to `verified`.
+- Only people who can manage the organization can add a domain to the scope
+  list; other members see "not in your authorized scope" until an admin adds it.
+- OSINT lookups (`/api/v1/osint`) follow the same scope rules as scans.
+
 ## Railway
 
 Railway builds each service from the repository root. Set each service's

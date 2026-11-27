@@ -22,6 +22,8 @@ from urllib.parse import urljoin
 import dns.resolver
 import httpx
 
+from app.core.target_guard import GUARDED_HOOKS
+
 from app.scanners.v2.base import EnhancedBaseScanner, ScanResult, ScannerPriority
 from app.scanners.v2.registry import register_scanner, ScannerCategory
 
@@ -204,6 +206,10 @@ class ExposureValidator(EnhancedBaseScanner):
             if sub not in hosts_to_probe:
                 hosts_to_probe.append(sub)
 
+        from app.core.target_guard import filter_probe_targets
+
+        hosts_to_probe = await filter_probe_targets(hosts_to_probe, kwargs.get("root_domain") or target)
+
         # Determine which ports have HTTP services
         http_ports: list[int] = []
         for port in open_ports:
@@ -228,7 +234,7 @@ class ExposureValidator(EnhancedBaseScanner):
 
         async with httpx.AsyncClient(
             timeout=self.timeout,
-            follow_redirects=True,
+            follow_redirects=True, event_hooks=GUARDED_HOOKS,
             verify=self._verify_ssl,
             headers={"User-Agent": "CAZO-EASM/2.0 (Security Scanner)"},
         ) as client:
@@ -366,7 +372,7 @@ class ExposureValidator(EnhancedBaseScanner):
 
         async with httpx.AsyncClient(
             timeout=15,
-            follow_redirects=True,
+            follow_redirects=True, event_hooks=GUARDED_HOOKS,
             verify=False,
             headers={"User-Agent": "CAZO-EASM/2.0 (Security Scanner)"},
         ) as client:
@@ -427,7 +433,7 @@ class ExposureValidator(EnhancedBaseScanner):
 
         async with httpx.AsyncClient(
             timeout=15,
-            follow_redirects=True,
+            follow_redirects=True, event_hooks=GUARDED_HOOKS,
             verify=False,
             headers={"User-Agent": "CAZO-EASM/2.0 (Security Scanner)"},
         ) as client:
@@ -591,7 +597,7 @@ class ExposureValidator(EnhancedBaseScanner):
 
         async with httpx.AsyncClient(
             timeout=15,
-            follow_redirects=True,
+            follow_redirects=True, event_hooks=GUARDED_HOOKS,
             verify=False,
             headers={"User-Agent": "CAZO-EASM/2.0 (Security Scanner)"},
         ) as client:
@@ -802,7 +808,7 @@ class ExposureValidator(EnhancedBaseScanner):
         """Check if a hostname returns an error page indicating it's unclaimed."""
         try:
             async with httpx.AsyncClient(
-                timeout=10, follow_redirects=True, verify=False,
+                timeout=10, follow_redirects=True, event_hooks=GUARDED_HOOKS, verify=False,
                 headers={"User-Agent": "CAZO-EASM/2.0"},
             ) as client:
                 resp = await client.get(f"https://{hostname}", timeout=8)

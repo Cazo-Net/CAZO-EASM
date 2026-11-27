@@ -30,6 +30,7 @@ import sys
 
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.schema import CreateColumn
 
 logger = logging.getLogger("app.db_migrate")
@@ -103,7 +104,25 @@ def migrate() -> None:
                 command.stamp(cfg, "heads")
             elif managed:
                 logger.info("Alembic-managed database: upgrading to head")
-                command.upgrade(cfg, "heads")
+                try:
+                    command.upgrade(cfg, "heads")
+                except (ProgrammingError, OperationalError) as exc:
+                    if "already exists" not in str(exc).lower():
+                        raise
+                    # The version table says "old revision" but later tables
+                    # were already built by create_all (the old startup path
+                    # did both). Replaying those migrations cannot work, so
+                    # treat the schema as create_all-built: fill gaps from the
+                    # models, mark the history as applied, then run only the
+                    # idempotent queue/scope migration.
+                    logger.warning(
+                        "Alembic history does not match the schema (%s). "
+                        "Reconciling from the models instead of replaying old migrations.",
+                        str(exc).splitlines()[0],
+                    )
+                    Base.metadata.create_all(bind=write_engine)
+                    command.stamp(cfg, list(_PRE_QUEUE_HEADS), purge=True)
+                    command.upgrade(cfg, "heads")
             else:
                 logger.info("Unmanaged (create_all) database: stamping and upgrading")
                 Base.metadata.create_all(bind=write_engine)

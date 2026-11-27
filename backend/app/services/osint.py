@@ -13,6 +13,7 @@ always returned. Designed to be called from a request path via a threadpool.
 """
 from __future__ import annotations
 
+import functools
 import socket
 import ssl
 import re
@@ -211,12 +212,22 @@ def _resolve_dns(domain: str) -> Dict[str, List[str]]:
     return records
 
 
+@functools.lru_cache(maxsize=4096)
+def _connectable(host: str) -> bool:
+    """Never open a socket to an internal name or an address inside our own network."""
+    from app.core.target_guard import check_public_target
+
+    return check_public_target(host).allowed
+
+
 def _grab_cert_sans(domain: str, port: int = 443) -> Optional[Dict[str, object]]:
     if not x509:
         return None
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
+    if not _connectable(domain):
+        return None
     try:
         with socket.create_connection((domain, port), timeout=8) as sock:
             with ctx.wrap_socket(sock, server_hostname=domain) as ss:
@@ -247,6 +258,8 @@ def _probe_port(host: str, port: int) -> PortResult:
     svc = {80: "HTTP", 443: "HTTPS", 8080: "HTTP-ALT", 8443: "HTTPS-ALT",
            22: "SSH", 21: "FTP", 25: "SMTP", 53: "DNS", 3306: "MySQL",
            5432: "PostgreSQL", 6379: "Redis", 27017: "MongoDB", 3389: "RDP"}.get(port)
+    if not _connectable(host):
+        return PortResult(port=port, state="filtered", service=svc)
     try:
         with socket.create_connection((host, port), timeout=5) as sock:
             banner = None

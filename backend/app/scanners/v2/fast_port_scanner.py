@@ -153,6 +153,9 @@ class FastPortScanner(EnhancedBaseScanner):
 
         # Scan each host
         host_port_map: Dict[str, list] = {}
+        from app.core.target_guard import is_blocked_ip
+
+        resolved_hosts = [(h, ip) for h, ip in resolved_hosts if not is_blocked_ip(ip)]
         for hostname, ip in resolved_hosts[:30]:
             host_result = await self._scan_host(ip, scan_type, explicit_ports)
             if host_result.get("open_ports"):

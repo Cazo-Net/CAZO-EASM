@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { osintLookup, type OsintResult } from "@/lib/api";
+import { getErrorMessage, osintLookup, type OsintResult } from "@/lib/api";
 
 interface IntelState {
   query: string;
@@ -78,11 +78,10 @@ export function useIntelStore() {
       _state = { ..._state, loading: false, data: res };
     } catch (e: any) {
       if (e?.name === "AbortError") return;
-      const detail = e?.response?.data?.detail;
       _state = {
         ..._state,
         loading: false,
-        error: typeof detail === "string" ? detail : e?.message || "Intelligence lookup failed.",
+        error: getErrorMessage(e, "Intelligence lookup failed."),
       };
     } finally {
       _stopTimer();

@@ -94,7 +94,9 @@ async def lifespan(app: FastAPI):
     from app.core.scope import scope_mode
     from app.workers.scan_worker import start_embedded_worker, stop_embedded_worker
     _exec_mode = execution_mode()
-    _embedded = _exec_mode == "queue" and settings.RUN_EMBEDDED_WORKER
+    # The worker also runs schedules and maintenance, so it starts in every
+    # execution mode; scheduled scans always go through the queue.
+    _embedded = bool(settings.RUN_EMBEDDED_WORKER)
     if _embedded:
         await start_embedded_worker()
     logger.info(

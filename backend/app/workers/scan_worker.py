@@ -27,6 +27,7 @@ from typing import Awaitable, Callable, Dict, Optional
 from app.config import settings
 from app.services import job_queue
 from app.services.job_queue import ClaimedJob
+from app.services.scan_context import ScanCancelled
 
 logger = logging.getLogger("app.workers.scan_worker")
 
@@ -53,11 +54,19 @@ async def default_executor(job: ClaimedJob) -> None:
     else:
         from app.services.scan_service import ScanService as Service
 
+    from app.services.scan_context import queue_managed
+
+    token = queue_managed.set(True)
     db = _session()
     try:
         await Service(db).execute_scan(job.scan_id)
     finally:
         db.close()
+        queue_managed.reset(token)
+
+
+# Errors that will not go away on a retry.
+NON_RETRYABLE = (ValueError, PermissionError, LookupError)
 
 
 class ScanWorker:
@@ -77,6 +86,7 @@ class ScanWorker:
         self._running: Dict[str, asyncio.Task] = {}
         self._stopping = asyncio.Event()
         self._last_reap = 0.0
+        self._periodic_task: Optional[asyncio.Task] = None
         self.started_at = datetime.now(timezone.utc)
 
     # ── public ────────────────────────────────────────────────────────
@@ -90,7 +100,10 @@ class ScanWorker:
 
     async def run(self) -> None:
         logger.info("Scan worker %s started (concurrency=%d)", self.worker_id, self.concurrency)
-        self._reap()
+        await self._reap()
+        if self.run_periodic:
+            # Own loop, so a long maintenance job never delays claiming scans.
+            self._periodic_task = asyncio.create_task(self._periodic_loop(), name="scan-worker-periodic")
         try:
             while not self._stopping.is_set():
                 worked = await self.tick()
@@ -106,9 +119,7 @@ class ScanWorker:
         """One loop iteration. Returns True if a job was claimed."""
         loop = asyncio.get_running_loop()
         if loop.time() - self._last_reap > 60:
-            self._reap()
-        if self.run_periodic:
-            await asyncio.to_thread(self._periodic)
+            await self._reap()
 
         claimed = False
         while len(self._running) < self.concurrency and not self._stopping.is_set():
@@ -137,11 +148,19 @@ class ScanWorker:
         finally:
             db.close()
 
-    def _reap(self) -> None:
-        try:
-            self._last_reap = asyncio.get_running_loop().time()
-        except RuntimeError:
-            pass
+    async def _reap(self) -> None:
+        self._last_reap = asyncio.get_running_loop().time()
+        await asyncio.to_thread(self._reap_sync)
+
+    async def _periodic_loop(self) -> None:
+        while not self._stopping.is_set():
+            await asyncio.to_thread(self._periodic)
+            try:
+                await asyncio.wait_for(self._stopping.wait(), timeout=30)
+            except asyncio.TimeoutError:
+                pass
+
+    def _reap_sync(self) -> None:
         db = _session()
         try:
             n = job_queue.reap_stale_jobs(db)
@@ -182,19 +201,25 @@ class ScanWorker:
             await asyncio.sleep(interval)
             if task.done():
                 return
-            db = _session()
-            try:
-                still_ours = job_queue.heartbeat(db, job.id, self.worker_id)
-            except Exception:  # noqa: BLE001
-                logger.exception("Heartbeat failed for job %s", job.id)
-                db.rollback()
-                still_ours = True
-            finally:
-                db.close()
+            still_ours = await asyncio.to_thread(self._heartbeat_sync, job)
             if not still_ours:
                 logger.warning("Job %s was cancelled or reassigned; stopping scan %s", job.id, job.scan_id)
                 task.cancel()
                 return
+
+    def _heartbeat_sync(self, job: ClaimedJob) -> bool:
+        db = _session()
+        try:
+            return job_queue.heartbeat(db, job.id, self.worker_id)
+        except Exception:  # noqa: BLE001
+            # A database blip is not proof the job was taken away. If it
+            # lasts, the reaper hands the job on and the ownership guards in
+            # job_queue stop this worker from touching it afterwards.
+            logger.exception("Heartbeat failed for job %s", job.id)
+            db.rollback()
+            return True
+        finally:
+            db.close()
 
     async def _run_job(self, job: ClaimedJob) -> None:
         logger.info("Running scan %s (%s, %s, attempt %d/%d) for %s",
@@ -220,8 +245,14 @@ class ScanWorker:
                 else:
                     await asyncio.to_thread(self._mark_scan_cancelled, job)
                 return
+            except ScanCancelled:
+                logger.info("Scan %s was cancelled", job.scan_id)
+                return
             except Exception as exc:  # noqa: BLE001
-                await asyncio.to_thread(self._finish_failed, job, str(exc) or type(exc).__name__, True)
+                await asyncio.to_thread(
+                    self._finish_failed, job, str(exc) or type(exc).__name__,
+                    not isinstance(exc, NON_RETRYABLE),
+                )
                 return
             finally:
                 hb.cancel()
@@ -235,35 +266,73 @@ class ScanWorker:
     def _finish_ok(self, job: ClaimedJob) -> None:
         db = _session()
         try:
-            job_queue.complete_job(db, job.id)
-            logger.info("Scan %s completed", job.scan_id)
+            if job_queue.complete_job(db, job.id, self.worker_id):
+                logger.info("Scan %s completed", job.scan_id)
+            else:
+                logger.warning("Scan %s finished but job %s is no longer ours; leaving it alone",
+                               job.scan_id, job.id)
         finally:
             db.close()
 
     def _finish_failed(self, job: ClaimedJob, error: str, retryable: bool) -> None:
         db = _session()
         try:
-            status = job_queue.fail_job(db, job, error, retryable=retryable)
-            logger.warning("Scan %s failed (%s): %s", job.scan_id, status, error)
+            status = job_queue.fail_job(db, job, error, worker_id=self.worker_id, retryable=retryable)
+            logger.warning("Scan %s failed (job now %s): %s", job.scan_id, status, error)
+            if status == "failed":
+                self._notify_failed(db, job, error)
         finally:
             db.close()
+
+    @staticmethod
+    def _notify_failed(db, job: ClaimedJob, error: str) -> None:
+        """Tell the scan's owner once, after the last attempt."""
+        try:
+            from app.models.scan import Scan
+            from app.services.notification_service import dispatch_notification
+
+            scan = db.query(Scan).filter(Scan.id == job.scan_id).first()
+            if not scan or not scan.created_by:
+                return
+            dispatch_notification(
+                db=db,
+                organization_id=scan.organization_id,
+                user_id=scan.created_by,
+                notification_type="scan_failed",
+                title=f"Scan failed: {scan.domain}",
+                message=f"Scan for {scan.domain} failed. {error}"[:500],
+                related_entity_type="scan",
+                related_entity_id=scan.id,
+                data={"scan_id": scan.id, "domain": scan.domain, "error": error[:500]},
+                skip_dedup=True,
+            )
+        except Exception:  # noqa: BLE001
+            db.rollback()
+            logger.exception("Failed to send scan failure notification for %s", job.scan_id)
 
     def _release(self, job: ClaimedJob) -> None:
         db = _session()
         try:
-            job_queue.release_job(db, job.id, job.scan_id)
-            logger.info("Released job %s back to the queue (shutdown)", job.id)
+            if job_queue.release_job(db, job.id, job.scan_id, self.worker_id):
+                logger.info("Released job %s back to the queue (shutdown)", job.id)
         finally:
             db.close()
 
     def _mark_scan_cancelled(self, job: ClaimedJob) -> None:
+        """Our heartbeat was refused. Only a user cancel ends the scan; if the
+        job was reaped and handed to another worker, that worker owns it now."""
         from sqlalchemy import text
 
         db = _session()
         try:
+            job_status = db.execute(
+                text("SELECT status FROM scan_jobs WHERE id = :id"), {"id": job.id}
+            ).scalar()
+            if job_status != "cancelled":
+                return
             db.execute(
                 text("UPDATE scans SET status = 'cancelled', completed_at = :now "
-                     "WHERE id = :sid AND status IN ('pending', 'running')"),
+                     "WHERE id = :sid AND status IN ('pending', 'running', 'failed')"),
                 {"now": datetime.now(timezone.utc), "sid": job.scan_id},
             )
             db.commit()
@@ -271,6 +340,10 @@ class ScanWorker:
             db.close()
 
     async def _shutdown(self) -> None:
+        if self._periodic_task is not None:
+            self._periodic_task.cancel()
+            await asyncio.gather(self._periodic_task, return_exceptions=True)
+            self._periodic_task = None
         if not self._running:
             return
         grace = int(os.environ.get("SCAN_WORKER_SHUTDOWN_GRACE_SECONDS", "20"))

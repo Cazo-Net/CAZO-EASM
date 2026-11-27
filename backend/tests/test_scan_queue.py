@@ -62,7 +62,7 @@ def test_enqueue_is_idempotent_and_claim_marks_running(db_session, org_and_user)
     job = db_session.get(ScanJob, j1.id)
     assert job.status == "running" and job.worker_id == "w1" and job.heartbeat_at is not None
 
-    job_queue.complete_job(db_session, j1.id)
+    job_queue.complete_job(db_session, j1.id, "w1")
     db_session.expire_all()
     assert db_session.get(ScanJob, j1.id).status == "completed"
 
@@ -74,13 +74,13 @@ def test_failure_retries_with_backoff_then_fails(db_session, org_and_user, monke
     job_queue.enqueue_scan(db_session, scan, max_attempts=2)
 
     c = job_queue.claim_next_job(db_session, "w")
-    assert job_queue.fail_job(db_session, c, "boom") == "pending"
+    assert job_queue.fail_job(db_session, c, "boom", worker_id="w") == "pending"
     db_session.expire_all()
     assert db_session.get(Scan, scan.id).status == "pending"
 
     c = job_queue.claim_next_job(db_session, "w")
     assert c is not None and c.attempt == 1
-    assert job_queue.fail_job(db_session, c, "boom again") == "failed"
+    assert job_queue.fail_job(db_session, c, "boom again", worker_id="w") == "failed"
     db_session.expire_all()
     s = db_session.get(Scan, scan.id)
     assert s.status == "failed" and "boom again" in s.error_message
@@ -91,7 +91,7 @@ def test_backoff_delays_next_claim(db_session, org_and_user, monkeypatch):
     org, user = org_and_user
     job_queue.enqueue_scan(db_session, _scan(db_session, org, user), max_attempts=3)
     c = job_queue.claim_next_job(db_session, "w")
-    job_queue.fail_job(db_session, c, "transient")
+    job_queue.fail_job(db_session, c, "transient", worker_id="w")
     assert job_queue.claim_next_job(db_session, "w") is None  # not available for an hour
 
 
@@ -391,3 +391,49 @@ def test_postgres_urls_pinned_to_psycopg2():
     assert normalize_postgres_url("postgresql://u:p@h/db") == "postgresql+psycopg2://u:p@h/db"
     assert normalize_postgres_url("postgresql+psycopg2://u@h/db") == "postgresql+psycopg2://u@h/db"
     assert normalize_postgres_url("sqlite:///x.db") == "sqlite:///x.db"
+
+
+# ── Review follow-ups: ownership and cancellation ─────────────────────
+
+
+def test_only_the_owning_worker_can_finish_a_job(db_session, org_and_user, monkeypatch):
+    """A worker whose job was reaped and re-claimed must not overwrite the new owner's result."""
+    monkeypatch.setattr(settings, "SCAN_RETRY_BASE_SECONDS", 0)
+    org, user = org_and_user
+    scan = _scan(db_session, org, user)
+    job = job_queue.enqueue_scan(db_session, scan, max_attempts=3)
+
+    old = job_queue.claim_next_job(db_session, "old-worker")
+    db_session.query(ScanJob).filter(ScanJob.id == job.id).update(
+        {"heartbeat_at": datetime.now(timezone.utc) - timedelta(hours=1),
+         "started_at": datetime.now(timezone.utc) - timedelta(hours=1)})
+    db_session.commit()
+    assert job_queue.reap_stale_jobs(db_session, timedelta(minutes=5)) == 1
+    new = job_queue.claim_next_job(db_session, "new-worker")
+    assert new is not None and new.id == old.id
+
+    assert job_queue.complete_job(db_session, job.id, "old-worker") is False
+    assert job_queue.fail_job(db_session, old, "late failure", worker_id="old-worker") == "running"
+    assert job_queue.release_job(db_session, job.id, scan.id, "old-worker") is False
+    db_session.expire_all()
+    j = db_session.get(ScanJob, job.id)
+    assert j.status == "running" and j.worker_id == "new-worker"
+    assert db_session.get(Scan, scan.id).status != "failed"
+
+    assert job_queue.complete_job(db_session, job.id, "new-worker") is True
+
+
+def test_failure_after_cancel_keeps_scan_cancelled(db_session, org_and_user):
+    org, user = org_and_user
+    scan = _scan(db_session, org, user)
+    job_queue.enqueue_scan(db_session, scan)
+    c = job_queue.claim_next_job(db_session, "w")
+    assert job_queue.cancel_scan_jobs(db_session, scan.id) == 1
+    db_session.query(Scan).filter(Scan.id == scan.id).update({"status": "cancelled"})
+    db_session.commit()
+
+    assert job_queue.fail_job(db_session, c, "killed", worker_id="w") == "cancelled"
+    assert job_queue.complete_job(db_session, c.id, "w") is False
+    db_session.expire_all()
+    assert db_session.get(Scan, scan.id).status == "cancelled"
+    assert db_session.get(ScanJob, c.id).status == "cancelled"

@@ -18,6 +18,8 @@ from typing import Any, Dict, List
 
 import httpx
 
+from app.core.target_guard import GUARDED_HOOKS
+
 from app.scanners.v2.base import EnhancedBaseScanner, ScanResult, ScannerPriority
 from app.scanners.v2.registry import register_scanner, ScannerCategory
 
@@ -510,7 +512,7 @@ class TechnologyIntelligenceScanner(EnhancedBaseScanner):
         for url in urls:
             try:
                 async with httpx.AsyncClient(
-                    timeout=5, follow_redirects=True, verify=False
+                    timeout=5, follow_redirects=True, event_hooks=GUARDED_HOOKS, verify=False
                 ) as client:
                     resp = await client.get(url)
                     headers = dict(resp.headers)

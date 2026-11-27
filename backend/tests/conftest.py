@@ -9,6 +9,8 @@ os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 os.environ.setdefault("REDIS_URL", "")
 os.environ.setdefault("CELERY_BROKER_URL", "")
 os.environ.setdefault("CELERY_RESULT_BACKEND", "")
+# Tests drive the queue directly; no background worker inside the test app.
+os.environ.setdefault("RUN_EMBEDDED_WORKER", "false")
 
 import pytest
 from fastapi.testclient import TestClient

@@ -1,5 +1,6 @@
 """Scope enforcement at scan time: public-target guard, verified ownership,
 DNS TXT verification, and the API paths that start scans."""
+import asyncio
 import uuid
 
 import pytest
@@ -129,8 +130,14 @@ class TestAuthorizeScanTarget:
         assert not authorize_scan_target(db_session, None, "example.com").authorized
 
     def test_unknown_target_auto_registers_unverified_scope(self, db_session, verified_mode):
+        from app.models.user import User
+
         org = self._org(db_session)
-        auth = authorize_scan_target(db_session, org.id, "Example.com")
+        admin = User(email=f"{uuid.uuid4().hex[:8]}@t.test", hashed_password="x", full_name="A",
+                     organization_id=org.id, role="admin")
+        db_session.add(admin)
+        db_session.commit()
+        auth = authorize_scan_target(db_session, org.id, "Example.com", actor_id=admin.id)
         assert not auth.authorized
         assert auth.verification["record_name"] == "_cazo-verify.example.com"
         assert auth.verification["record_value"].startswith("cazo-verify=")
@@ -290,3 +297,108 @@ class TestScanApiEnforcement:
         assert resp.status_code == 200
         body = resp.json()
         assert "execution_mode" in body and "queue" in body
+
+
+# ── Review follow-ups ─────────────────────────────────────────────────
+
+
+def test_auto_register_requires_manage_org(client, verified_mode, org_user):
+    """A member without scope-management rights cannot grow the scope list by asking for a scan."""
+    from app.core.scope import authorize_scan_target
+    from app.models.user import User
+
+    db = TestingSessionLocal()
+    try:
+        user = db.get(User, org_user["user_id"])
+        user.role = "analyst"
+        db.commit()
+        auth = authorize_scan_target(db, org_user["org_id"], "newco.com", actor_id=user.id)
+        assert not auth.authorized and auth.scope_id is None
+        assert db.query(AuthorizedScope).filter(AuthorizedScope.organization_id == org_user["org_id"]).count() == 0
+
+        user.role = "admin"
+        db.commit()
+        auth = authorize_scan_target(db, org_user["org_id"], "newco.com", actor_id=user.id)
+        assert not auth.authorized and auth.scope_id and auth.verification
+    finally:
+        db.close()
+
+
+def test_probe_allowed_only_in_scope_public_hosts(public_dns):
+    public_dns["internal.acme.com"] = ["10.0.0.5"]
+    public_dns["meta.acme.com"] = ["169.254.169.254"]
+
+    async def run():
+        return await target_guard.filter_probe_targets(
+            ["www.acme.com", "internal.acme.com", "meta.acme.com", "other-company.com",
+             "evilacme.com", "db.acme.com.internal", "10.1.2.3"],
+            "acme.com",
+        )
+
+    assert asyncio.run(run()) == ["www.acme.com"]
+
+
+def test_v2_pipeline_drops_unprobeable_discoveries(public_dns):
+    from app.scanners.v2.pipeline import PipelineContext, ScanPipeline
+
+    public_dns["vpn.acme.com"] = ["192.168.1.1"]
+    ctx = PipelineContext(target="acme.com")
+    ctx.add_discovered_assets([
+        {"hostname": "www.acme.com"}, {"hostname": "vpn.acme.com"}, {"hostname": "cdn.partner.net"},
+    ])
+    asyncio.run(ScanPipeline()._gate_discovered_assets("acme.com", ctx))
+    assert [a["hostname"] for a in ctx.discovered_assets] == ["www.acme.com"]
+    assert ctx.metadata["skipped_out_of_scope"] == 2
+
+
+def test_http_guard_blocks_redirect_to_internal_address(public_dns):
+    import httpx
+
+    target_guard._HOST_VERDICTS.clear()
+
+    def handler(request):
+        if request.url.host == "www.acme.com":
+            return httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data/"})
+        raise AssertionError(f"request reached {request.url}")
+
+    async def run():
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(handler), follow_redirects=True,
+            event_hooks=target_guard.GUARDED_HOOKS,
+        ) as c:
+            await c.get("http://www.acme.com/")
+
+    with pytest.raises(httpx.RequestError, match="non-public"):
+        asyncio.run(run())
+
+
+def test_osint_lookup_requires_scope(client, verified_mode, org_user, monkeypatch):
+    from app.services import osint
+
+    called = []
+    monkeypatch.setattr(osint, "lookup_domain", lambda d: called.append(d) or osint.IntelResult(query=d))
+    r = client.get("/api/v1/osint", params={"q": "someone-else.com"}, headers=org_user["headers"])
+    assert r.status_code == 403 and called == []
+    r = client.get("/api/v1/osint", params={"q": "127.0.0.1"}, headers=org_user["headers"])
+    assert r.status_code == 403 and called == []
+
+    db = TestingSessionLocal()
+    try:
+        db.add(AuthorizedScope(organization_id=org_user["org_id"], scope_type="wildcard",
+                               value="*.mine.com", verified=True))
+        db.commit()
+    finally:
+        db.close()
+    r = client.get("/api/v1/osint", params={"q": "mine.com"}, headers=org_user["headers"])
+    assert r.status_code == 200 and called == ["mine.com"]
+
+
+def test_osint_sockets_refuse_internal_hosts(public_dns):
+    from app.services import osint
+
+    public_dns["intra.acme.com"] = ["10.9.9.9"]
+    osint._connectable.cache_clear()
+    assert osint._probe_port("intra.acme.com", 80).state == "filtered"
+    assert osint._probe_port("127.0.0.1", 80).state == "filtered"
+    assert osint._grab_cert_sans("169.254.169.254") is None
+    osint._connectable.cache_clear()

@@ -102,6 +102,29 @@ def default_engine() -> str:
     return os.environ.get("SCAN_ENGINE", "v2").lower()
 
 
+def _notify_schedule_skipped(db: Session, org_id, user_id, sched_id: str, domain: str, reason: str) -> None:
+    """Tell the schedule's owner, otherwise a blocked schedule just goes quiet."""
+    if not user_id:
+        return
+    try:
+        from app.services.notification_service import dispatch_notification
+
+        dispatch_notification(
+            db=db,
+            organization_id=org_id,
+            user_id=user_id,
+            notification_type="scan_failed",
+            title=f"Scheduled scan skipped: {domain}",
+            message=f"The scheduled scan for {domain} did not run. {reason}",
+            related_entity_type="schedule",
+            related_entity_id=sched_id,
+            data={"schedule_id": sched_id, "domain": domain, "reason": reason},
+        )
+    except Exception:  # noqa: BLE001 - a notification problem must not stop the scheduler
+        db.rollback()
+        logger.warning("Could not notify owner about skipped schedule %s", sched_id, exc_info=True)
+
+
 def run_due_schedules(db: Session, limit: int = 50) -> int:
     """Turn every due ``monitor_schedules`` row into a real, queued scan.
 
@@ -152,6 +175,7 @@ def run_due_schedules(db: Session, limit: int = 50) -> int:
                         target_type="domain", target_id=domain, status="denied",
                         detail={"schedule_id": sched_id, "reason": auth.reason},
                     )
+                _notify_schedule_skipped(db, org_id, user_id, sched_id, domain, auth.reason)
                 continue
             engine = default_engine()
             scan = Scan(
@@ -227,7 +251,8 @@ def run_periodic_tasks(db: Session, worker_id: str, jobs: Optional[List[Periodic
             logger.exception("Scheduled-scan tick failed")
 
     for job in (MAINTENANCE_JOBS if jobs is None else jobs):
-        if not try_acquire(db, job.name, job.interval, worker_id):
+        # Lease well beyond any job's runtime so a slow run is never doubled.
+        if not try_acquire(db, job.name, job.interval, worker_id, lease=timedelta(hours=6)):
             continue
         try:
             job.func()

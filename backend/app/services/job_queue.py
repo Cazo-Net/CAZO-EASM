@@ -181,6 +181,19 @@ def claim_next_job(db: Session, worker_id: str) -> Optional[ClaimedJob]:
         if not row:
             db.rollback()
             return None
+        # The running-count in the SELECT cannot see claims that other
+        # workers have not committed yet. Serialize claims per organization
+        # and count again, so the fair-share cap holds under concurrency.
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:org))"), {"org": row["org_id"] or ""}
+        )
+        running = db.execute(
+            text("SELECT COUNT(*) FROM scan_jobs WHERE status = 'running' AND org_id = :org"),
+            {"org": row["org_id"]},
+        ).scalar() or 0
+        if running >= params["per_org"]:
+            db.rollback()
+            return None
         db.execute(
             text(
                 "UPDATE scan_jobs SET status = 'running', worker_id = :w, "
@@ -225,48 +238,77 @@ def heartbeat(db: Session, job_id: str, worker_id: str) -> bool:
     return result.rowcount == 1
 
 
-def complete_job(db: Session, job_id: str) -> None:
-    db.execute(
+def _job_status(db: Session, job_id: str) -> str:
+    return db.execute(
+        text("SELECT status FROM scan_jobs WHERE id = :id"), {"id": job_id}
+    ).scalar() or "missing"
+
+
+# Every state change below is guarded by ``status = 'running' AND worker_id =
+# :w``: a worker may only finish, fail or release a job it still owns. If the
+# job was cancelled, or reaped and handed to another worker in the meantime,
+# the update matches nothing and neither the job nor its scan is touched.
+
+
+def complete_job(db: Session, job_id: str, worker_id: str) -> bool:
+    """Mark a job completed. Returns False if this worker no longer owns it."""
+    result = db.execute(
         text(
             "UPDATE scan_jobs SET status = 'completed', completed_at = :now, error_message = NULL "
-            "WHERE id = :id AND status = 'running'"
+            "WHERE id = :id AND status = 'running' AND worker_id = :w"
         ),
-        {"now": _now(), "id": job_id},
+        {"now": _now(), "id": job_id, "w": worker_id},
     )
     db.commit()
+    return result.rowcount == 1
 
 
-def fail_job(db: Session, job: ClaimedJob, error: str, *, retryable: bool = True) -> str:
-    """Record a failed attempt. Returns the job's new status ('pending' or 'failed')."""
+def fail_job(db: Session, job: ClaimedJob, error: str, *, worker_id: str, retryable: bool = True) -> str:
+    """Record a failed attempt by ``worker_id``.
+
+    Returns the job's resulting status: 'pending' (will be retried), 'failed'
+    (no attempts left), or whatever the job's status actually is when this
+    worker no longer owns it (e.g. 'cancelled'), in which case nothing changes.
+    """
     next_attempt = job.attempt + 1
     error = (error or "Scan failed")[:2000]
     if retryable and next_attempt < job.max_attempts:
-        db.execute(
+        result = db.execute(
             text(
                 "UPDATE scan_jobs SET status = 'pending', attempt = :a, worker_id = NULL, "
                 "started_at = NULL, heartbeat_at = NULL, available_at = :avail, error_message = :err "
-                "WHERE id = :id AND status = 'running'"
+                "WHERE id = :id AND status = 'running' AND worker_id = :w"
             ),
-            {"a": next_attempt, "avail": _now() + retry_backoff(next_attempt), "err": error, "id": job.id},
+            {"a": next_attempt, "avail": _now() + retry_backoff(next_attempt), "err": error,
+             "id": job.id, "w": worker_id},
         )
+        if result.rowcount != 1:
+            db.rollback()
+            return _job_status(db, job.id)
         db.execute(
-            text("UPDATE scans SET status = 'pending', error_message = :err WHERE id = :sid"),
+            text(
+                "UPDATE scans SET status = 'pending', error_message = :err, completed_at = NULL "
+                "WHERE id = :sid AND status IN ('pending', 'running', 'failed')"
+            ),
             {"err": f"Retrying after error: {error}"[:2000], "sid": job.scan_id},
         )
         db.commit()
         return "pending"
 
-    db.execute(
+    result = db.execute(
         text(
             "UPDATE scan_jobs SET status = 'failed', attempt = :a, completed_at = :now, error_message = :err "
-            "WHERE id = :id AND status = 'running'"
+            "WHERE id = :id AND status = 'running' AND worker_id = :w"
         ),
-        {"a": next_attempt, "now": _now(), "err": error, "id": job.id},
+        {"a": next_attempt, "now": _now(), "err": error, "id": job.id, "w": worker_id},
     )
+    if result.rowcount != 1:
+        db.rollback()
+        return _job_status(db, job.id)
     db.execute(
         text(
             "UPDATE scans SET status = 'failed', error_message = :err, completed_at = :now "
-            "WHERE id = :sid AND status <> 'completed'"
+            "WHERE id = :sid AND status IN ('pending', 'running', 'failed')"
         ),
         {"err": error, "now": _now(), "sid": job.scan_id},
     )
@@ -274,20 +316,25 @@ def fail_job(db: Session, job: ClaimedJob, error: str, *, retryable: bool = True
     return "failed"
 
 
-def release_job(db: Session, job_id: str, scan_id: str) -> None:
+def release_job(db: Session, job_id: str, scan_id: str, worker_id: str) -> bool:
     """Put a job back in the queue without using an attempt (graceful shutdown)."""
-    db.execute(
+    result = db.execute(
         text(
             "UPDATE scan_jobs SET status = 'pending', worker_id = NULL, started_at = NULL, "
-            "heartbeat_at = NULL, available_at = :now WHERE id = :id AND status = 'running'"
+            "heartbeat_at = NULL, available_at = :now "
+            "WHERE id = :id AND status = 'running' AND worker_id = :w"
         ),
-        {"now": _now(), "id": job_id},
+        {"now": _now(), "id": job_id, "w": worker_id},
     )
+    if result.rowcount != 1:
+        db.rollback()
+        return False
     db.execute(
-        text("UPDATE scans SET status = 'pending' WHERE id = :sid AND status = 'running'"),
+        text("UPDATE scans SET status = 'pending' WHERE id = :sid AND status IN ('running', 'failed')"),
         {"sid": scan_id},
     )
     db.commit()
+    return True
 
 
 def reap_stale_jobs(db: Session, stale_after: Optional[timedelta] = None) -> int:
@@ -310,7 +357,8 @@ def reap_stale_jobs(db: Session, stale_after: Optional[timedelta] = None) -> int
             max_attempts=job.max_attempts or 1, scan_options={},
         )
         new_status = fail_job(
-            db, claimed, f"Worker {job.worker_id or '?'} stopped responding", retryable=True
+            db, claimed, f"Worker {job.worker_id or '?'} stopped responding",
+            worker_id=job.worker_id or "", retryable=True,
         )
         logger.warning("Reaped stale job %s (scan %s) -> %s", job.id, job.scan_id, new_status)
     return len(stale)

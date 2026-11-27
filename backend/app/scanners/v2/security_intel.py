@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
+from app.core.target_guard import GUARDED_HOOKS, filter_probe_targets
+
 from app.scanners.v2.base import EnhancedBaseScanner, ScanResult, ScannerPriority
 from app.scanners.v2.registry import register_scanner, ScannerCategory
 
@@ -124,7 +126,7 @@ class SecurityFindingsScanner(EnhancedBaseScanner):
 
         # HTTP misconfiguration
         try:
-            await self._http_checks(scan_results, findings)
+            await self._http_checks(scan_results, findings, kwargs.get("root_domain") or target)
         except Exception as e:
             logger.warning("HTTP misconfig checks failed: %s", e)
 
@@ -137,7 +139,7 @@ class SecurityFindingsScanner(EnhancedBaseScanner):
                 "vuln_type": vuln_type, "host": host, "matched_at": host,
                 "description": f"{name} on {host}.", "tags": [vuln_type]}
 
-    async def _http_checks(self, scan_results, findings):
+    async def _http_checks(self, scan_results, findings, root_domain):
         tech_by_host = scan_results.get("technologies", {}) or {}
         ports_by_host = scan_results.get("ports", {}) or {}
         hosts = set(tech_by_host) | set(ports_by_host)
@@ -171,5 +173,6 @@ class SecurityFindingsScanner(EnhancedBaseScanner):
                     except Exception:
                         pass
 
-        async with httpx.AsyncClient(verify=False, timeout=5, follow_redirects=True) as client:
-            await asyncio.gather(*[_check_host(client, h) for h in sorted(hosts if hosts else set())], return_exceptions=True)
+        probe_hosts = await filter_probe_targets(sorted(hosts), root_domain)
+        async with httpx.AsyncClient(verify=False, timeout=5, follow_redirects=True, event_hooks=GUARDED_HOOKS) as client:
+            await asyncio.gather(*[_check_host(client, h) for h in probe_hosts], return_exceptions=True)
