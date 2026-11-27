@@ -15,7 +15,7 @@ import time
 import uuid
 
 from app.config import settings
-from app.database import get_db, engine, check_db_health
+from app.database import get_db, engine, check_db_health, SessionLocal
 
 security = HTTPBearer()
 
@@ -43,6 +43,10 @@ def require_admin(credentials: HTTPAuthorizationCredentials = Depends(security))
     email = verify_admin_token(credentials.credentials)
     if not email:
         raise HTTPException(status_code=401, detail="Invalid or expired admin token")
+    # A token for a database superuser stops working as soon as that account
+    # is disabled or demoted. (The env-var fallback admin has no DB row.)
+    if _db_superuser(email.strip().lower()) is None and not _env_admin_matches(email):
+        raise HTTPException(status_code=401, detail="Admin account is no longer active")
     return email
 
 
@@ -341,30 +345,78 @@ class ProcessInfo(BaseModel):
 
 
 # ── Auth ──────────────────────────────────────────────────────────────
+def _env_fallback_enabled() -> bool:
+    from app.config import WEAK_ADMIN_PASSWORDS
+    pw = settings.ADMIN_PASSWORD
+    return bool(settings.ADMIN_EMAIL) and pw not in WEAK_ADMIN_PASSWORDS and len(pw) >= 12
+
+
+def _env_admin_matches(email: str) -> bool:
+    """True when `email` is the env-var fallback admin and that fallback is enabled."""
+    return _env_fallback_enabled() and email.strip().lower() == settings.ADMIN_EMAIL.strip().lower()
+
+
+def _db_superuser(email: str):
+    """Active platform superuser with this email from the EASM users table, or None."""
+    db = SessionLocal()
+    try:
+        row = db.execute(
+            text(
+                "SELECT id, email, hashed_password FROM users "
+                "WHERE lower(email) = :email AND role = 'superuser' AND is_active = :active"
+            ),
+            {"email": email, "active": True},
+        ).first()
+        return row
+    except Exception:  # noqa: BLE001
+        return None
+    finally:
+        db.close()
+
+
 @app.post("/auth/login", response_model=TokenResponse)
 async def admin_login(req: LoginRequest):
+    """Sign in as a platform superuser.
+
+    The password is checked against the superuser account stored (bcrypt-hashed)
+    in the EASM database. Create or reset that account with:
+        python -m app.utils.create_admin --email you@example.com   (in backend/)
+    ADMIN_EMAIL / ADMIN_PASSWORD env vars are only a fallback, used when they
+    are set to a strong value and no database superuser matches.
+    """
     import hmac
-    from app.config import WEAK_ADMIN_PASSWORDS
-
-    if settings.ADMIN_PASSWORD in WEAK_ADMIN_PASSWORDS or len(settings.ADMIN_PASSWORD) < 12:
-        raise HTTPException(
-            status_code=503,
-            detail="Admin login is disabled until a strong ADMIN_PASSWORD (12+ characters) is set on the server",
-        )
-
+    import bcrypt as _bcrypt
     # Simple per-process brute-force brake: 5 failures -> 15 minute pause.
     now = time.time()
     _ADMIN_FAILS[:] = [t for t in _ADMIN_FAILS if now - t < 900]
     if len(_ADMIN_FAILS) >= 5:
         raise HTTPException(status_code=429, detail="Too many failed attempts. Try again later.")
 
-    email_ok = hmac.compare_digest(req.email.strip().lower().encode(), settings.ADMIN_EMAIL.strip().lower().encode())
-    pw_ok = hmac.compare_digest(req.password.encode(), settings.ADMIN_PASSWORD.encode())
-    if not (email_ok and pw_ok):
+    email = req.email.strip().lower()
+    row = _db_superuser(email)
+    if row is not None:
+        hashed = row.hashed_password or ""
+        ok = False
+        if hashed.startswith("$2"):
+            try:
+                ok = _bcrypt.checkpw(req.password.encode(), hashed.encode())
+            except ValueError:
+                ok = False
+        if ok:
+            _ADMIN_FAILS.clear()
+            return TokenResponse(access_token=create_admin_token(row.email))
         _ADMIN_FAILS.append(now)
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    _ADMIN_FAILS.clear()
-    return TokenResponse(access_token=create_admin_token(settings.ADMIN_EMAIL))
+
+    if _env_fallback_enabled():
+        email_ok = hmac.compare_digest(email.encode(), settings.ADMIN_EMAIL.strip().lower().encode())
+        pw_ok = hmac.compare_digest(req.password.encode(), settings.ADMIN_PASSWORD.encode())
+        if email_ok and pw_ok:
+            _ADMIN_FAILS.clear()
+            return TokenResponse(access_token=create_admin_token(settings.ADMIN_EMAIL))
+
+    _ADMIN_FAILS.append(now)
+    raise HTTPException(status_code=401, detail="Invalid credentials")
 
 
 _ADMIN_FAILS: list = []

@@ -170,10 +170,16 @@ npm run dev
 
 ### Default Admin Credentials
 
-- Email: `admin@cazo.io`
-- Password: set `ADMIN_PASSWORD` (12+ characters); admin login is refused while it is unset or a default
+Sign in with a platform admin (superuser) account stored in the database.
+Create it, or reset its password, from `backend/` (on Railway: `railway run`):
 
-(Configure via `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `admin-panel/backend/.env`)
+```bash
+python -m app.utils.create_admin --email you@example.com
+```
+
+It prompts for the password (12+ characters). `ADMIN_PASSWORD` is no longer
+needed; if you set `ADMIN_EMAIL`/`ADMIN_PASSWORD` (12+ characters) they only act
+as a fallback login when no database superuser matches.
 
 ## Production Deployment
 

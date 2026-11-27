@@ -35,7 +35,9 @@ class Settings(BaseSettings):
 
     # Admin credentials (override via env in production)
     ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@cazo.io")
-    # Must be set via env. Login is refused while it is empty or a known default.
+    # Optional fallback login. Normally the admin signs in with a database
+    # superuser (backend: python -m app.utils.create_admin). The fallback is
+    # ignored while this is empty, a known default, or shorter than 12 chars.
     ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "")
 
     # CORS
