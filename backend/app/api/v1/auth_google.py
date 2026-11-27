@@ -5,20 +5,12 @@ and returns the same JWT pair as the regular login endpoint.
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models.user import User
-from app.models.auth_models import UserSession
 from app.schemas.auth import Token
-from app.core.security import (
-    create_access_token,
-    create_refresh_token,
-    hash_api_key,
-)
 from app.services.google_oauth import verify_google_credential, GoogleOAuthError
 from app.api.v1.auth import find_user_by_email, issue_session_tokens, mfa_challenge
-from app.services.audit import log_auth_event
 import logging
 
 logger = logging.getLogger(__name__)

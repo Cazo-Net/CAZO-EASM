@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.api.deps import get_current_user
-from app.core.permissions import require_permission, require_any_permission, Permission
+from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.api_key_v2 import ApiKey
 from app.schemas.api_key_v2 import (

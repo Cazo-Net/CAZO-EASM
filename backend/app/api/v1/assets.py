@@ -14,7 +14,7 @@ from app.models.user import User
 from app.models.asset_inventory import Asset, AssetRelationship
 from app.models.asset_score import AssetScore
 from app.api.deps import get_current_user
-from app.core.permissions import require_permission, require_any_permission, Permission
+from app.core.permissions import require_permission, Permission
 from app.repositories.assets import get_asset_graph as repository_get_asset_graph
 from app.services.scoring import compute_asset_scores
 from app.services.change_detector import get_timeline

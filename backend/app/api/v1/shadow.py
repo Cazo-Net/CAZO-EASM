@@ -13,7 +13,7 @@ from app.schemas.shadow import (
     ShadowListResponse,
 )
 from app.api.deps import get_current_user
-from app.core.permissions import require_permission, require_any_permission, Permission
+from app.core.permissions import require_any_permission, Permission
 from app.services.shadow_assets import detect_shadow_assets, review_shadow_asset
 
 logger = logging.getLogger(__name__)

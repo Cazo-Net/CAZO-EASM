@@ -11,11 +11,8 @@ from app.database import get_db
 from app.models.user import User
 from app.models.auth_models import TrustedDevice, RecoveryCode
 from app.api.deps import get_current_user
-from app.config import frontend_url
 from app.core.security import verify_password, get_password_hash
 from app.services.audit import log_auth_event
-from app.services.email import get_email_service
-from app.services.email import templates
 from app.services.notification_service import dispatch_notification
 from datetime import datetime, timezone
 

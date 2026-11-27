@@ -12,7 +12,7 @@ from app.models.scan import Scan
 from app.models.vulnerability import Vulnerability
 from app.models.asset_score import AssetScore
 from app.api.deps import get_current_user
-from app.core.permissions import require_permission, require_any_permission, Permission
+from app.core.permissions import require_permission, Permission
 from app.schemas.report_v2 import (
     ExecutiveReport, ExecAsset, ExecutiveReportRequest, ExecutiveReportGenerated,
 )

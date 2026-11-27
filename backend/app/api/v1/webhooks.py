@@ -11,12 +11,11 @@ Endpoints:
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -24,7 +23,7 @@ from app.models.user import User
 from app.models.webhook import Webhook, WEBHOOK_EVENT_TYPES
 from app.services.webhook_dispatch import dispatch_webhook
 from app.api.deps import get_current_user
-from app.core.permissions import require_permission, require_any_permission, Permission
+from app.core.permissions import require_permission, Permission
 
 router = APIRouter()
 
