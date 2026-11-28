@@ -47,14 +47,14 @@ const TYPE_META: Record<string, { icon: any; color: string; size: number; label:
   domain: { icon: Globe, color: "#4A82F5", size: 42, label: "Domain" },
   subdomain: { icon: Server, color: "#06B6D4", size: 30, label: "Subdomain" },
   port: { icon: null, color: "#4A82F5", size: 18, label: "Port" },
-  vulnerability: { icon: Bug, color: "#FB7185", size: 18, label: "Vulnerability" },
-  certificate: { icon: ShieldAlert, color: "#F59E0B", size: 22, label: "Certificate" },
+  vulnerability: { icon: Bug, color: "#F05151", size: 18, label: "Vulnerability" },
+  certificate: { icon: ShieldAlert, color: "#F8B925", size: 22, label: "Certificate" },
 };
 
 const SEVERITY_COLOR: Record<string, string> = {
-  critical: "#FB7185",
-  high: "#FF6B35",
-  medium: "#F59E0B",
+  critical: "#F05151",
+  high: "#F67A31",
+  medium: "#F8B925",
   low: "#06B6D4",
   unknown: "#818CF8",
 };
@@ -75,7 +75,7 @@ function CyberNode({ data, selected }: NodeProps) {
   const dimmed = d.dimmed;
   const highlighted = d.highlighted;
 
-  const ringColor = isVuln ? SEVERITY_COLOR[sev] || "#FB7185" : meta.color;
+  const ringColor = isVuln ? SEVERITY_COLOR[sev] || "#F05151" : meta.color;
 
   return (
     <div
@@ -109,7 +109,7 @@ function CyberNode({ data, selected }: NodeProps) {
         style={{
           width: meta.size * 2,
           height: meta.size * 2,
-          background: `radial-gradient(circle at 30% 30%, ${ringColor}18, #0A0B0F 70%)`,
+          background: `radial-gradient(circle at 30% 30%, ${ringColor}18, #11141D 70%)`,
           border: `2px solid ${ringColor}`,
           boxShadow: `0 0 ${selected ? 20 : isCritical ? 14 : 8}px -2px ${ringColor}88, inset 0 0 20px ${ringColor}08`,
         }}
@@ -133,7 +133,7 @@ function CyberNode({ data, selected }: NodeProps) {
       {d.showLabel && (
         <div
           className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded px-1.5 py-0.5 pointer-events-none z-20"
-          style={{ top: meta.size * 2 + 4, background: "#0A0B0Fcc", border: `1px solid ${ringColor}33` }}
+          style={{ top: meta.size * 2 + 4, background: "#11141Dcc", border: `1px solid ${ringColor}33` }}
         >
           <span className="font-mono text-[9px]" style={{ color: ringColor }}>
             {d.label}
@@ -187,7 +187,7 @@ function ZoneOverlay({ nodes }: { nodes: Node[] }) {
         >
           <span
             className="absolute -top-3 left-3 text-[11px] uppercase tracking-wider px-1"
-            style={{ color: `${z.color}88`, background: "#0A0B0F", border: `1px solid ${z.color}22` }}
+            style={{ color: `${z.color}88`, background: "#11141D", border: `1px solid ${z.color}22` }}
           >
             [{z.label}]
           </span>
@@ -203,11 +203,11 @@ function ZoneOverlay({ nodes }: { nodes: Node[] }) {
 
 function HeatMeter({ vulnCount, criticalCount }: { vulnCount: number; criticalCount: number }) {
   const heat = Math.min(10, Math.floor(criticalCount * 3 + vulnCount * 0.5));
-  const heatColor = heat >= 7 ? "#FB7185" : heat >= 4 ? "#F59E0B" : "#4A82F5";
+  const heatColor = heat >= 7 ? "#F05151" : heat >= 4 ? "#F8B925" : "#4A82F5";
   const label = heat >= 7 ? "HIGH THREAT" : heat >= 4 ? "ELEVATED" : "SILENT";
 
   return (
-    <div className="flex items-center gap-2 rounded border px-3 py-1.5" style={{ borderColor: `${heatColor}44`, background: "#0A0B0Fdd" }}>
+    <div className="flex items-center gap-2 rounded border px-3 py-1.5" style={{ borderColor: `${heatColor}44`, background: "#11141Ddd" }}>
       <span className=" text-[11px] font-semibold uppercase" style={{ color: heatColor }}>HEAT</span>
       <div className="flex gap-0.5">
         {Array.from({ length: 10 }, (_, i) => (
@@ -215,7 +215,7 @@ function HeatMeter({ vulnCount, criticalCount }: { vulnCount: number; criticalCo
             key={i}
             className="h-2 w-1.5 rounded-sm transition-all duration-300"
             style={{
-              background: i < heat ? heatColor : "#161B26",
+              background: i < heat ? heatColor : "#242733",
               boxShadow: i < heat ? `0 0 4px ${heatColor}66` : "none",
             }}
           />
@@ -245,7 +245,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 20, opacity: 0 }}
       className="absolute top-0 right-0 z-20 h-full w-72 border-l overflow-y-auto"
-      style={{ borderColor: `${ringColor}33`, background: "#0A0B0Fee", backdropFilter: "blur(12px)" }}
+      style={{ borderColor: `${ringColor}33`, background: "#11141Dee" }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: `${ringColor}22` }}>
@@ -260,7 +260,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
       </div>
 
       {/* Status */}
-      <div className="px-4 py-2 border-b" style={{ borderColor: "#161B26" }}>
+      <div className="px-4 py-2 border-b" style={{ borderColor: "#242733" }}>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] text-muted-foreground">STATUS</span>
           <span className="px-1.5 py-0.5 rounded font-mono text-[9px] font-semibold" style={{ background: `${ringColor}22`, color: ringColor }}>
@@ -292,7 +292,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
             <span className=" text-[11px] text-muted-foreground uppercase">Open Ports ({ports.length})</span>
             <div className="mt-1 space-y-1">
               {ports.slice(0, 20).map((p: any, i: number) => (
-                <div key={i} className="flex items-center justify-between rounded px-2 py-1" style={{ background: "#161B26" }}>
+                <div key={i} className="flex items-center justify-between rounded px-2 py-1" style={{ background: "#242733" }}>
                   <span className="font-mono text-[10px] text-foreground">{p.port}</span>
                   <span className="font-mono text-[9px] text-muted-foreground">{p.service || "?"}</span>
                 </div>
@@ -303,7 +303,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
         {osDetection && (
           <div>
             <span className=" text-[11px] text-muted-foreground uppercase">OS Detection</span>
-            <div className="mt-1 rounded px-2 py-1" style={{ background: "#161B26" }}>
+            <div className="mt-1 rounded px-2 py-1" style={{ background: "#242733" }}>
               {typeof osDetection === "string" ? (
                 <p className="font-mono text-[10px] text-foreground">{osDetection}</p>
               ) : (
@@ -329,7 +329,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
             <span className=" text-[11px] text-muted-foreground uppercase">Host Scripts ({hostScripts.length})</span>
             <div className="mt-1 space-y-1">
               {hostScripts.slice(0, 5).map((s: any, i: number) => (
-                <div key={i} className="rounded px-2 py-1" style={{ background: "#161B26" }}>
+                <div key={i} className="rounded px-2 py-1" style={{ background: "#242733" }}>
                   <p className="font-mono text-[10px] text-foreground">{s.id || s.name || "script"}</p>
                   {s.output && (
                     <p className="font-mono text-[9px] text-muted-foreground mt-0.5 break-all">{s.output.slice(0, 200)}</p>
@@ -405,7 +405,7 @@ function GraphCanvas({
       };
     });
 
-    const edgeColors: Record<string, string> = { attack: "#FB7185", "weak-cipher": "#F59E0B" };
+    const edgeColors: Record<string, string> = { attack: "#F05151", "weak-cipher": "#F8B925" };
 
     const flowEdges: Edge[] = rawEdges.map((e, i) => ({
       id: `e-${i}`, source: e.source, target: e.target,
@@ -444,7 +444,7 @@ function GraphCanvas({
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center space-y-3">
-          <Waypoints className="h-10 w-10 mx-auto" style={{ color: "#161B26" }} />
+          <Waypoints className="h-10 w-10 mx-auto" style={{ color: "#242733" }} />
           <p className="font-mono text-xs text-muted-foreground">No graph data available</p>
         </div>
       </div>
@@ -467,13 +467,13 @@ function GraphCanvas({
         proOptions={{ hideAttribution: true }}
         className="bg-transparent"
       >
-        <Background variant={BackgroundVariant.Dots} gap={40} size={1} color="#161B2644" />
+        <Background variant={BackgroundVariant.Dots} gap={40} size={1} color="#24273344" />
         <Controls
           showZoom
           showFitView
           showInteractive={false}
-          className="!rounded !border !bg-[#0A0B0Fdd] !"
-          style={{ borderColor: "#161B26", background: "#0A0B0Fdd" }}
+          className="!rounded !border !bg-[#11141Ddd] !"
+          style={{ borderColor: "#242733", background: "#11141Ddd" }}
         />
       </ReactFlow>
 
@@ -559,9 +559,9 @@ function GraphContent() {
   const threatLabel = nodeStats.critical > 0 ? `${nodeStats.critical} THREATS` : "No threats detected";
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden" style={{ background: "#050608" }}>
+    <div className="flex h-screen flex-col overflow-hidden" style={{ background: "#0A0D15" }}>
       {/* ── Status bar (top) ── */}
-      <div className="shrink-0 border-b px-6 py-2 flex items-center justify-between" style={{ borderColor: "#161B26", background: "#0A0B0Fee" }}>
+      <div className="shrink-0 border-b px-6 py-2 flex items-center justify-between" style={{ borderColor: "#242733", background: "#11141Dee" }}>
         <div className="flex items-center gap-4">
           {/* Scan selector */}
           <select
@@ -569,7 +569,7 @@ function GraphContent() {
             onChange={(e) => setSelectedScanId(e.target.value)}
             disabled={loadingScans}
             className="h-7 rounded border px-2 text-[11px] font-mono focus:outline-none"
-            style={{ borderColor: "#161B26", background: "#0D1117", color: "#4A82F5" }}
+            style={{ borderColor: "#242733", background: "#161A24", color: "#4A82F5" }}
           >
             {loadingScans && <option>Loading...</option>}
             {!loadingScans && scans.length === 0 && <option>No scans</option>}
@@ -583,9 +583,9 @@ function GraphContent() {
             <span
               className=" text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded"
               style={{
-                color: nodeStats.critical > 0 ? "#FB7185" : "#4A82F5",
-                background: nodeStats.critical > 0 ? "#FB718515" : "#4A82F515",
-                border: `1px solid ${nodeStats.critical > 0 ? "#FB718533" : "#4A82F533"}`,
+                color: nodeStats.critical > 0 ? "#F05151" : "#4A82F5",
+                background: nodeStats.critical > 0 ? "#F0515115" : "#4A82F515",
+                border: `1px solid ${nodeStats.critical > 0 ? "#F0515133" : "#4A82F533"}`,
               }}
             >
               {nodeStats.critical > 0 ? "ALERT" : "SILENT"}
@@ -598,7 +598,7 @@ function GraphContent() {
         <form
           onSubmit={(e) => { e.preventDefault(); setHighlightId(matchNode); }}
           className="flex items-center gap-1.5 rounded border px-2 py-1"
-          style={{ borderColor: "#161B26", background: "#0D1117" }}
+          style={{ borderColor: "#242733", background: "#161A24" }}
         >
           <Search className="h-3 w-3" style={{ color: "#4A82F566" }} />
           <input
@@ -609,7 +609,7 @@ function GraphContent() {
             style={{ color: "#4A82F5" }}
           />
           {search.trim() && (
-            <span className="font-mono text-[9px]" style={{ color: matchNode ? "#4A82F5" : "#FB718566" }}>
+            <span className="font-mono text-[9px]" style={{ color: matchNode ? "#4A82F5" : "#F0515166" }}>
               {matchNode ? "found" : "—"}
             </span>
           )}
@@ -620,7 +620,7 @@ function GraphContent() {
       <div className="relative flex-1 overflow-hidden">
         {/* Filter toggles (left) */}
         {graphData && !loadingGraph && (
-          <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 rounded border p-2" style={{ borderColor: "#161B26", background: "#0A0B0Fee", backdropFilter: "blur(8px)" }}>
+          <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 rounded border p-2" style={{ borderColor: "#242733", background: "#11141Dee", backdropFilter: "blur(8px)" }}>
             <span className=" text-[11px] text-muted-foreground uppercase mb-1">Types</span>
             {ALL_TYPES.map((t) => {
               const m = TYPE_META[t];
@@ -652,7 +652,7 @@ function GraphContent() {
 
         {/* Node stats (bottom-center) */}
         {graphData && !loadingGraph && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4 rounded border px-4 py-1.5" style={{ borderColor: "#161B26", background: "#0A0B0Fee" }}>
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4 rounded border px-4 py-1.5" style={{ borderColor: "#242733", background: "#11141Dee" }}>
             <span className="font-mono text-[10px] text-muted-foreground">
               Nodes: <span className="text-foreground">{nodeStats.total}</span>
             </span>
@@ -669,9 +669,9 @@ function GraphContent() {
         {error ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center space-y-3">
-              <Bug className="h-8 w-8 mx-auto" style={{ color: "#FB7185" }} />
-              <p className="font-mono text-xs" style={{ color: "#FB7185" }}>{error}</p>
-              <Button variant="outline" size="sm" onClick={() => selectedScanId && fetchGraph(selectedScanId)} className="gap-1.5" style={{ borderColor: "#161B26" }}>
+              <Bug className="h-8 w-8 mx-auto" style={{ color: "#F05151" }} />
+              <p className="font-mono text-xs" style={{ color: "#F05151" }}>{error}</p>
+              <Button variant="outline" size="sm" onClick={() => selectedScanId && fetchGraph(selectedScanId)} className="gap-1.5" style={{ borderColor: "#242733" }}>
                 Retry
               </Button>
             </div>
