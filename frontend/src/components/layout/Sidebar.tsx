@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ScanSearch,
   Globe,
+  Layers,
   FileText,
   Settings,
   ChevronLeft,
@@ -67,7 +68,8 @@ const navSections = [
   {
     label: "Attack surface",
     items: [
-      { href: "/assets", label: "Assets", icon: Globe },
+      { href: "/inventory", label: "Asset inventory", icon: Layers },
+      { href: "/assets", label: "Assets by scan", icon: Globe },
       { href: "/shadow-assets", label: "Shadow assets", icon: Ghost },
       { href: "/assets/360", label: "Asset 360°", icon: Boxes },
       { href: "/graph", label: "Attack graph", icon: Waypoints },

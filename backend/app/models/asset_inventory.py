@@ -12,7 +12,7 @@ rows is performed by a migration-safe helper (see ``app/repositories/assets.py``
 never by destructive schema changes.
 """
 from sqlalchemy import (
-    Column, String, DateTime, ForeignKey, Boolean, JSON, Text, UniqueConstraint,
+    Column, String, DateTime, ForeignKey, Boolean, Integer, JSON, Text, UniqueConstraint,
 )
 from sqlalchemy.sql import func
 from app.database import Base
@@ -26,7 +26,8 @@ class Asset(Base):
     organization_id = Column(
         String(36), ForeignKey("organizations.id"), nullable=False, index=True
     )
-    # Asset kind: domain | host | ip | certificate | technology
+    # Asset kind: domain | host | ip | service | certificate | technology
+    # (plus the graph-only grouping kinds asn | registrar)
     asset_type = Column(String(20), nullable=False, default="host", index=True)
     # Canonical identifier: FQDN, IP, or cert serial depending on type.
     value = Column(String(512), nullable=False)
@@ -34,7 +35,9 @@ class Asset(Base):
     label = Column(String(512), nullable=True)
     is_alive = Column(Boolean, default=True, nullable=False)
     first_seen = Column(DateTime(timezone=True), server_default=func.now())
-    last_seen = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    # Set explicitly when a scan observes the asset (no onupdate: marking an
+    # asset missing must not look like a sighting).
+    last_seen = Column(DateTime(timezone=True), server_default=func.now())
     # Most recent scan that observed this asset.
     last_scan_id = Column(String(36), nullable=True)
     # Free-form, queryable attributes (ports, grade, etc.).
@@ -47,6 +50,16 @@ class Asset(Base):
     #   rejected    = reviewed and confirmed unrelated
     confirmed = Column(Boolean, default=False, nullable=False, index=True)
     inventory_status = Column(String(20), default="discovered", nullable=False, index=True)
+    # Inventory lifecycle (see app/services/inventory.py):
+    #   active  = seen by the latest scans that cover it
+    #   missing = not seen by ``MISSING_AFTER_SCANS`` covering scans in a row
+    state = Column(String(20), default="active", server_default="active", nullable=False, index=True)
+    miss_count = Column(Integer, default=0, server_default="0", nullable=False)
+    missing_since = Column(DateTime(timezone=True), nullable=True)
+    # Registrable root this asset belongs to (scopes "disappeared" detection).
+    root_domain = Column(String(255), nullable=True, index=True)
+    # Owning host asset for services, certificates and technologies.
+    parent_id = Column(String(36), nullable=True, index=True)
 
     __table_args__ = (
         UniqueConstraint(

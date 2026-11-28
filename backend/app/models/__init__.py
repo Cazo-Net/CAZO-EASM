@@ -20,7 +20,8 @@ from app.models.scope import AuthorizedScope
 from app.models.audit import AuditEvent
 from app.models.asset_inventory import Asset, AssetRelationship, AssetReviewLog
 from app.models.asset_score import AssetScore
-from app.models.asset_change import AssetChange
+from app.models.asset_change import AssetChange, InventorySync
+from app.models.alert_settings import AlertSettings
 from app.models.canvas import Canvas, CanvasNode, CanvasEdge
 from app.models.auth_models import (
     UserSession, Invitation, TrustedDevice, RecoveryCode, AuthAuditLog,
@@ -45,7 +46,7 @@ __all__ = [
     "Technology", "RiskScore", "Report", "Vulnerability",
     "Notification", "NotificationPreference", "NotificationEmailLog", "Tag", "AssetTag", "AuditLog", "Favorite",
     "AuthorizedScope", "AuditEvent",
-    "Asset", "AssetRelationship", "AssetReviewLog", "AssetScore", "AssetChange",
+    "Asset", "AssetRelationship", "AssetReviewLog", "AssetScore", "AssetChange", "InventorySync", "AlertSettings",
     "Canvas", "CanvasNode", "CanvasEdge",
     "UserSession", "Invitation", "TrustedDevice", "RecoveryCode", "AuthAuditLog",
     "ApiKey",

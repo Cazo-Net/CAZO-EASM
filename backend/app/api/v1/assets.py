@@ -657,6 +657,10 @@ async def list_asset_inventory(
     query = db.query(Asset).filter(Asset.organization_id == current_user.organization_id)
     if asset_type:
         query = query.filter(Asset.asset_type == asset_type)
+    else:
+        # This older listing predates services/technologies in the inventory;
+        # the full inventory lives at /api/v1/inventory.
+        query = query.filter(Asset.asset_type.notin_(("domain", "service", "technology")))
     if only_alive:
         query = query.filter(Asset.is_alive == True)  # noqa: E712
     assets = query.order_by(Asset.last_seen.desc()).offset(skip).limit(limit).all()

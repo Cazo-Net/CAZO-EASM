@@ -11,6 +11,9 @@ os.environ.setdefault("CELERY_BROKER_URL", "")
 os.environ.setdefault("CELERY_RESULT_BACKEND", "")
 # Tests drive the queue directly; no background worker inside the test app.
 os.environ.setdefault("RUN_EMBEDDED_WORKER", "false")
+# Plan limits are exercised by tests/test_billing.py, which switches them on;
+# other tests run unlimited so they don't depend on the Trial allowance.
+os.environ.setdefault("BILLING_ENFORCE_LIMITS", "false")
 
 import pytest
 from fastapi.testclient import TestClient

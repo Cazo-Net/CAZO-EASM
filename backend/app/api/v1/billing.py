@@ -384,3 +384,16 @@ async def set_manual_plan(
     db.commit()
     ent = get_entitlement(db, org.id)
     return {"organization_id": org.id, "plan": plan.id, "limits": ent.limits, "period_end": req.period_end}
+
+
+@router.get("/admin/readiness")
+async def payments_readiness(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Go-live checklist for payments (keys, webhook, prices, return URL, Stripe account)."""
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform staff only.")
+    from app.billing.readiness import run_checks
+
+    return run_checks(db)

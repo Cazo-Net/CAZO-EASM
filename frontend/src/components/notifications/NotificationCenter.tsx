@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -23,6 +23,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   deleteNotification,
+  clearAllNotifications,
   getToken,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,13 @@ const typeConfig: Record<string, { icon: any; color: string; bg: string; priorit
   password_changed: { icon: Lock, color: "text-amber-400", bg: "bg-amber-500/10", priority: "high", badge: "Auth" },
   email_changed: { icon: Shield, color: "text-amber-400", bg: "bg-amber-500/10", priority: "high", badge: "Auth" },
   weekly_digest: { icon: Activity, color: "text-violet-400", bg: "bg-violet-500/10", badge: "Report" },
+  inventory_new_asset: { icon: Globe, color: "text-info", bg: "bg-info/10", priority: "high", badge: "New asset" },
+  inventory_new_service: { icon: Activity, color: "text-warning", bg: "bg-warning/10", priority: "high", badge: "New port" },
+  inventory_new_finding: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", priority: "critical", badge: "Finding" },
+  inventory_cert_expiring: { icon: Lock, color: "text-warning", bg: "bg-warning/10", priority: "high", badge: "Cert" },
+  inventory_cert_changed: { icon: Lock, color: "text-info", bg: "bg-info/10", badge: "Cert" },
+  inventory_asset_missing: { icon: Globe, color: "text-muted-foreground", bg: "bg-muted", badge: "Gone" },
+  inventory_plan_limit: { icon: Shield, color: "text-warning", bg: "bg-warning/10", priority: "high", badge: "Plan" },
 };
 
 const priorityBorder: Record<string, string> = {
@@ -80,6 +88,26 @@ export function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Close when clicking anywhere outside the panel, or pressing Escape. (A
+  // backdrop element is not enough: the top bar creates its own layer, so a
+  // fixed backdrop only covers the bar, not the page.)
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const fetchUnreadCount = useCallback(async () => {
     try {
@@ -131,6 +159,20 @@ export function NotificationCenter() {
     }
   };
 
+  const handleClearAll = async () => {
+    const previous = notifications;
+    const previousUnread = unreadCount;
+    setNotifications([]);
+    setUnreadCount(0);
+    try {
+      await clearAllNotifications();
+    } catch {
+      // Put them back if the server did not clear them.
+      setNotifications(previous);
+      setUnreadCount(previousUnread);
+    }
+  };
+
   const handleMarkAllRead = async () => {
     try {
       await markAllNotificationsRead();
@@ -156,17 +198,24 @@ export function NotificationCenter() {
     if (!notification.read) {
       handleMarkRead(notification.id);
     }
-    if (notification.data?.scan_id) {
+    const url = notification.data?.url;
+    if (notification.type?.startsWith("inventory_") && typeof url === "string" && url.startsWith("/")) {
+      // Inventory alerts open the change list they are about (same-site paths only).
+      router.push(url);
+      setOpen(false);
+    } else if (notification.data?.scan_id) {
       router.push(`/scan/${notification.data.scan_id}`);
       setOpen(false);
     }
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={rootRef}>
       <Button
         variant="ghost"
         size="icon"
+        aria-label="Notifications"
+        aria-expanded={open}
         className="relative h-9 w-9 text-muted-foreground hover:text-foreground"
         onClick={() => {
           setOpen(!open);
@@ -184,12 +233,6 @@ export function NotificationCenter() {
       <AnimatePresence>
         {open && (
           <>
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setOpen(false)}
-            />
-
             {/* Panel */}
             <motion.div
               initial={{ opacity: 0, y: -8, scale: 0.96 }}
@@ -218,6 +261,17 @@ export function NotificationCenter() {
                     >
                       <CheckCheck className="h-3 w-3" />
                       Read all
+                    </Button>
+                  )}
+                  {notifications.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={handleClearAll}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Clear
                     </Button>
                   )}
                 </div>

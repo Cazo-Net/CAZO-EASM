@@ -40,10 +40,12 @@ async def list_shadow_assets(
         candidates = [c for c in candidates if c["confidence"] >= min_confidence]
 
     known_count = db.query(Asset).filter(
-        Asset.organization_id == org_id, Asset.inventory_status == "known"
+        Asset.organization_id == org_id, Asset.inventory_status == "known",
+        Asset.asset_type.notin_(("domain", "service", "technology")),
     ).count()
     discovered_count = db.query(Asset).filter(
-        Asset.organization_id == org_id, Asset.inventory_status == "discovered"
+        Asset.organization_id == org_id, Asset.inventory_status == "discovered",
+        Asset.asset_type.notin_(("domain", "service", "technology")),
     ).count()
 
     return ShadowListResponse(

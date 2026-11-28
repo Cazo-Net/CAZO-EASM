@@ -418,3 +418,56 @@ class TestManualPlan:
         resp = client.post(url, json={"plan": "plus", "extra_domains": 5}, headers=headers)
         assert resp.status_code == 200, resp.text
         assert resp.json()["limits"]["root_domains"] == 30
+
+
+class TestReadiness:
+    def test_test_mode_with_missing_myr_prices(self, db_session, monkeypatch):
+        from app.billing.readiness import run_checks
+
+        monkeypatch.setattr(settings, "STRIPE_SECRET_KEY", "sk_test_dummy")
+        monkeypatch.setattr(settings, "STRIPE_WEBHOOK_SECRET", "")
+        monkeypatch.setattr(settings, "BILLING_CURRENCY", "myr")
+        report = run_checks(db_session, call_stripe=False)
+        by = {c["check"]: c["status"] for c in report["checks"]}
+        assert report["ready"] is False
+        assert by["secret_key"] == "warn"
+        assert by["webhook_secret"] == "fail"
+        assert by["prices"] == "fail"
+
+    def test_live_key_without_toggle_fails(self, db_session, monkeypatch):
+        from app.billing.readiness import run_checks
+
+        monkeypatch.setattr(settings, "STRIPE_SECRET_KEY", "sk_live_dummy")
+        monkeypatch.setattr(settings, "BILLING_ALLOW_LIVE_KEYS", False)
+        report = run_checks(db_session, call_stripe=False)
+        assert {c["check"]: c["status"] for c in report["checks"]}["secret_key"] == "fail"
+
+    def test_live_ready(self, db_session, monkeypatch):
+        from app.billing.readiness import run_checks
+
+        monkeypatch.setattr(settings, "STRIPE_SECRET_KEY", "sk_live_dummy")
+        monkeypatch.setattr(settings, "BILLING_ALLOW_LIVE_KEYS", True)
+        monkeypatch.setattr(settings, "STRIPE_WEBHOOK_SECRET", "whsec_live")
+        monkeypatch.setattr(settings, "FRONTEND_URL", "https://app.example.com")
+        monkeypatch.setattr(settings, "BILLING_CURRENCY", "usd")
+        report = run_checks(db_session, call_stripe=False)
+        assert report["ready"] is True, report
+
+    def test_endpoint_is_staff_only(self, client, auth_headers):
+        headers = {"Authorization": auth_headers["Authorization"]}
+        assert client.get("/api/v1/billing/admin/readiness", headers=headers).status_code == 403
+
+    def test_automatic_tax_flag_reaches_checkout(self, db_session, org, stripe_test, monkeypatch):
+        calls = {}
+
+        class Obj:
+            def __init__(self, **kw):
+                self.__dict__.update(kw)
+
+        monkeypatch.setattr(settings, "BILLING_AUTOMATIC_TAX", True)
+        monkeypatch.setattr(svc.stripe.Product, "retrieve", lambda *a, **k: Obj(id=a[0]))
+        monkeypatch.setattr(svc.stripe.Customer, "create", lambda **k: Obj(id="cus_1"))
+        monkeypatch.setattr(svc.stripe.checkout.Session, "create",
+                            lambda **kw: calls.update(kw) or Obj(id="cs", url="https://x"))
+        svc.create_checkout_session(db_session, org, None, plan_id="business", interval="year")
+        assert calls["automatic_tax"] == {"enabled": True}
