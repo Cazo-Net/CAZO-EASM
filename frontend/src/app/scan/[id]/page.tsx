@@ -555,7 +555,21 @@ function ScanDetailContent() {
                       className="h-8 w-56 rounded-md border border-input bg-background pl-9 pr-3 text-[13px] focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
                     />
                   </div>
-                  <Button variant="outline" size="sm" className="gap-1 text-xs rounded-lg">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs rounded-lg"
+                    onClick={() =>
+                      exportToCSV(
+                        filteredSubdomains.map((s) => ({
+                          hostname: s.hostname,
+                          ip_addresses: (s.ip_addresses || []).join("; "),
+                          is_alive: s.is_alive,
+                        })),
+                        `subdomains-${scan.domain}`
+                      )
+                    }
+                  >
                     <Download className="h-3 w-3" />
                     Export
                   </Button>
