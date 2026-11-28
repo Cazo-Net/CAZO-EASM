@@ -124,7 +124,8 @@ function ScanDetailContent() {
   }, [fetchScan]);
 
   useEffect(() => {
-    if (!scan || scan.status !== "running") return;
+    // Poll while the scan is queued or running; a queued scan starts on its own.
+    if (!scan || (scan.status !== "running" && scan.status !== "pending")) return;
     const interval = setInterval(fetchScan, 2000);
     return () => clearInterval(interval);
   }, [scan?.status, fetchScan]);
@@ -164,7 +165,8 @@ function ScanDetailContent() {
     );
   }
 
-  const isRunning = scan.status === "running";
+  const isQueued = scan.status === "pending";
+  const isRunning = scan.status === "running" || isQueued;
   const isCompleted = scan.status === "completed";
   const riskLabel = scan.risk_score !== null ? getRiskLabel(scan.risk_score) : null;
   const riskColorClass = scan.risk_score !== null ? getRiskColor(scan.risk_score) : "";
@@ -302,15 +304,17 @@ function ScanDetailContent() {
                   <Loader2 className="h-5 w-5 text-brand animate-spin" />
                 </div>
                 <div>
-                  <p className="font-semibold">Scan in Progress</p>
+                  <p className="font-semibold">{isQueued ? "Waiting to start" : "Scan in progress"}</p>
                   <p className="text-sm text-muted-foreground">
-                    Discovering attack surface...
+                    {isQueued
+                      ? "Your scan is queued and will start shortly. This page updates on its own."
+                      : "Discovering your attack surface. Results appear below as they are found."}
                   </p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-3xl font-semibold tabular-nums">{scan.progress}%</p>
-                <p className="text-xs text-muted-foreground">Estimated: {Math.max(1, Math.round((100 - scan.progress) / 10))}min remaining</p>
+                <p className="text-xs text-muted-foreground">{isQueued ? "In queue" : `About ${Math.max(1, Math.round((100 - scan.progress) / 10))} min left`}</p>
               </div>
             </div>
 
