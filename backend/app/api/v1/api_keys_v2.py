@@ -27,6 +27,7 @@ from app.schemas.api_key_v2 import (
     ApiKeyListResponse,
 )
 from app.core.security import generate_api_key, hash_api_key
+from app.services.audit import log_user_action
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +94,10 @@ async def create_api_key(
     db.refresh(api_key)
 
     logger.info(f"API key created: {api_key.id} ({data.name}) for user {current_user.id}")
+    log_user_action(db, current_user, "api_key.create", "api_key", api_key.id, {
+        "name": data.name, "prefix": prefix, "scopes": data.scopes or [],
+        "expires_at": expires_at.isoformat() if expires_at else None,
+    })
 
     return ApiKeyCreateResponse(
         id=api_key.id,
@@ -122,7 +127,9 @@ async def revoke_api_key(
 
     api_key.is_active = False
     api_key.revoked_at = datetime.now(timezone.utc)
+    key_name, key_prefix = api_key.name, api_key.prefix
     db.commit()
+    log_user_action(db, current_user, "api_key.revoke", "api_key", key_id, {"name": key_name, "prefix": key_prefix})
 
     return {"message": "API key revoked successfully", "id": key_id}
 
@@ -154,6 +161,9 @@ async def update_api_key(
 
     db.commit()
     db.refresh(api_key)
+    log_user_action(db, current_user, "api_key.update", "api_key", api_key.id, {
+        "name": api_key.name, "scopes": api_key.scopes or [],
+    })
 
     return ApiKeyResponse(
         id=api_key.id,
@@ -204,6 +214,9 @@ async def rotate_api_key(
     db.add(new_key)
     db.commit()
     db.refresh(new_key)
+    log_user_action(db, current_user, "api_key.rotate", "api_key", new_key.id, {
+        "name": new_key.name, "prefix": prefix, "replaced_key_id": key_id,
+    })
 
     return ApiKeyCreateResponse(
         id=new_key.id,

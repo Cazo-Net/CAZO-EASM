@@ -37,6 +37,10 @@ class Settings(BaseSettings):
 
     # JWT
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
+    # Key that signs the audit log chain. Empty = derived from SECRET_KEY.
+    # Changing either one makes older audit entries fail verification, so set
+    # it once and keep it.
+    AUDIT_LOG_KEY: str = os.getenv("AUDIT_LOG_KEY", "")
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7

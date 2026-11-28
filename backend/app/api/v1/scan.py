@@ -15,6 +15,7 @@ from app.api.deps import get_current_user
 from app.core.permissions import require_permission, Permission
 from app.core.cache import cached
 from app.scanners.registry import discovery_manifest
+from app.services.audit import log_user_action
 
 router = APIRouter()
 
@@ -308,8 +309,10 @@ async def delete_scan(
             detail="Cannot delete a running scan"
         )
 
+    domain = scan.domain
     db.delete(scan)
     db.commit()
+    log_user_action(db, current_user, "scan.delete", "scan", scan_id, {"domain": domain})
 
     return {"message": "Scan deleted successfully"}
 
@@ -379,4 +382,5 @@ async def cancel_scan(
     scan.error_message = "Cancelled by user"
     db.commit()
     db.refresh(scan)
+    log_user_action(db, current_user, "scan.cancel", "scan", scan.id, {"domain": scan.domain})
     return scan

@@ -11,6 +11,7 @@ from app.config import settings, is_production
 from app.database import init_db, write_engine
 from app.core.rate_limit import get_rate_limiter
 from app.core.logging import configure_logging
+from app.core.request_context import set_request_context, reset_request_context
 from app.services.platform_log import (
     log_unexpected, log_api_request, log_security_event,
     SEV_WARNING, SEV_ERROR,
@@ -287,7 +288,14 @@ async def log_requests_middleware(request: Request, call_next):
     request_id = request.headers.get("x-request-id") or secrets.token_hex(8)
     client_ip = _client_ip(request)
     start = time.perf_counter()
-    response = await call_next(request)
+    # Make the caller's details available to the audit log writer.
+    ctx_token = set_request_context(
+        client_ip, (request.headers.get("user-agent") or "")[:400] or None, request_id[:32],
+    )
+    try:
+        response = await call_next(request)
+    finally:
+        reset_request_context(ctx_token)
     duration_ms = round((time.perf_counter() - start) * 1000, 2)
 
     logger.info(
@@ -516,6 +524,10 @@ from app.api.v1 import billing  # noqa: E402
 from app.billing.entitlements import PlanLimitExceeded  # noqa: E402
 
 app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
+
+from app.api.v1 import audit_logs  # noqa: E402
+
+app.include_router(audit_logs.router, prefix="/api/v1/audit-logs", tags=["Audit Log"])
 
 
 @app.exception_handler(PlanLimitExceeded)
