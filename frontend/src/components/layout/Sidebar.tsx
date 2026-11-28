@@ -221,7 +221,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
         {/* Workspace / Brand Header */}
         <div className={cn("flex h-14 items-center gap-2.5 border-b border-border shrink-0", collapsed ? "justify-center px-0" : "px-4")}>
           <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
-            <CazoMark className="h-7 w-7 shrink-0" />
+            <CazoMark className="h-9 w-9 shrink-0" />
             {!collapsed && (
               <span className="truncate text-[15px] font-semibold tracking-tight text-foreground">
                 CAZO <span className="font-medium text-muted-foreground">EASM</span>

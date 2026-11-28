@@ -1,41 +1,19 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 
 /**
- * CAZO EASM logo mark: an open perimeter. A hexagon with one edge missing
- * reads as a "C"; the dot is the asset inside it. The gap is the exposure
- * the product exists to find.
+ * CAZO EASM logo mark: a fractured hexagon that reads as a "C", with a shield
+ * and network nodes on its edge. The artwork lives in `public/logo.svg` (it is
+ * too detailed to inline) and is shared with the favicon.
  */
 
-export function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 64 64"
-      fill="none"
-      className={className}
-      aria-hidden="true"
-      role="img"
-    >
-      <defs>
-        <linearGradient id="cazo-gradient" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#FB7185" />
-          <stop offset="1" stopColor="#E11D48" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M52.78 44.00 L32.00 56.00 L11.22 44.00 L11.22 20.00 L32.00 8.00 L52.78 20.00"
-        stroke="url(#cazo-gradient)"
-        strokeWidth="6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="32" cy="32" r="5.5" fill="url(#cazo-gradient)" />
-    </svg>
-  );
+export function CazoMark({ className = "h-9 w-9" }: { className?: string }) {
+  return <img src="/logo.svg" alt="" aria-hidden="true" draggable={false} className={`select-none ${className}`} />;
 }
 
 export function CazoLogo({
   href = "/",
-  markClassName = "h-7 w-7",
+  markClassName = "h-9 w-9",
   wordClassName = "font-display text-lg font-semibold text-foreground",
   showWord = true,
 }: {

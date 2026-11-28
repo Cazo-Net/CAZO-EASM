@@ -1565,6 +1565,12 @@ export function LandingFooter() {
         <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
           <div>
             <CazoLogo />
+            <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              <span className="text-primary">C</span>yber{" "}
+              <span className="text-primary">A</span>ttack-surface{" "}
+              <span className="text-primary">Z</span>ero-blindspot{" "}
+              <span className="text-primary">O</span>perations
+            </p>
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
               External attack surface management with evidence behind every
               finding.

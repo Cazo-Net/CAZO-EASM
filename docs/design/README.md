@@ -30,8 +30,11 @@ Two things follow from a red brand colour:
   colour; label them in words, never by colour alone.
 
 To re-brand, change `--brand`, `--primary`, `--primary-fill` and `--ring` in
-both blocks, and the two gradient stops in `components/marketing/CazoLogo.tsx`
-and `public/logo.svg` (then regenerate `public/favicon.ico`). The attack graph
+both blocks, and the two gradient stops in `public/logo.svg` (then regenerate
+`public/favicon.ico`). The logo mark is the owner's artwork, a fractured
+hexagon "C" with a shield and network nodes, traced to a vector; `CazoMark`
+loads it from `/logo.svg`. The name stands for "Cyber Attack-surface
+Zero-blindspot Operations", shown once, in the landing footer. The attack graph
 and canvas pages use fixed hex values and need the same swap.
 
 Legacy colour names (`phosphor`, `cyan-signal`, `signal-red`, `amber`,
