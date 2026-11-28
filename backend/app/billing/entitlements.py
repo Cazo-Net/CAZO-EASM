@@ -577,6 +577,7 @@ def check_seat_available(db: Session, organization_id: str | None, *, joining: b
     if used >= limit:
         raise PlanLimitExceeded(
             "users", limit, used, ent.plan,
-            f"Your {ent.plan.name} plan includes {limit} user seat(s) and all are "
-            "taken (pending invitations count). Remove a member or upgrade.",
+            f"Your {ent.plan.name} plan includes {limit} user seat{'s' if limit != 1 else ''} "
+            f"and {'all are' if limit != 1 else 'it is'} taken ({used} in use, pending invitations "
+            "count). Remove a member, cancel a pending invitation, or upgrade.",
         )
