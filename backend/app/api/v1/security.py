@@ -11,11 +11,8 @@ from app.database import get_db
 from app.models.user import User
 from app.models.auth_models import TrustedDevice, RecoveryCode
 from app.api.deps import get_current_user
-from app.config import frontend_url
 from app.core.security import verify_password, get_password_hash
 from app.services.audit import log_auth_event
-from app.services.email import get_email_service
-from app.services.email import templates
 from app.services.notification_service import dispatch_notification
 from datetime import datetime, timezone
 
@@ -63,31 +60,11 @@ async def request_email_change(
     db: DBSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Request email change — sends verification to new email."""
-    if not verify_password(data.password, current_user.hashed_password):
+    """Change email (password required) — the new address must be re-verified."""
+    if not current_user.hashed_password or not verify_password(data.password, current_user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid password")
-
-    existing = db.query(User).filter(User.email == data.new_email, User.id != current_user.id).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already in use")
-
-    token = token_urlsafe(32)
-    current_user.reset_token = token
-    current_user.reset_token_expires = None
-    db.commit()
-
-    verify_url = frontend_url(f"/auth/verify-email?token={token}&new_email={data.new_email}")
-    try:
-        email_service = get_email_service()
-        subject, html = templates.email_changed(
-            current_user.full_name or current_user.email,
-            current_user.email,
-            data.new_email,
-            verify_url,
-        )
-        email_service.send_async(to=data.new_email, subject=subject, html_body=html)
-    except Exception as e:
-        logger.error(f"Failed to send email change email: {e}")
+    from app.api.v1.users import change_user_email
+    change_user_email(db, current_user, data.new_email, data.password)
 
     log_auth_event(db, "email_change_requested", current_user.id,
                    ip_address=request.client.host if request.client else None,

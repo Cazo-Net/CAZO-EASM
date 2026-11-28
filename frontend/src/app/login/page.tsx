@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, hasPendingTwoFactor } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -20,21 +20,62 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [step, setStep] = useState<"password" | "2fa">("password");
+  const [code, setCode] = useState("");
+  const { login, verifyTwoFactor, cancelTwoFactor } = useAuth();
   const router = useRouter();
+
+  // Arriving from Google sign-in on an account with 2FA (/login?step=2fa).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("step") === "2fa" && hasPendingTwoFactor()) setStep("2fa");
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await login(email, password, rememberMe);
+      const result = await login(email, password, rememberMe);
+      if (result.requires2fa) {
+        setStep("2fa");
+        setPassword("");
+        return;
+      }
       router.push("/dashboard");
     } catch (err: any) {
       setError(getErrorMessage(err, "Invalid email or password"));
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await verifyTwoFactor(code);
+      router.push("/dashboard");
+    } catch (err: any) {
+      const status = err?.response?.status;
+      // An expired login step (or a locked account) needs the password again.
+      if (status === 401 && /expired/i.test(err?.response?.data?.detail || "")) {
+        cancelTwoFactor();
+        setStep("password");
+      }
+      setError(getErrorMessage(err, "Invalid authentication code"));
+      setCode("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const backToPassword = () => {
+    cancelTwoFactor();
+    setStep("password");
+    setCode("");
+    setError("");
   };
 
   return (
@@ -70,6 +111,52 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="rounded-2xl border border-border/50 bg-card/80 backdrop-blur-xl p-6 shadow-2xl shadow-black/20">
+          {step === "2fa" ? (
+            <form onSubmit={handleVerify} className="space-y-4" data-testid="twofa-form">
+              {error && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                  {error}
+                </div>
+              )}
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="mt-0.5 h-5 w-5 text-brand" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Two-factor authentication</p>
+                  <p className="text-xs text-muted-foreground">
+                    Enter the 6-digit code from your authenticator app, or one of your recovery codes.
+                  </p>
+                </div>
+              </div>
+              <Input
+                type="text"
+                inputMode="text"
+                autoComplete="one-time-code"
+                autoFocus
+                placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                required
+                maxLength={20}
+                aria-label="Authentication code"
+                className="h-11 text-center tracking-widest bg-muted/30 border-border/50 focus:border-brand/50 focus:ring-brand/20"
+              />
+              <Button
+                type="submit"
+                className="w-full h-11 gradient-brand hover:opacity-90 text-primary-foreground font-medium shadow-lg shadow-brand/25 transition-all"
+                disabled={loading || !code.trim()}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verify"}
+              </Button>
+              <button
+                type="button"
+                onClick={backToPassword}
+                className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Use a different account
+              </button>
+            </form>
+          ) : (
+          <>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <motion.div
@@ -156,6 +243,8 @@ export default function LoginPage() {
           </form>
 
           <GoogleButton />
+          </>
+          )}
         </div>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">

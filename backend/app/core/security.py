@@ -40,6 +40,17 @@ def create_refresh_token(data: dict) -> str:
     return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
+def create_mfa_token(user_id: str, token_version: int) -> str:
+    """Short-lived token proving the password step passed; only accepted by
+    POST /auth/2fa/verify-login (never by get_current_user)."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=5)
+    return jwt.encode(
+        {"sub": user_id, "tv": token_version, "exp": expire, "type": "mfa"},
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+
 def decode_token(token: str) -> Optional[dict]:
     """Decode and validate a token."""
     try:
