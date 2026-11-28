@@ -269,7 +269,19 @@ def _blockchain_watches():
         db.close()
 
 
+def _scheduled_reports():
+    from app.database import SessionLocal
+    from app.services.scheduled_reports import run_due_reports
+
+    db = SessionLocal()
+    try:
+        run_due_reports(db)
+    finally:
+        db.close()
+
+
 MAINTENANCE_JOBS: List[PeriodicJob] = [
+    PeriodicJob("scheduled_reports", timedelta(minutes=15), _scheduled_reports),
     PeriodicJob("support_reply_emails", timedelta(minutes=2), _support_reply_emails),
     # Replaces the old "check_ssl_expiry" job, which mailed the person who ran
     # the scan; the inventory check follows the organization's alert settings.

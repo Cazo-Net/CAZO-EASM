@@ -149,6 +149,11 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
 
+    from app.api.v1.auth import SSO_REQUIRED_MESSAGE
+    from app.services import sso
+    if sso.password_login_blocked(db, user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=SSO_REQUIRED_MESSAGE)
+
     if user.totp_enabled and user.totp_secret:
         return mfa_challenge(user)
 

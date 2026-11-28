@@ -38,3 +38,4 @@ upstash-redis>=1.2.0
 qstash>=3.0.0
 kafka-python>=2.0.0
 packaging>=23.0
+tzdata>=2024.1

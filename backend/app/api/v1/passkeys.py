@@ -262,6 +262,11 @@ async def authenticate_passkey_complete(
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Account inactive")
 
+    from app.api.v1.auth import SSO_REQUIRED_MESSAGE
+    from app.services import sso
+    if sso.password_login_blocked(db, user):
+        raise HTTPException(status_code=403, detail=SSO_REQUIRED_MESSAGE)
+
     passkey.last_used_at = datetime.now(timezone.utc)
     passkey.sign_count += 1
     db.commit()

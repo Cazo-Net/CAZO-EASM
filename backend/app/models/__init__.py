@@ -33,9 +33,13 @@ from app.models.passkey import Passkey
 from app.models.comment import AssetComment
 from app.models.platform_log import PlatformLog
 from app.models.support import SupportConversation, SupportMessage
+from app.models.admin_chat import AdminChatMessage, AdminChatRead
 from app.models.periodic_task import PeriodicTaskState
 from app.models.v2_scanner import MonitorSchedule, ScanHistory, AssetLifecycle, NotificationTrigger
 from app.models.threat_intel import ThreatIntelMonitor, ThreatIntelFinding
+from app.models.integration import OrgIntegration, IntegrationDelivery
+from app.models.report_schedule import ReportSchedule
+from app.models.sso import OrgSsoConfig, SsoDomain, SsoLoginState
 from app.models.blockchain import (
     BlockchainWatch, BlockchainAlert, BlockchainCase, BlockchainCaseMember, BlockchainCaseEntry,
 )
@@ -53,8 +57,11 @@ __all__ = [
     "FeatureFlag", "Role", "Passkey", "AssetComment",
     "PlatformLog",
     "SupportConversation", "SupportMessage",
+    "AdminChatMessage", "AdminChatRead",
     "PeriodicTaskState",
     "MonitorSchedule", "ScanHistory", "AssetLifecycle", "NotificationTrigger",
     "ThreatIntelMonitor", "ThreatIntelFinding",
+    "OrgIntegration", "IntegrationDelivery",
+    "ReportSchedule",
     "BlockchainWatch", "BlockchainAlert", "BlockchainCase", "BlockchainCaseMember", "BlockchainCaseEntry",
 ]

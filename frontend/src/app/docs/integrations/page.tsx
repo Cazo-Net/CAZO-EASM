@@ -25,52 +25,42 @@ export default function IntegrationsDocPage() {
         <div className="mt-4 space-y-4">
           {[
             {
-              name: "Splunk HEC",
-              description:
-                "Send CEF-formatted security events to Splunk via HTTP Event Collector.",
-              env: "SPLUNK_HEC_URL",
+              name: "Slack",
+              description: "Post new findings and alerts to a Slack channel.",
+              need: "An incoming webhook URL",
               setup:
-                "Create a HEC token in Splunk Settings → Data Inputs. Set SPLUNK_HEC_URL to your HEC endpoint.",
+                "In Slack, open Apps, add Incoming Webhooks to the channel you want, and copy the URL it gives you.",
             },
             {
-              name: "Elastic Security",
-              description:
-                "Index findings and alerts to Elasticsearch for SIEM analysis.",
-              env: "ELASTIC_URL",
+              name: "Microsoft Teams",
+              description: "Post new findings and alerts to a Teams channel.",
+              need: "A workflow webhook URL",
               setup:
-                "Set ELASTIC_URL to your Elasticsearch cluster endpoint (e.g., https://localhost:9200).",
-            },
-            {
-              name: "Microsoft Sentinel",
-              description:
-                "Forward security events to Azure Sentinel via the Log Analytics Data Collector API.",
-              env: "SENTINEL_WORKSPACE_ID",
-              setup:
-                "Create a Log Analytics workspace in Azure. Set SENTINEL_WORKSPACE_ID and SENTINEL_PRIMARY_KEY.",
+                "In the channel, open Workflows, choose \"Post to a channel when a webhook request is received\", and copy the URL.",
             },
             {
               name: "Jira",
               description:
-                "Automatically create Jira tickets for critical findings and scan summaries.",
-              env: "JIRA_URL",
+                "Open an issue for each new finding. The same alert never opens a second issue.",
+              need: "Your Jira site, an account email, an API token and a project key",
               setup:
-                "Set JIRA_URL (e.g., https://yourteam.atlassian.net) and JIRA_API_TOKEN with a project token.",
+                "Create an API token at id.atlassian.com under Security. Use a service account that can create issues in the project.",
             },
             {
-              name: "Slack",
+              name: "Splunk",
               description:
-                "Post security alerts and scan completion notifications to Slack channels.",
-              env: "SLACK_WEBHOOK_URL",
+                "Send every event to Splunk through the HTTP Event Collector, as JSON.",
+              need: "Your HEC URL and a HEC token",
               setup:
-                "Create an Incoming Webhook in your Slack workspace settings. Set SLACK_WEBHOOK_URL.",
+                "In Splunk, go to Settings, Data Inputs, HTTP Event Collector and create a token. The collector must be reachable from the internet.",
             },
             {
-              name: "Microsoft Teams",
+              name: "Other SIEMs and your own systems",
               description:
-                "Send security notifications and alerts to Teams channels.",
-              env: "TEAMS_WEBHOOK_URL",
+                "Elastic, Microsoft Sentinel, QRadar and anything else that accepts HTTPS can receive the same events as signed webhooks.",
+              need: "An HTTPS endpoint",
               setup:
-                "Create an Incoming Webhook connector in your Teams channel. Set TEAMS_WEBHOOK_URL.",
+                "Add a webhook under Settings, Access, Webhooks and verify the signature on your side.",
             },
           ].map((int) => (
             <div
@@ -85,9 +75,9 @@ export default function IntegrationsDocPage() {
               </p>
               <div className="mt-3 rounded-lg bg-muted/20 p-3">
                 <div className="text-[10px] text-muted-foreground mb-1">
-                  Environment variable:
+                  What you need:
                 </div>
-                <code className="text-xs text-foreground/70">{int.env}</code>
+                <span className="text-xs text-foreground/70">{int.need}</span>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 {int.setup}
@@ -99,6 +89,10 @@ export default function IntegrationsDocPage() {
         <h2 className="mt-10 text-xl font-semibold text-foreground">
           How to configure
         </h2>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Owners and administrators can set up integrations. Each organization has its own, and
+          every change is recorded in the audit log.
+        </p>
         <ol className="mt-3 space-y-3 text-sm text-muted-foreground">
           <li className="flex items-start gap-3">
             <span className="mt-0.5 text-xs font-mono text-muted-foreground">1.</span>
@@ -109,28 +103,19 @@ export default function IntegrationsDocPage() {
           <li className="flex items-start gap-3">
             <span className="mt-0.5 text-xs font-mono text-muted-foreground">2.</span>
             <span>
-              Find the integration you want to enable.
+              Pick the tool you want to connect and enter its details. Credentials are stored encrypted and are never shown again.
             </span>
           </li>
           <li className="flex items-start gap-3">
             <span className="mt-0.5 text-xs font-mono text-muted-foreground">3.</span>
             <span>
-              Set the required environment variable in your Railway dashboard
-              (or backend <code className="text-xs text-foreground/70">.env</code> file).
+              Choose which events to send, such as new critical findings or expiring certificates.
             </span>
           </li>
           <li className="flex items-start gap-3">
             <span className="mt-0.5 text-xs font-mono text-muted-foreground">4.</span>
             <span>
-              Click <strong className="text-foreground">Refresh</strong> in the Integrations
-              panel — the status should change to &quot;Configured&quot;.
-            </span>
-          </li>
-          <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground">5.</span>
-            <span>
-              Click <strong className="text-foreground">Test Connection</strong> to verify
-              everything works.
+              Click <strong className="text-foreground">Test</strong> to check it works. For Jira the test checks access without opening an issue.
             </span>
           </li>
         </ol>
