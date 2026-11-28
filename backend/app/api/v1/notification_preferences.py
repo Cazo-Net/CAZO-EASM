@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 
 from app.database import get_db
@@ -28,6 +28,13 @@ class NotificationPreferenceUpdate(BaseModel):
     notification_type: str
     in_app_enabled: bool
     email_enabled: bool
+
+
+class NotificationPreferenceSingleUpdate(BaseModel):
+    """Body for PUT /{notification_type}: the type is in the path, and the
+    settings page sends only the channel it changed."""
+    in_app_enabled: Optional[bool] = None
+    email_enabled: Optional[bool] = None
 
 
 class NotificationPreferencesBulkUpdate(BaseModel):
@@ -100,7 +107,7 @@ async def update_preferences(
 @router.put("/{notification_type}")
 async def update_single_preference(
     notification_type: str,
-    body: NotificationPreferenceUpdate,
+    body: NotificationPreferenceSingleUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -118,8 +125,10 @@ async def update_single_preference(
             detail=f"Notification type not found: {notification_type}",
         )
 
-    pref.in_app_enabled = body.in_app_enabled
-    pref.email_enabled = body.email_enabled
+    if body.in_app_enabled is not None:
+        pref.in_app_enabled = body.in_app_enabled
+    if body.email_enabled is not None:
+        pref.email_enabled = body.email_enabled
     db.commit()
 
     return NotificationPreferenceResponse.model_validate(pref)

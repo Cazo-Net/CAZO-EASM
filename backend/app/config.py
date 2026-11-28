@@ -255,6 +255,8 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        # Unknown keys in .env (old or optional settings) must not stop the API.
+        extra = "ignore"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
