@@ -6,6 +6,7 @@ The pipeline orchestrates scanners in dependency-ordered stages:
   Stage 3: Network Intelligence (ports, services, banners)
   Stage 4: Technology Fingerprinting (headers, patterns, CMS)
   Stage 5: Certificate Analysis (TLS, chain, transparency)
+  Stage 5b: Web Exposure (HTTP fingerprint, exposed files, panels, secrets)
   Stage 6: Vulnerability Assessment (findings, CVE correlation)
   Stage 7: Risk Evaluation (scoring, prioritization)
   Stage 8: Graph Mapping (relationships, ownership)
@@ -36,6 +37,7 @@ class PipelineStage(str, Enum):
     NETWORK_INTELLIGENCE = "network_intelligence"
     TECHNOLOGY_FINGERPRINT = "technology_fingerprint"
     CERTIFICATE_ANALYSIS = "certificate_analysis"
+    WEB_EXPOSURE = "web_exposure"
     VULNERABILITY_ASSESSMENT = "vulnerability_assessment"
     RISK_EVALUATION = "risk_evaluation"
     GRAPH_MAPPING = "graph_mapping"
@@ -57,6 +59,9 @@ STAGE_CATEGORIES: Dict[PipelineStage, List[ScannerCategory]] = {
     PipelineStage.CERTIFICATE_ANALYSIS: [
         ScannerCategory.CERTIFICATE_ANALYSIS, ScannerCategory.SSL,
     ],
+    PipelineStage.WEB_EXPOSURE: [
+        ScannerCategory.WEB_EXPOSURE,
+    ],
     PipelineStage.VULNERABILITY_ASSESSMENT: [
         ScannerCategory.VULNERABILITY_ASSESSMENT, ScannerCategory.VULNERABILITY,
     ],
@@ -75,6 +80,7 @@ DEFAULT_STAGE_ORDER = [
     PipelineStage.NETWORK_INTELLIGENCE,
     PipelineStage.TECHNOLOGY_FINGERPRINT,
     PipelineStage.CERTIFICATE_ANALYSIS,
+    PipelineStage.WEB_EXPOSURE,
     PipelineStage.VULNERABILITY_ASSESSMENT,
     PipelineStage.RISK_EVALUATION,
     PipelineStage.GRAPH_MAPPING,
@@ -168,6 +174,14 @@ class PipelineContext:
                 existing.add(key)
 
 
+async def _maybe_await(value: Any) -> None:
+    if asyncio.iscoroutine(value) or isinstance(value, asyncio.Future):
+        try:
+            await value
+        except Exception as exc:  # noqa: BLE001 — progress must never fail a scan
+            logger.debug("progress callback failed: %s", exc)
+
+
 # Type alias for progress callbacks
 ProgressCallback = Callable[[str, str, float, Dict[str, Any]], None]
 
@@ -212,18 +226,20 @@ class ScanPipeline:
                 logger.info("Pipeline cancelled at stage %s", stage.value)
                 break
 
-            # Notify progress
+            # Notify progress (callbacks may be sync or async)
             if progress_callback:
                 stage_progress = stage_idx / total_stages
-                progress_callback(
+                await _maybe_await(progress_callback(
                     stage.value,
                     f"Starting stage: {stage.value}",
                     stage_progress,
                     {"stage": stage_idx + 1, "total_stages": total_stages},
-                )
+                ))
 
+            stage_kwargs = self._stage_kwargs(stage, target, context, cfg, result)
             stage_result = await self._execute_stage(
-                stage, target, context, cfg, included_scanners, excluded_scanners
+                stage, target, context, cfg, included_scanners, excluded_scanners,
+                stage_kwargs,
             )
             result.stages[stage.value] = stage_result
             result.total_scanners += stage_result.total_scanners
@@ -232,16 +248,18 @@ class ScanPipeline:
 
             # Post-stage hook: update context with stage results
             self._update_context(stage, stage_result, context)
+            if stage == PipelineStage.ASSET_DISCOVERY:
+                await self._gate_discovered_assets(target, context)
 
         result.total_duration_ms = (time.monotonic() - pipeline_start) * 1000
 
         if progress_callback:
-            progress_callback(
+            await _maybe_await(progress_callback(
                 "complete",
                 "Pipeline complete",
                 1.0,
                 result.to_dict(),
-            )
+            ))
 
         return result
 
@@ -253,6 +271,7 @@ class ScanPipeline:
         config: Dict[str, Any],
         included: Optional[Set[str]],
         excluded: Optional[Set[str]],
+        stage_kwargs: Optional[Dict[str, Any]] = None,
     ) -> StageResult:
         """Execute all scanners in a stage concurrently."""
         stage_result = StageResult(stage=stage)
@@ -287,6 +306,7 @@ class ScanPipeline:
                     extra["scan_type"] = config["scan_type"]
                 if "top_ports" in config:
                     extra["port_list"] = config["top_ports"]
+                extra.update(stage_kwargs or {})
                 return plugin.name, await instance.run(target, context=context, **extra)
 
         tasks = [_run_plugin(p) for p in plugins]
@@ -306,6 +326,52 @@ class ScanPipeline:
 
         stage_result.duration_ms = (time.monotonic() - stage_start) * 1000
         return stage_result
+
+    def _stage_kwargs(
+        self,
+        stage: PipelineStage,
+        target: str,
+        context: PipelineContext,
+        config: Dict[str, Any],
+        partial: PipelineResult,
+    ) -> Dict[str, Any]:
+        """What each stage gets to know about earlier stages.
+
+        Everything handed on here has already passed the scope gate: hosts
+        come from ``context.discovered_assets`` (filtered by
+        ``_gate_discovered_assets``) or from scans of those hosts.
+        """
+        kwargs: Dict[str, Any] = {"root_domain": target}
+        if stage in (PipelineStage.ASSET_DISCOVERY, PipelineStage.DNS_INTELLIGENCE,
+                     PipelineStage.NETWORK_INTELLIGENCE):
+            return kwargs
+
+        from app.scanners.v2.normalize import (
+            scan_results_view, tls_endpoints_from_ports, transform_pipeline_results,
+            web_targets_from_ports,
+        )
+
+        so_far = transform_pipeline_results(partial, target)
+        ports = so_far.get("ports", {})
+        in_scope_hosts = [a["hostname"] for a in context.discovered_assets if a.get("hostname")]
+        kwargs["subdomains"] = [h for h in in_scope_hosts if h != target]
+
+        if stage == PipelineStage.CERTIFICATE_ANALYSIS:
+            endpoints = tls_endpoints_from_ports(ports)
+            kwargs["tls_endpoints"] = endpoints[: int(config.get("tls_max_endpoints", 10))]
+        elif stage == PipelineStage.WEB_EXPOSURE:
+            targets = web_targets_from_ports(ports)
+            if not targets:
+                # Port scan found nothing (or was skipped): try the usual web
+                # ports on the target and the in-scope hosts we know about.
+                hosts = [target] + kwargs["subdomains"]
+                targets = [f"https://{h}" for h in hosts] + [f"http://{h}" for h in hosts]
+            kwargs["web_targets"] = targets
+        else:
+            kwargs["scan_results"] = scan_results_view(so_far)
+            kwargs["open_ports"] = [p.get("port") for p in ports.get(target, []) if p.get("port")]
+            kwargs["technologies"] = so_far.get("technologies", {}).get(target, [])
+        return kwargs
 
     def _update_context(
         self,
@@ -341,6 +407,30 @@ class ScanPipeline:
             elif stage == PipelineStage.VULNERABILITY_ASSESSMENT:
                 if "findings" in sr.data:
                     context.findings.extend(sr.data["findings"])
+
+    async def _gate_discovered_assets(self, target: str, context: PipelineContext) -> None:
+        """Keep only hosts later stages may connect to.
+
+        Discovery sources return whatever they find, including other companies'
+        hosts and names that resolve to internal addresses. Those stay in the
+        stage results as discoveries, but active stages must not probe them.
+        """
+        from app.core.target_guard import filter_probe_targets
+
+        names = [a.get("hostname") for a in context.discovered_assets if a.get("hostname")]
+        if not names:
+            return
+        allowed = set(await filter_probe_targets(names, target))
+        skipped = [n for n in names if n not in allowed]
+        context.discovered_assets = [
+            a for a in context.discovered_assets if a.get("hostname") in allowed
+        ]
+        if skipped:
+            context.metadata["skipped_out_of_scope"] = len(skipped)
+            logger.info(
+                "Scan of %s: %d discovered host(s) recorded but not probed (out of scope or internal)",
+                target, len(skipped),
+            )
 
     def cancel(self) -> None:
         """Signal pipeline to stop after current stage."""

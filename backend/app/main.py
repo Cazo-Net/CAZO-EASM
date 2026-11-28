@@ -73,10 +73,8 @@ _PROBE_PATHS = {"/health", "/ready"}
 
 
 def _client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    from app.core.client_ip import get_client_ip
+    return get_client_ip(request)
 
 
 @asynccontextmanager
@@ -88,9 +86,25 @@ async def lifespan(app: FastAPI):
     _reap_stuck_scans()
     _configure_dns()
 
-    # Start scan scheduler
-    from app.services.scan_scheduler import scan_scheduler
-    await scan_scheduler.start()
+    # Scans run from the durable job queue. Scheduled scans and periodic
+    # maintenance are run by scan workers, not by every API process.
+    from app.services.scan_dispatch import execution_mode
+    from app.core.scope import scope_mode
+    from app.workers.scan_worker import start_embedded_worker, stop_embedded_worker
+    _exec_mode = execution_mode()
+    # The worker also runs schedules and maintenance, so it starts in every
+    # execution mode; scheduled scans always go through the queue.
+    _embedded = bool(settings.RUN_EMBEDDED_WORKER)
+    if _embedded:
+        await start_embedded_worker()
+    logger.info(
+        "Scan execution: mode=%s, embedded_worker=%s, scope_enforcement=%s",
+        _exec_mode, _embedded, scope_mode(),
+    )
+    if _exec_mode == "queue" and not _embedded:
+        logger.info("Scans are queued for external scan workers (python -m app.workers.scan_worker)")
+    if scope_mode() == "open":
+        logger.warning("SCOPE_ENFORCEMENT=open: any organization can scan any public target")
 
     # Initialize Neo4j graph database
     from app.blockchain.infrastructure.graph.neo4j_driver import driver as neo4j_driver
@@ -122,8 +136,8 @@ async def lifespan(app: FastAPI):
     await neo4j_driver.close()
     await os_client.close()
 
-    # Stop scan scheduler
-    await scan_scheduler.stop()
+    # Stop the embedded scan worker (running jobs go back to the queue)
+    await stop_embedded_worker()
     logger.info("Application shutting down")
 
 
@@ -148,6 +162,13 @@ def _reap_stuck_scans() -> None:
     """
     from app.database import SessionLocal
     from app.models.scan import Scan
+    from app.services.scan_dispatch import execution_mode
+
+    if execution_mode() == "queue":
+        # Queued scans are owned by scan workers, which recover their own
+        # dead jobs from heartbeats. Failing "old" running scans here would
+        # kill healthy long scans whenever the API restarts.
+        return
 
     timeout = timedelta(minutes=30)
     cutoff = datetime.now(timezone.utc) - timeout
@@ -331,7 +352,18 @@ async def rate_limit_middleware(request: Request, call_next):
 
     # Stricter limit for login/register endpoints
     path = request.url.path
-    is_auth_endpoint = path in ("/api/v1/auth/login", "/api/v1/auth/register", "/api/v1/auth/forgot-password")
+    # Every unauthenticated credential / token endpoint gets the strict bucket.
+    # (Login also has a per-email limit inside the handler, which a spoofed IP
+    # cannot get around.)
+    is_auth_endpoint = path in (
+        "/api/v1/auth/login",
+        "/api/v1/auth/register",
+        "/api/v1/auth/forgot-password",
+        "/api/v1/auth/reset-password",
+        "/api/v1/auth/verify-email",
+        "/api/v1/auth/2fa/verify-login",
+        "/api/v1/auth/google",
+    ) or path.startswith("/api/v1/passkeys/authenticate")
     max_requests = LOGIN_RATE_LIMIT if is_auth_endpoint else GLOBAL_RATE_LIMIT
     bucket = "auth" if is_auth_endpoint else "global"
 
@@ -370,6 +402,40 @@ async def health_check():
     return {"status": "healthy"}
 
 
+@app.get("/health/scans")
+async def scan_queue_health():
+    """Scan queue status: execution mode, job counts and oldest waiting job.
+
+    A growing ``oldest_pending_seconds`` means no scan worker is running or
+    workers are saturated.
+    """
+    import asyncio
+    from app.database import SessionLocal
+    from app.services.job_queue import queue_stats
+    from app.services.scan_dispatch import execution_mode
+    from app.core.scope import scope_mode
+    from app.workers.scan_worker import embedded_worker
+
+    def _stats():
+        db = SessionLocal()
+        try:
+            return queue_stats(db)
+        finally:
+            db.close()
+
+    try:
+        stats = await asyncio.to_thread(_stats)
+    except Exception:  # noqa: BLE001
+        stats = {"error": "queue unavailable"}
+    w = embedded_worker()
+    return {
+        "execution_mode": execution_mode(),
+        "scope_enforcement": scope_mode(),
+        "embedded_worker": {"running": True, "active_jobs": w.active_jobs} if w else {"running": False},
+        "queue": stats,
+    }
+
+
 @app.get("/ready")
 async def readiness_check():
     """Readiness probe — dependencies (database) are reachable."""
@@ -396,6 +462,9 @@ async def readiness_check():
 
 
 # Import and include routers
+from fastapi import Depends  # noqa: E402
+from app.api.deps import get_current_user  # noqa: E402
+# blockchain and darkweb have no per-route auth, so the whole router requires a login.
 from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2, logs, blockchain, darkweb, webhooks, integrations, support  # noqa: E402
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
@@ -431,8 +500,8 @@ app.include_router(search.router, prefix="/api/v1/search", tags=["Search"])
 app.include_router(osint.router, prefix="/api/v1/osint", tags=["OSINT Intelligence"])
 app.include_router(scanner_v2.router, prefix="/api/v1/scanner-v2", tags=["Scanner v2"])
 app.include_router(logs.router, prefix="/api/v1/logs", tags=["Platform Logs"])
-app.include_router(blockchain.router, prefix="/api/v1/blockchain", tags=["Blockchain Intelligence"])
-app.include_router(darkweb.router, prefix="/api/v1/darkweb", tags=["Dark Web Intelligence"])
+app.include_router(blockchain.router, prefix="/api/v1/blockchain", tags=["Blockchain Intelligence"], dependencies=[Depends(get_current_user)])
+app.include_router(darkweb.router, prefix="/api/v1/darkweb", tags=["Dark Web Intelligence"], dependencies=[Depends(get_current_user)])
 app.include_router(support.router, prefix="/api/v1/support", tags=["Support Chat"])
 app.include_router(webhooks.router, prefix="/api/v1/webhooks", tags=["Webhooks"])
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["Integrations"])

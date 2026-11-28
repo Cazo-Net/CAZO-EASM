@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { runScanV2, type ScanV2Health, type ScanV2Result } from "@/lib/api";
+import { getErrorMessage, runScanV2, type ScanV2Health, type ScanV2Result } from "@/lib/api";
 
 interface PipelineState {
   progress: Record<string, number>;
@@ -86,7 +86,7 @@ export function useScannerV2Store() {
       _state = {
         ..._state,
         loading: false,
-        error: err?.response?.data?.detail || "Scan failed",
+        error: getErrorMessage(err, "Scan failed"),
       };
     }
     _emit();

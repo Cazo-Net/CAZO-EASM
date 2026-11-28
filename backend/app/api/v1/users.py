@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
 from datetime import datetime, timezone
 from app.database import get_db
 from app.models.user import User
@@ -33,15 +34,13 @@ async def update_current_user(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Update current user profile."""
-    if user_data.email and user_data.email != current_user.email:
-        existing = db.query(User).filter(User.email == user_data.email).first()
-        if existing:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already in use"
-            )
-        current_user.email = user_data.email
+    """Update current user profile.
+
+    Changing the email requires the current password; the new address must be
+    re-verified and the old address is notified.
+    """
+    if user_data.email and user_data.email != (current_user.email or "").lower():
+        change_user_email(db, current_user, user_data.email, user_data.current_password)
 
     if user_data.full_name is not None:
         current_user.full_name = user_data.full_name
@@ -49,6 +48,47 @@ async def update_current_user(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+def change_user_email(db: Session, user: User, new_email: str, password: Optional[str]) -> None:
+    """Change a user's email after re-checking their password.
+
+    The new address starts unverified and gets a verification link; the old
+    address gets a notice so a hijacked session can't silently take over the
+    account's recovery email.
+    """
+    from sqlalchemy import func
+    from app.core.security import generate_verification_token
+    from app.config import frontend_url
+    from app.services.email import get_email_service, templates
+    import logging
+
+    new_email = new_email.strip().lower()
+    if not password or not user.hashed_password or not verify_password(password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Enter your current password to change your email",
+        )
+    existing = db.query(User).filter(func.lower(User.email) == new_email, User.id != user.id).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already in use")
+
+    old_email = user.email
+    token = generate_verification_token()
+    user.email = new_email
+    user.email_verified = False
+    user.verification_token = token
+    db.commit()
+
+    log = logging.getLogger(__name__)
+    try:
+        email_service = get_email_service()
+        verify_url = frontend_url(f"/auth/verify-email?token={token}")
+        subject, html = templates.email_changed(user.full_name or new_email, old_email, new_email, verify_url)
+        email_service.send_async(to=new_email, subject=subject, html_body=html)
+        email_service.send_async(to=old_email, subject=subject, html_body=html)
+    except Exception as e:  # noqa: BLE001
+        log.error(f"Failed to send email-change emails: {e}")
 
 
 @router.put("/me/password")
@@ -99,6 +139,16 @@ async def delete_account(
     current_user: User = Depends(get_current_user)
 ):
     """Delete current user account and all associated data."""
+    if current_user.role == "owner" and current_user.organization_id:
+        others = db.query(User).filter(
+            User.organization_id == current_user.organization_id,
+            User.id != current_user.id,
+        ).count()
+        if others:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Transfer organization ownership to another member before deleting your account",
+            )
     from app.models.scan import Scan
     from app.models.asset import Subdomain
     from app.models.port import Port

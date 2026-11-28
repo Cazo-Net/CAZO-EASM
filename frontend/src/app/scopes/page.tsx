@@ -14,14 +14,18 @@ import {
   Loader2,
   Info,
   ExternalLink,
+  Copy,
+  BadgeCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useChecklistAutoComplete } from "@/components/onboarding/GettingStartedChecklist";
-import api, {
+import {
   listScopes,
   createScope,
   deleteScope,
   checkScope,
+  verifyScope,
+  getErrorMessage,
 } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +80,11 @@ function ScopesContent() {
   const [scopeAuthConfirmed, setScopeAuthConfirmed] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const [openVerifyId, setOpenVerifyId] = useState<string | null>(null);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
   const [checkValue, setCheckValue] = useState("");
   const [checkResult, setCheckResult] = useState<ScopeCheckResult | null>(null);
   const [checking, setChecking] = useState(false);
@@ -87,7 +96,7 @@ function ScopesContent() {
       const data = await listScopes();
       setScopes(data);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || "Failed to load authorized scopes.");
+      setError(getErrorMessage(e, "Failed to load authorized scopes."));
     } finally {
       setLoading(false);
     }
@@ -125,9 +134,7 @@ function ScopesContent() {
       setScopeAuthConfirmed(false);
       await load();
     } catch (e: any) {
-      setCreateError(
-        e?.response?.data?.detail || "Failed to add authorized scope."
-      );
+      setCreateError(getErrorMessage(e, "Failed to add authorized scope."));
     } finally {
       setCreating(false);
     }
@@ -139,9 +146,33 @@ function ScopesContent() {
       await deleteScope(id);
       setScopes((prev) => prev.filter((s) => s.id !== id));
     } catch (e: any) {
-      setError(e?.response?.data?.detail || "Failed to remove scope.");
+      setError(getErrorMessage(e, "Failed to remove scope."));
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleVerify = async (id: string) => {
+    setVerifyingId(id);
+    setVerifyError(null);
+    try {
+      const updated = await verifyScope(id);
+      setScopes((prev) => prev.map((s) => (s.id === id ? updated : s)));
+      setOpenVerifyId(null);
+    } catch (e: any) {
+      setVerifyError(getErrorMessage(e, "Verification failed."));
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(text);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {
+      /* clipboard unavailable */
     }
   };
 
@@ -153,7 +184,7 @@ function ScopesContent() {
       const result = await checkScope(checkValue.trim());
       setCheckResult(result);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || "Scope check failed.");
+      setError(getErrorMessage(e, "Scope check failed."));
     } finally {
       setChecking(false);
     }
@@ -215,8 +246,9 @@ function ScopesContent() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="flex items-center gap-3 py-3"
+                      className="py-3"
                     >
+                      <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-surface-2 text-brand">
                         <ScopeIcon type={s.scope_type} className="h-4 w-4" />
                       </div>
@@ -240,6 +272,19 @@ function ScopesContent() {
                           <p className="truncate text-xs text-muted-foreground">{s.note}</p>
                         )}
                       </div>
+                      {!s.verified && s.verification?.method === "dns_txt" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => {
+                            setVerifyError(null);
+                            setOpenVerifyId(openVerifyId === s.id ? null : s.id);
+                          }}
+                        >
+                          <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> Verify
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -253,6 +298,59 @@ function ScopesContent() {
                           <Trash2 className="h-4 w-4" />
                         )}
                       </Button>
+                      </div>
+                      {openVerifyId === s.id && s.verification?.method === "dns_txt" && (
+                        <div className="mt-3 ml-12 space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3 text-xs">
+                          <p className="text-muted-foreground">
+                            Prove you control this domain: add this DNS record at your DNS
+                            provider, then press Check now. Changes can take a few minutes to appear.
+                          </p>
+                          {[
+                            ["Type", s.verification.record_type || "TXT"],
+                            ["Name", s.verification.record_name || ""],
+                            ["Value", s.verification.record_value || ""],
+                          ].map(([label, value]) => (
+                            <div key={label} className="flex items-center gap-2">
+                              <span className="w-12 shrink-0 text-muted-foreground">{label}</span>
+                              <code className="min-w-0 flex-1 truncate rounded bg-background/60 px-2 py-1 font-mono">
+                                {value}
+                              </code>
+                              {label !== "Type" && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 shrink-0"
+                                  onClick={() => copy(value)}
+                                  aria-label={`Copy ${label.toLowerCase()}`}
+                                >
+                                  {copied === value ? (
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                                  ) : (
+                                    <Copy className="h-3.5 w-3.5" />
+                                  )}
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          {verifyError && (
+                            <p className="flex items-start gap-1.5 text-destructive">
+                              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {verifyError}
+                            </p>
+                          )}
+                          <Button
+                            size="sm"
+                            onClick={() => handleVerify(s.id)}
+                            disabled={verifyingId === s.id}
+                          >
+                            {verifyingId === s.id ? (
+                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" />
+                            )}
+                            Check now
+                          </Button>
+                        </div>
+                      )}
                     </motion.li>
                   ))}
                 </AnimatePresence>
@@ -324,8 +422,8 @@ function ScopesContent() {
           <DialogHeader>
             <DialogTitle>Add Authorized Scope</DialogTitle>
             <DialogDescription>
-              Targets outside registered scopes are blocked from discovery. Values
-              are validated on save.
+              Targets outside your scopes are blocked from scanning. Domains must
+              be verified with a DNS TXT record before they can be scanned.
             </DialogDescription>
           </DialogHeader>
 

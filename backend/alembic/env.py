@@ -8,19 +8,14 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.database import Base, get_database_url
-from app.models import (
-    user, scan, asset, port, dns, ssl, technology, vulnerability, whois,
-    risk, organization, project, report, scope, audit, asset_inventory,
-    asset_score, asset_change, comment, notification, notification_preference,
-    notification_email_log, tag, canvas, auth_models, api_key_v2,
-    role, passkey, osint_cache,
-)
+from app import models  # noqa: F401,E402  (registers every table on Base.metadata)
 
 config = context.config
-config.set_main_option("sqlalchemy.url", get_database_url())
+# Escape "%" so URL-encoded passwords survive configparser interpolation.
+config.set_main_option("sqlalchemy.url", get_database_url().replace("%", "%%"))
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

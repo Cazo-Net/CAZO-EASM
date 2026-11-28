@@ -18,7 +18,8 @@ const api = axios.create({
 // Auth interceptor — attach JWT if present
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("access_token");
+    // "Remember me" off keeps tokens in sessionStorage, so check both.
+    const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -60,26 +61,43 @@ export async function register(email: string, password: string, fullName?: strin
   return data;
 }
 
-export async function login(email: string, password: string, rememberMe = true) {
-  const { data } = await api.post("/auth/login", { email, password });
-  if (typeof window !== "undefined") {
-    const storage = rememberMe ? localStorage : sessionStorage;
-    storage.setItem("access_token", data.access_token);
-    storage.setItem("refresh_token", data.refresh_token);
-    // Clear the other storage to avoid stale tokens
-    const other = rememberMe ? sessionStorage : localStorage;
-    other.removeItem("access_token");
-    other.removeItem("refresh_token");
-  }
+export interface LoginResult {
+  access_token: string | null;
+  refresh_token: string | null;
+  token_type: string;
+  requires_2fa: boolean;
+  mfa_token?: string | null;
+}
+
+export function storeTokens(data: { access_token?: string | null; refresh_token?: string | null }, rememberMe = true) {
+  if (typeof window === "undefined" || !data.access_token || !data.refresh_token) return;
+  const storage = rememberMe ? localStorage : sessionStorage;
+  storage.setItem("access_token", data.access_token);
+  storage.setItem("refresh_token", data.refresh_token);
+  // Clear the other storage to avoid stale tokens
+  const other = rememberMe ? sessionStorage : localStorage;
+  other.removeItem("access_token");
+  other.removeItem("refresh_token");
+}
+
+// Step 1 of sign-in. When the account has 2FA, no tokens come back yet:
+// the result has requires_2fa=true and an mfa_token for verifyTwoFactorLogin.
+export async function login(email: string, password: string, rememberMe = true): Promise<LoginResult> {
+  const { data } = await api.post<LoginResult>("/auth/login", { email, password });
+  if (!data.requires_2fa) storeTokens(data, rememberMe);
   return data;
 }
 
-export async function loginWithGoogle(credential: string) {
-  const { data } = await api.post("/auth/google", { credential });
-  if (typeof window !== "undefined") {
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("refresh_token", data.refresh_token);
-  }
+// Step 2 of sign-in for accounts with 2FA: a 6-digit app code or a recovery code.
+export async function verifyTwoFactorLogin(mfaToken: string, code: string, rememberMe = true): Promise<LoginResult> {
+  const { data } = await api.post<LoginResult>("/auth/2fa/verify-login", { mfa_token: mfaToken, code });
+  storeTokens(data, rememberMe);
+  return data;
+}
+
+export async function loginWithGoogle(credential: string): Promise<LoginResult> {
+  const { data } = await api.post<LoginResult>("/auth/google", { credential });
+  if (!data.requires_2fa) storeTokens(data, true);
   return data;
 }
 
@@ -726,6 +744,12 @@ export async function createScope(
 
 export async function deleteScope(scopeId: string): Promise<void> {
   await api.delete(`/scopes/${scopeId}`);
+}
+
+/** Check the scope's DNS TXT record now; resolves to the verified scope. */
+export async function verifyScope(scopeId: string): Promise<AuthorizedScope> {
+  const res = await api.post(`/scopes/${scopeId}/verify`);
+  return res.data;
 }
 
 export async function checkScope(value: string): Promise<ScopeCheckResult> {

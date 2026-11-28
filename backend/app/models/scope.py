@@ -34,6 +34,11 @@ class AuthorizedScope(Base):
     # Whether the scope has been verified (e.g. via DNS/email/ownership proof).
     # Unverified scopes can still gate scans when REQUIRE_VERIFIED_SCOPE is off.
     verified = Column(Boolean, default=False, nullable=False)
+    # Ownership proof (DNS TXT). The token is published by the customer at
+    # ``_cazo-verify.<domain>`` as ``cazo-verify=<token>``.
+    verification_token = Column(String(64), nullable=True)
+    verification_method = Column(String(20), nullable=True)
+    verified_at = Column(DateTime(timezone=True), nullable=True)
     # Optional human note (ticket ref, authorization basis, etc.)
     note = Column(Text, nullable=True)
     added_by = Column(String(36), ForeignKey("users.id"), nullable=True)

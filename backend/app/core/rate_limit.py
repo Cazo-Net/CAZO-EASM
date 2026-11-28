@@ -82,6 +82,39 @@ class RateLimiter:
             return self._allow_redis(key, max_requests)
         return self._allow_local(key, max_requests)
 
+    def count(self, key: str) -> int:
+        """Hits recorded for ``key`` in the current window (no increment)."""
+        if self._redis is not None:
+            try:
+                val = self._redis.get(f"ratelimit:{key}")
+                return int(val or 0)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Redis rate limit read error (%s)", exc)
+                return 0
+        now = time.time()
+        with self._lock:
+            return len([t for t in self._local.get(key, []) if now - t < self.window])
+
+    def clear_prefix(self, prefix: str) -> None:
+        if self._redis is not None:
+            try:
+                for k in self._redis.scan_iter(f"ratelimit:{prefix}*"):
+                    self._redis.delete(k)
+            except Exception:  # noqa: BLE001
+                pass
+        with self._lock:
+            for k in [k for k in self._local if k.startswith(prefix)]:
+                del self._local[k]
+
+    def clear(self, key: str) -> None:
+        if self._redis is not None:
+            try:
+                self._redis.delete(f"ratelimit:{key}")
+            except Exception:  # noqa: BLE001
+                pass
+        with self._lock:
+            self._local.pop(key, None)
+
     def _allow_redis(self, key: str, max_requests: int) -> bool:
         redis_key = f"ratelimit:{key}"
         try:
@@ -114,6 +147,7 @@ class RateLimiter:
 
 
 rate_limiter: Optional[RateLimiter] = None
+failure_limiter: Optional[RateLimiter] = None
 
 
 def get_rate_limiter() -> RateLimiter:
@@ -121,3 +155,11 @@ def get_rate_limiter() -> RateLimiter:
     if rate_limiter is None:
         rate_limiter = RateLimiter()
     return rate_limiter
+
+
+def get_failure_limiter() -> RateLimiter:
+    """15-minute window counter used for failed logins (per email + IP)."""
+    global failure_limiter
+    if failure_limiter is None:
+        failure_limiter = RateLimiter(window=900)
+    return failure_limiter

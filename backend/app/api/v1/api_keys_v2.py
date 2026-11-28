@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.api.deps import get_current_user
+from app.core.permissions import require_permission, Permission
 from app.models.user import User
 from app.models.api_key_v2 import ApiKey
 from app.schemas.api_key_v2 import (
@@ -65,7 +66,7 @@ async def list_api_keys(
 @router.post("", response_model=ApiKeyCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_api_key(
     data: ApiKeyCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.MANAGE_API_KEYS)),
     db: Session = Depends(get_db),
 ):
     """Create a new API key."""
@@ -130,7 +131,7 @@ async def revoke_api_key(
 async def update_api_key(
     key_id: str,
     data: ApiKeyCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.MANAGE_API_KEYS)),
     db: Session = Depends(get_db),
 ):
     """Update an API key's metadata (name, scopes, expiry)."""
@@ -170,7 +171,7 @@ async def update_api_key(
 @router.post("/{key_id}/rotate", response_model=ApiKeyCreateResponse)
 async def rotate_api_key(
     key_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.MANAGE_API_KEYS)),
     db: Session = Depends(get_db),
 ):
     """Rotate an API key: revoke old, create new with same settings."""

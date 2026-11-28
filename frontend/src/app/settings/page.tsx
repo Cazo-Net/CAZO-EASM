@@ -153,6 +153,7 @@ function SettingsContent() {
   // Email
   const [editingEmail, setEditingEmail] = useState(false);
   const [emailValue, setEmailValue] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
 
   // Sessions
   const [sessions, setSessions] = useState<any[]>([]);
@@ -228,13 +229,16 @@ function SettingsContent() {
     try {
       const payload: any = { full_name: user.full_name };
       if (editingEmail && emailValue !== user.email) {
+        // The API requires the current password to change the email.
         payload.email = emailValue;
+        payload.current_password = emailPassword;
       }
       await api.put("/users/me", payload);
       setSaveMessage("success");
       setEditingEmail(false);
-      if (emailValue !== user.email) {
-        setUser({ ...user, email: emailValue });
+      setEmailPassword("");
+      if (editingEmail && emailValue !== user.email) {
+        setUser({ ...user, email: emailValue.trim().toLowerCase(), email_verified: false });
       }
     } catch (error: any) {
       setSaveMessage("error");
@@ -440,6 +444,8 @@ function SettingsContent() {
               editingEmail={editingEmail}
               setEditingEmail={setEditingEmail}
               emailValue={emailValue}
+              emailPassword={emailPassword}
+              setEmailPassword={setEmailPassword}
               setEmailValue={setEmailValue}
               onSaveProfile={handleSaveProfile}
             />
@@ -562,7 +568,7 @@ function SectionHeader({ icon: Icon, title, description, color = "brand" }: {
    PROFILE TAB
    ============================================ */
 
-function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail, setEditingEmail, emailValue, setEmailValue, onSaveProfile }: any) {
+function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail, setEditingEmail, emailValue, setEmailValue, emailPassword, setEmailPassword, onSaveProfile }: any) {
   return (
     <div>
       <SectionHeader icon={User} title="Public profile" description="Your profile information visible to others." color="brand" />
@@ -603,11 +609,17 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
         <div className="space-y-2">
           <label className="text-sm font-medium text-foreground">Public email</label>
           {editingEmail ? (
-            <div className="flex gap-2">
-              <Input value={emailValue} onChange={(e) => setEmailValue(e.target.value)}
-                className="bg-muted/30 border-border/50 h-9 flex-1" />
-              <Button size="sm" variant="outline" onClick={() => setEditingEmail(false)}
-                className="h-9 border-border/50">Cancel</Button>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input value={emailValue} onChange={(e) => setEmailValue(e.target.value)}
+                  className="bg-muted/30 border-border/50 h-9 flex-1" />
+                <Button size="sm" variant="outline" onClick={() => { setEditingEmail(false); setEmailPassword(""); }}
+                  className="h-9 border-border/50">Cancel</Button>
+              </div>
+              <Input type="password" value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)}
+                placeholder="Current password (required to change email)" autoComplete="current-password"
+                className="bg-muted/30 border-border/50 h-9" />
+              <p className="text-xs text-muted-foreground">You will need to verify the new address.</p>
             </div>
           ) : (
             <div className="flex items-center gap-2">

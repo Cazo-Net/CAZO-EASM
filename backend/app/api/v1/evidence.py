@@ -18,6 +18,7 @@ from app.schemas.evidence import (
     FindingEvidenceItem,
 )
 from app.api.deps import get_current_user
+from app.core.permissions import require_any_permission, Permission
 import uuid
 
 router = APIRouter()
@@ -185,7 +186,7 @@ async def update_finding(
     finding_id: str,
     payload: FindingUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN)),
 ):
     """Update finding status / assignment. Records an audit history entry."""
     vuln = _org_filter(db, current_user).filter(Vulnerability.id == finding_id).first()
@@ -225,7 +226,7 @@ async def add_history(
     finding_id: str,
     payload: FindingHistoryAddRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN)),
 ):
     """Add a manual note / annotation to a finding."""
     vuln = _org_filter(db, current_user).filter(Vulnerability.id == finding_id).first()
@@ -250,7 +251,7 @@ async def add_evidence(
     finding_id: str,
     payload: FindingEvidenceAddRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN)),
 ):
     """Attach an evidence artifact to a finding."""
     vuln = _org_filter(db, current_user).filter(Vulnerability.id == finding_id).first()

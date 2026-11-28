@@ -23,8 +23,10 @@ router = APIRouter()
 
 
 def require_admin(current_user: User = Depends(get_current_user)):
-    if current_user.role not in ("admin", "superuser"):
-        raise HTTPException(status_code=403, detail="Admin access required")
+    # Platform logs span every organization, so only platform superusers may
+    # read them. ("admin" is an organization role and must not see other orgs.)
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Platform admin access required")
     return current_user
 
 

@@ -27,6 +27,7 @@ class ScannerCategory(str, Enum):
     NETWORK_INTELLIGENCE = "network_intelligence"
     TECHNOLOGY_FINGERPRINT = "technology_fingerprint"
     CERTIFICATE_ANALYSIS = "certificate_analysis"
+    WEB_EXPOSURE = "web_exposure"
     VULNERABILITY_ASSESSMENT = "vulnerability_assessment"
     RISK_EVALUATION = "risk_evaluation"
     GRAPH_MAPPING = "graph_mapping"
@@ -47,6 +48,7 @@ CATEGORY_ORDER: Dict[ScannerCategory, int] = {
     ScannerCategory.NETWORK_INTELLIGENCE: 30,
     ScannerCategory.TECHNOLOGY_FINGERPRINT: 40,
     ScannerCategory.CERTIFICATE_ANALYSIS: 50,
+    ScannerCategory.WEB_EXPOSURE: 55,
     ScannerCategory.VULNERABILITY_ASSESSMENT: 60,
     ScannerCategory.RISK_EVALUATION: 70,
     ScannerCategory.GRAPH_MAPPING: 80,

@@ -32,8 +32,8 @@ function GoogleCallbackContent() {
     }
 
     loginWithGoogle(credential)
-      .then(() => {
-        router.push("/dashboard");
+      .then((result) => {
+        router.push(result.requires2fa ? "/login?step=2fa" : "/dashboard");
       })
       .catch((err: any) => {
         setError(err?.response?.data?.detail || "Google sign-in failed. Please try again.");

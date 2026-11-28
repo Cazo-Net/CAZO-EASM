@@ -32,6 +32,8 @@ from app.models.passkey import Passkey
 from app.models.comment import AssetComment
 from app.models.platform_log import PlatformLog
 from app.models.support import SupportConversation, SupportMessage
+from app.models.periodic_task import PeriodicTaskState
+from app.models.v2_scanner import MonitorSchedule, ScanHistory, AssetLifecycle, NotificationTrigger
 
 __all__ = [
     "User", "Organization", "Project", "Scan", "ScanJob", "Subdomain",
@@ -46,4 +48,6 @@ __all__ = [
     "FeatureFlag", "Role", "Passkey", "AssetComment",
     "PlatformLog",
     "SupportConversation", "SupportMessage",
+    "PeriodicTaskState",
+    "MonitorSchedule", "ScanHistory", "AssetLifecycle", "NotificationTrigger",
 ]

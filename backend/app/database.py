@@ -3,7 +3,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from contextlib import contextmanager
 from typing import Generator
-from app.config import settings, get_database_url
+from app.config import settings, get_database_url, normalize_postgres_url
 import logging
 
 logger = logging.getLogger("app.database")
@@ -17,6 +17,12 @@ _write_engine_kwargs = {
 
 if settings.USE_SQLITE:
     _write_engine_kwargs["connect_args"] = {"check_same_thread": False}
+    # Make sure the directory for a file-based SQLite DB exists (fresh checkouts
+    # and CI have no ./data directory, which made every DB call fail).
+    _sqlite_path = get_database_url().split("sqlite:///", 1)[-1]
+    if _sqlite_path and _sqlite_path != ":memory:":
+        import os as _os
+        _os.makedirs(_os.path.dirname(_os.path.abspath(_sqlite_path)), exist_ok=True)
 else:
     _write_engine_kwargs.update({
         "pool_pre_ping": settings.DB_POOL_PRE_PING,
@@ -24,21 +30,11 @@ else:
         "max_overflow": settings.DB_MAX_OVERFLOW,
         "pool_timeout": settings.DB_POOL_TIMEOUT,
         "pool_recycle": settings.DB_POOL_RECYCLE,
-        # Statement cache — avoids re-parsing SQL on every call (critical at scale)
-        "execution_options": {
-            "compiled_cache": {
-                "max_size": settings.DB_STATEMENT_CACHE_SIZE,
-            }
-        },
+        # SQLAlchemy's compiled-statement cache (client side). Note: psycopg2
+        # has no server-side prepared statement cache, and Postgres rejects
+        # unknown "-c" startup options, so nothing is passed via connect_args.
+        "query_cache_size": settings.DB_STATEMENT_CACHE_SIZE,
     })
-    # For asyncpg or psycopg2 prepared statement cache
-    try:
-        _write_engine_kwargs["connect_args"] = {
-            "options": f"-c statement_cache_size={settings.DB_STATEMENT_CACHE_SIZE} "
-                       f"-c prepared_statement_cache_size={settings.DB_PREPARED_STATEMENT_CACHE_SIZE}",
-        }
-    except Exception:
-        pass
 
 write_engine = create_engine(get_database_url(), **_write_engine_kwargs)
 
@@ -54,15 +50,9 @@ if settings.DATABASE_READ_URL and not settings.USE_SQLITE:
         "max_overflow": settings.DB_MAX_OVERFLOW,
         "pool_timeout": settings.DB_POOL_TIMEOUT,
         "pool_recycle": settings.DB_POOL_RECYCLE,
+        "query_cache_size": settings.DB_STATEMENT_CACHE_SIZE,
     }
-    try:
-        _read_engine_kwargs["connect_args"] = {
-            "options": f"-c statement_cache_size={settings.DB_STATEMENT_CACHE_SIZE} "
-                       f"-c prepared_statement_cache_size={settings.DB_PREPARED_STATEMENT_CACHE_SIZE}",
-        }
-    except Exception:
-        pass
-    _read_engine = create_engine(settings.DATABASE_READ_URL, **_read_engine_kwargs)
+    _read_engine = create_engine(normalize_postgres_url(settings.DATABASE_READ_URL), **_read_engine_kwargs)
     logger.info("Read replica configured: %s", settings.DATABASE_READ_URL.split("@")[-1])
 
 

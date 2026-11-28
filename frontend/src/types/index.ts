@@ -403,12 +403,24 @@ export interface ScanPreviewResponse {
 
 export type ScopeType = "domain" | "wildcard" | "ip" | "cidr";
 
+export interface ScopeVerification {
+  method: "dns_txt" | "manual";
+  record_type?: string;
+  record_name?: string;
+  record_value?: string;
+  instructions: string;
+}
+
 export interface AuthorizedScope {
   id: string;
   organization_id: string;
   scope_type: ScopeType;
   value: string;
   verified: boolean;
+  verified_at?: string | null;
+  verification_method?: string | null;
+  /** DNS record to publish while the scope is unverified. */
+  verification?: ScopeVerification | null;
   note: string | null;
   added_by: string | null;
   created_at: string | null;

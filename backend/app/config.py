@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     # Rate limiting
     RATE_LIMIT_ENABLED: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() in ("1", "true", "yes")
     RATE_LIMIT_PER_MINUTE: int = 60
+    # Proxies in front of the backend that append to X-Forwarded-For (see
+    # app/core/client_ip.py). 0 = legacy: trust the left-most (spoofable) entry.
+    TRUSTED_PROXY_HOPS: int = int(os.getenv("TRUSTED_PROXY_HOPS", "0"))
 
     # Authorized-scope enforcement.
     # When True, an organization must have at least one matching AuthorizedScope
@@ -91,6 +94,40 @@ class Settings(BaseSettings):
     # When True, matched scopes must also be `verified` (ownership proven) to
     # authorize a target. Defaults to False. Pair with a ScopeVerifier to prove it.
     REQUIRE_VERIFIED_SCOPE: bool = os.getenv("REQUIRE_VERIFIED_SCOPE", "false").lower() in ("1", "true", "yes")
+
+    # Scan-time scope gate: "verified" | "registered" | "open". Empty means
+    # "registered" in production and "open" elsewhere. See app/core/scope.py.
+    SCOPE_ENFORCEMENT: str = os.getenv("SCOPE_ENFORCEMENT", "")
+
+    # ── Scan execution ──────────────────────────────────────────────
+    # "queue"  — durable scan_jobs table, run by scan workers (production default)
+    # "inline" — run inside the API process (development default)
+    # "celery" — legacy Celery task queue
+    SCAN_EXECUTION_MODE: str = os.getenv("SCAN_EXECUTION_MODE", "")
+    # Also run a scan worker inside the API process. On by default so a
+    # single-service deploy keeps working; set to false once a dedicated
+    # scan-worker service is running (docker-compose and the Railway worker
+    # config already do).
+    RUN_EMBEDDED_WORKER: bool = os.getenv("RUN_EMBEDDED_WORKER", "true").lower() in ("1", "true", "yes")
+    SCAN_WORKER_CONCURRENCY: int = int(os.getenv("SCAN_WORKER_CONCURRENCY", "3"))
+    SCAN_MAX_RUNNING_PER_ORG: int = int(os.getenv("SCAN_MAX_RUNNING_PER_ORG", "2"))
+    SCAN_MAX_ATTEMPTS: int = int(os.getenv("SCAN_MAX_ATTEMPTS", "2"))
+    SCAN_RETRY_BASE_SECONDS: int = int(os.getenv("SCAN_RETRY_BASE_SECONDS", "60"))
+    SCAN_JOB_STALE_SECONDS: int = int(os.getenv("SCAN_JOB_STALE_SECONDS", "300"))
+    SCAN_HEARTBEAT_SECONDS: int = int(os.getenv("SCAN_HEARTBEAT_SECONDS", "30"))
+    SCAN_TIMEOUT_QUICK_MINUTES: int = int(os.getenv("SCAN_TIMEOUT_QUICK_MINUTES", "10"))
+    SCAN_TIMEOUT_FULL_MINUTES: int = int(os.getenv("SCAN_TIMEOUT_FULL_MINUTES", "45"))
+    # Scan depth (app/scanners/v2/profiles.py). Full scans use "standard";
+    # a scan can ask for "deep" through scan_options.depth.
+    # Optional open-source tools, used only when the binary is installed.
+    # nuclei stays off until the person running the platform turns it on;
+    # it runs non-intrusive templates only (see external_tools.py).
+    SCAN_ENABLE_NUCLEI: bool = os.getenv("SCAN_ENABLE_NUCLEI", "false").lower() in ("1", "true", "yes")
+    NUCLEI_RATE_LIMIT: int = int(os.getenv("NUCLEI_RATE_LIMIT", "10"))
+    SCAN_ENABLE_SUBFINDER: bool = os.getenv("SCAN_ENABLE_SUBFINDER", "true").lower() in ("1", "true", "yes")
+    # Periodic jobs (scheduled scans, SSL expiry, weekly digest, CVE sync)
+    # run inside scan workers; turn off if you run Celery beat instead.
+    RUN_PERIODIC_TASKS: bool = os.getenv("RUN_PERIODIC_TASKS", "true").lower() in ("1", "true", "yes")
 
     # Caching
     CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "true").lower() in ("1", "true", "yes")
@@ -255,11 +292,25 @@ else:
             pass
 
 
+def normalize_postgres_url(url: str) -> str:
+    """Pin plain Postgres URLs to the psycopg2 driver.
+
+    SQLAlchemy 2.1 maps ``postgresql://`` to psycopg 3, which is not installed
+    (requirements ship psycopg2-binary). Hosting providers such as Railway and
+    Heroku also hand out ``postgres://`` URLs, which SQLAlchemy rejects.
+    """
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        url = "postgresql+psycopg2://" + url[len("postgresql://"):]
+    return url
+
+
 def get_database_url() -> str:
     """Get database URL based on configuration."""
     if settings.USE_SQLITE:
         return settings.SQLITE_URL
-    return settings.DATABASE_URL
+    return normalize_postgres_url(settings.DATABASE_URL)
 
 
 def get_celery_broker_url() -> str:
