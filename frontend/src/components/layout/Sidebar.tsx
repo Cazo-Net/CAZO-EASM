@@ -93,7 +93,7 @@ const navSections = [
     label: "Intelligence",
     items: [
       { href: "/intel", label: "Threat intel", icon: Zap },
-      { href: "/darkweb", label: "Dark web", icon: Eye },
+      { href: "/darkweb", label: "Threat intel", icon: Eye },
       { href: "/blockchain", label: "Blockchain", icon: Wallet },
     ],
   },

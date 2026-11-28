@@ -44,7 +44,7 @@ const routeTitles: Record<string, string> = {
   "/compare": "Compare Scans",
   "/canvas": "Intelligence Canvas",
   "/blockchain": "Blockchain Intelligence",
-  "/darkweb": "Dark Web Intelligence",
+  "/darkweb": "Dark Web & Threat Intel",
 };
 
 interface TopBarProps {

@@ -82,7 +82,7 @@ export function CommandPalette({
     },
     {
       id: "nav-darkweb",
-      label: "Go to Dark Web Intelligence",
+      label: "Go to Dark Web & Threat Intelligence",
       group: "Navigation",
       icon: Eye,
       keywords: ["dark", "onion", "tor", "credential"],
