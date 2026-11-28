@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { authFetch } from "@/lib/api";
 
 function GoogleCallbackContent() {
   const router = useRouter();
@@ -32,8 +33,18 @@ function GoogleCallbackContent() {
     }
 
     loginWithGoogle(credential)
-      .then((result) => {
-        router.push(result.requires2fa ? "/login?step=2fa" : "/dashboard");
+      .then(async (result) => {
+        if (result.requires2fa) {
+          router.push("/login?step=2fa");
+          return;
+        }
+        // A first-time Google user has no organization yet: send them to setup.
+        let hasOrg = true;
+        try {
+          const res = await authFetch("/api/v1/auth/me");
+          if (res.ok) hasOrg = !!(await res.json())?.organization_id;
+        } catch {}
+        router.push(hasOrg ? "/dashboard" : "/onboarding");
       })
       .catch((err: any) => {
         setError(err?.response?.data?.detail || "Google sign-in failed. Please try again.");
@@ -43,7 +54,7 @@ function GoogleCallbackContent() {
 
   if (error) {
     return (
-      <div className="relative h-full flex items-center justify-center bg-background px-4">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="rounded-xl border border-border bg-card p-6 shadow-2xl shadow-black/20 max-w-sm w-full text-center space-y-4">
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {error}
@@ -60,7 +71,7 @@ function GoogleCallbackContent() {
   }
 
   return (
-    <div className="relative h-full flex items-center justify-center bg-background px-4">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="flex flex-col items-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-brand" />
         <p className="text-sm text-muted-foreground">Signing in with Google...</p>
@@ -73,7 +84,7 @@ export default function GoogleCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="relative h-full flex items-center justify-center bg-background px-4">
+        <div className="flex min-h-screen items-center justify-center bg-background px-4">
           <div className="flex flex-col items-center gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-brand" />
             <p className="text-sm text-muted-foreground">Loading...</p>

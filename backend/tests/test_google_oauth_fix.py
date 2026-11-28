@@ -121,3 +121,81 @@ def test_unverified_google_email_rejected(client):
     ):
         resp = client.post("/api/v1/auth/google", json={"credential": "fake"})
     assert resp.status_code == 401
+
+
+class TestGoogleSignInConfig:
+    """Google sign-in is off until GOOGLE_CLIENT_ID is set."""
+
+    def test_config_reports_disabled_without_client_id(self, client):
+        with patch("app.api.v1.auth_google.settings.GOOGLE_CLIENT_ID", ""):
+            resp = client.get("/api/v1/auth/google/config")
+        assert resp.status_code == 200
+        assert resp.json() == {"enabled": False, "client_id": None}
+
+    def test_config_returns_client_id_when_set(self, client):
+        with patch(
+            "app.api.v1.auth_google.settings.GOOGLE_CLIENT_ID",
+            "123-abc.apps.googleusercontent.com",
+        ):
+            resp = client.get("/api/v1/auth/google/config")
+        assert resp.json() == {
+            "enabled": True,
+            "client_id": "123-abc.apps.googleusercontent.com",
+        }
+
+    def test_sign_in_refused_when_not_configured(self, client):
+        with patch("app.api.v1.auth_google.settings.GOOGLE_CLIENT_ID", ""):
+            resp = client.post("/api/v1/auth/google", json={"credential": "x"})
+        assert resp.status_code == 503
+
+    def test_invalid_token_is_rejected(self, client):
+        """A token Google did not sign must not create a session."""
+        with patch(
+            "app.api.v1.auth_google.settings.GOOGLE_CLIENT_ID",
+            "123-abc.apps.googleusercontent.com",
+        ), patch(
+            "app.services.google_oauth.settings.GOOGLE_CLIENT_ID",
+            "123-abc.apps.googleusercontent.com",
+        ):
+            resp = client.post("/api/v1/auth/google", json={"credential": "not-a-jwt"})
+        assert resp.status_code == 401
+        assert "access_token" not in resp.text
+
+
+class TestGoogleSignInNewUser:
+    def test_new_google_user_is_created_verified_and_signed_in(self, client, db_session):
+        from app.models.user import User
+
+        payload = {
+            "sub": "google-new-user-1",
+            "email": "New.Person@Example.com",
+            "name": "New Person",
+            "email_verified": True,
+        }
+        with patch(
+            "app.api.v1.auth_google.settings.GOOGLE_CLIENT_ID", "cid"
+        ), patch(
+            "app.api.v1.auth_google.verify_google_credential", return_value=payload
+        ):
+            resp = client.post("/api/v1/auth/google", json={"credential": "t"})
+        assert resp.status_code == 200, resp.text
+        assert resp.json().get("access_token")
+        user = db_session.query(User).filter(User.google_id == "google-new-user-1").first()
+        assert user is not None
+        assert user.email == "new.person@example.com"
+        assert user.email_verified is True
+
+    def test_unverified_google_email_is_refused(self, client):
+        payload = {
+            "sub": "google-unverified-1",
+            "email": "unverified@example.com",
+            "name": "U",
+            "email_verified": False,
+        }
+        with patch(
+            "app.api.v1.auth_google.settings.GOOGLE_CLIENT_ID", "cid"
+        ), patch(
+            "app.api.v1.auth_google.verify_google_credential", return_value=payload
+        ):
+            resp = client.post("/api/v1/auth/google", json={"credential": "t"})
+        assert resp.status_code == 401

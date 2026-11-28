@@ -1,11 +1,14 @@
-"""Google OAuth login/register endpoint.
+"""Google sign-in.
 
-POST /api/v1/auth/google — accepts a Google ID token, creates or links a user,
-and returns the same JWT pair as the regular login endpoint.
+GET  /api/v1/auth/google/config  tells the frontend whether Google sign-in is
+     on and which client ID to use. It is on when GOOGLE_CLIENT_ID is set.
+POST /api/v1/auth/google  accepts a Google ID token, creates or links a user,
+     and returns the same JWT pair as the regular login endpoint.
 """
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.database import get_db
 from app.models.user import User
 from app.schemas.auth import Token
@@ -21,6 +24,18 @@ class GoogleLoginRequest:
     """Request body for Google OAuth login."""
     def __init__(self, credential: str):
         self.credential = credential
+
+
+@router.get("/google/config")
+def google_config():
+    """Public: whether Google sign-in is enabled, and the OAuth client ID.
+
+    The client ID is not a secret (it is embedded in every page that shows the
+    Google button). Serving it here means one backend variable turns the
+    feature on, with no frontend rebuild.
+    """
+    client_id = (settings.GOOGLE_CLIENT_ID or "").strip()
+    return {"enabled": bool(client_id), "client_id": client_id or None}
 
 
 @router.post("/google", response_model=Token)
@@ -45,6 +60,11 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
     try:
         google_user = verify_google_credential(credential)
     except GoogleOAuthError as exc:
+        if not (settings.GOOGLE_CLIENT_ID or "").strip():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Google sign-in is not enabled.",
+            )
         logger.warning(f"Google sign-in rejected: {exc}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
