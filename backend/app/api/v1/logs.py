@@ -9,7 +9,7 @@ middleware.
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy import func, desc
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timezone
 
@@ -63,11 +63,13 @@ class LogRow(BaseModel):
 
 
 class ClientErrorRequest(BaseModel):
-    message: str
-    stack: Optional[str] = None
-    component_stack: Optional[str] = None
-    url: Optional[str] = None
-    user_agent: Optional[str] = None
+    # Anyone can post here without signing in, so cap every field to keep a
+    # single request from writing megabytes into the platform log table.
+    message: str = Field(..., max_length=2000)
+    stack: Optional[str] = Field(None, max_length=8000)
+    component_stack: Optional[str] = Field(None, max_length=8000)
+    url: Optional[str] = Field(None, max_length=2000)
+    user_agent: Optional[str] = Field(None, max_length=512)
 
 
 # ---------------------------------------------------------------------------

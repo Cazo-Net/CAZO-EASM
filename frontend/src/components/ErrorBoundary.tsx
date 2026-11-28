@@ -32,7 +32,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `${error.name}: ${error.message}`,
+          message: `${error.name}: ${error.message}`.slice(0, 2000),
         }),
       }).catch(() => {});
     } catch {

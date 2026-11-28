@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
+from app.core.target_guard import GUARDED_HOOKS
 from app.models.webhook import Webhook
 
 logger = logging.getLogger(__name__)
@@ -62,23 +63,29 @@ async def dispatch_webhook(
     body_bytes = json.dumps(body, default=str).encode()
     signature = webhook.sign_payload(body_bytes)
 
+    # Custom headers go first so they can never replace the signature,
+    # event or content headers set below.
     headers = {
+        k: v for k, v in (webhook.custom_headers or {}).items()
+        if k.lower() not in ("host", "content-length", "transfer-encoding")
+    }
+    headers.update({
         "Content-Type": webhook.content_type,
         "X-CAZO-Event": event_type,
         "X-CAZO-Signature": f"sha256={signature}",
         "X-CAZO-Timestamp": str(int(time.time())),
         "User-Agent": "CAZO-EASM-Webhook/2.0",
-    }
-
-    # Merge custom headers
-    if webhook.custom_headers:
-        headers.update(webhook.custom_headers)
+    })
 
     # Send with retry
     last_error = ""
     for attempt in range(MAX_RETRIES):
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            # GUARDED_HOOKS refuses internal hosts at send time (SSRF);
+            # redirects are not followed.
+            async with httpx.AsyncClient(
+                timeout=timeout, event_hooks=GUARDED_HOOKS, follow_redirects=False
+            ) as client:
                 resp = await client.post(
                     webhook.url,
                     content=body_bytes,
@@ -93,7 +100,9 @@ async def dispatch_webhook(
                     )
                     return True
 
-                last_error = f"HTTP {resp.status_code}: {resp.text[:200]}"
+                # Do not echo the response body back to the user: with a
+                # misconfigured URL it could contain another service's data.
+                last_error = f"HTTP {resp.status_code}"
                 logger.warning(
                     "Webhook %s returned %d (attempt %d/%d)",
                     webhook.id[:8], resp.status_code, attempt + 1, MAX_RETRIES,
