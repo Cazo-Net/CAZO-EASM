@@ -28,6 +28,15 @@ import {
   getErrorMessage,
 } from "@/lib/api";
 import { Input } from "@/components/ui/input";
+import { PlanLimitNotice } from "@/components/billing/PlanLimitNotice";
+import { PlanUsageStrip } from "@/components/billing/PlanUsageStrip";
+import {
+  getBillingOverview,
+  planLimitFromError,
+  rootDomainOf,
+  type BillingOverview,
+  type PlanLimitDetail,
+} from "@/lib/api-billing";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -76,6 +85,8 @@ function ScopesContent() {
   const [newValue, setNewValue] = useState("");
   const [newNote, setNewNote] = useState("");
   const [createError, setCreateError] = useState<string | null>(null);
+  const [createLimit, setCreateLimit] = useState<PlanLimitDetail | null>(null);
+  const [billing, setBilling] = useState<BillingOverview | null>(null);
   const [creating, setCreating] = useState(false);
   const [scopeAuthConfirmed, setScopeAuthConfirmed] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -95,6 +106,7 @@ function ScopesContent() {
     try {
       const data = await listScopes();
       setScopes(data);
+      getBillingOverview().then(setBilling).catch(() => undefined);
     } catch (e: any) {
       setError(getErrorMessage(e, "Failed to load authorized scopes."));
     } finally {
@@ -117,8 +129,21 @@ function ScopesContent() {
     );
   }, [scopes, search]);
 
+  // What adding the typed value would do to the root-domain allowance.
+  const domainImpact = useMemo(() => {
+    if (!billing || (newType !== "domain" && newType !== "wildcard") || !newValue.trim()) return null;
+    const root = rootDomainOf(newValue);
+    if (!root || !root.includes(".")) return null;
+    const known = billing.root_domains.find((d) => d.domain === root);
+    const u = billing.usage.root_domains;
+    if (known) return { kind: "included" as const, root, paused: !known.active };
+    if (u.limit != null && u.used >= u.limit) return { kind: "full" as const, root, used: u.used, limit: u.limit };
+    return { kind: "new" as const, root, used: u.used, limit: u.limit };
+  }, [billing, newType, newValue]);
+
   const handleCreate = async () => {
     setCreateError(null);
+    setCreateLimit(null);
     if (!newValue.trim()) {
       setCreateError("A scope value is required.");
       return;
@@ -134,7 +159,9 @@ function ScopesContent() {
       setScopeAuthConfirmed(false);
       await load();
     } catch (e: any) {
-      setCreateError(getErrorMessage(e, "Failed to add authorized scope."));
+      const planLimit = planLimitFromError(e);
+      if (planLimit) setCreateLimit(planLimit);
+      else setCreateError(getErrorMessage(e, "Failed to add authorized scope."));
     } finally {
       setCreating(false);
     }
@@ -204,6 +231,8 @@ function ScopesContent() {
           </Button>
         }
       />
+
+      <PlanUsageStrip metrics={["root_domains", "hosts"]} refreshKey={scopes.length} />
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-2 bg-card">
@@ -457,7 +486,10 @@ function ScopesContent() {
               </label>
               <Input
                 value={newValue}
-                onChange={(e) => setNewValue(e.target.value)}
+                onChange={(e) => {
+                  setNewValue(e.target.value);
+                  setCreateLimit(null);
+                }}
                 placeholder={SCOPE_TYPE_META[newType].hint}
               />
             </div>
@@ -497,6 +529,37 @@ function ScopesContent() {
               </label>
             </div>
 
+            {domainImpact?.kind === "included" && (
+              <p className="text-xs text-muted-foreground">
+                {domainImpact.root} is already one of your root domains, so this scope does not use another one
+                {domainImpact.paused ? " (it is currently paused because you are over your plan)" : ""}.
+              </p>
+            )}
+            {domainImpact?.kind === "new" && (
+              <p className="text-xs text-muted-foreground">
+                Adds {domainImpact.root} as a root domain
+                {domainImpact.limit != null
+                  ? ` (${domainImpact.used + 1} of ${domainImpact.limit} on your ${billing?.plan.name} plan).`
+                  : "."}
+              </p>
+            )}
+            {domainImpact?.kind === "full" && !createLimit && billing && (
+              <PlanLimitNotice
+                compact
+                detail={{
+                  code: "plan_limit_reached",
+                  metric: "root_domains",
+                  limit: domainImpact.limit,
+                  used: domainImpact.used,
+                  plan: billing.plan.id,
+                  plan_name: billing.plan.name,
+                  message: `All ${domainImpact.limit} root domain${domainImpact.limit === 1 ? "" : "s"} on your ${billing.plan.name} plan are in use, so ${domainImpact.root} cannot be added. Upgrade, buy extra root domains, or remove a scope you no longer need.`,
+                  upgrade_url: "/pricing",
+                }}
+              />
+            )}
+            {createLimit && <PlanLimitNotice compact detail={createLimit} />}
+
             {createError && (
               <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 <Info className="h-4 w-4 shrink-0" /> {createError}
@@ -508,7 +571,10 @@ function ScopesContent() {
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={creating || !scopeAuthConfirmed}>
+            <Button
+              onClick={handleCreate}
+              disabled={creating || !scopeAuthConfirmed || domainImpact?.kind === "full"}
+            >
               {creating ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (

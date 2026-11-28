@@ -11,7 +11,14 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.billing import stripe_service as svc
-from app.billing.entitlements import get_entitlement, get_subscription, usage
+from app.billing.entitlements import (
+    get_entitlement,
+    get_subscription,
+    plan_change_conflicts,
+    root_domain_status,
+    subscription_is_current,
+    usage,
+)
 from app.billing.plans import (
     EXTRA_DOMAIN_ADDON_ID,
     INTERVALS,
@@ -43,6 +50,9 @@ class CheckoutRequest(BaseModel):
     clients: int = Field(1, ge=1, le=10_000, description="MSSP: number of client organizations")
     extra_domains: int = Field(0, ge=0, le=500)
     payment: str = Field("subscription", description="subscription (auto-renew) or prepaid (one term)")
+    accept_over_limit: bool = Field(
+        False, description="Confirm a downgrade below current usage (extra root domains get paused)",
+    )
 
 
 class QuoteRequest(BaseModel):
@@ -194,6 +204,7 @@ async def get_billing_overview(
     ent = get_entitlement(db, org.id)
     used = usage(db, org.id)
     sub: BillingSubscription | None = ent.subscription
+    current = subscription_is_current(sub)
     return {
         "organization_id": org.id,
         "plan": _plan_out(ent.plan, billing_currency()) | {"limits": ent.limits},
@@ -208,6 +219,9 @@ async def get_billing_overview(
         "cancel_at_period_end": bool(sub.cancel_at_period_end) if sub else False,
         "last_payment_error": sub.last_payment_error if sub else None,
         "has_customer": bool(sub and sub.stripe_customer_id),
+        # Staff-managed (manual) plans are changed by CAZO, not through checkout.
+        "managed_by_staff": bool(current and sub.payment_mode == "manual" and ent.plan.id != "free"),
+        "root_domains": root_domain_status(db, org.id, ent.limits["root_domains"]),
         "usage": {
             key: {
                 "used": used[key],
@@ -228,6 +242,24 @@ async def create_checkout(
     current_user: User = Depends(require_permission(Permission.MANAGE_ORG)),
 ):
     org = _org(db, current_user)
+    sub = get_subscription(db, org.id)
+    if sub is not None and subscription_is_current(sub) and sub.payment_mode == "manual" and sub.plan != "free":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Your plan is managed by CAZO staff (invoiced). Contact support to change it.",
+        )
+    plan = catalog().get(req.plan)
+    if plan is not None and plan.purchasable:
+        qty = max(req.clients, plan.min_quantity) if plan.per_client else 1
+        conflicts = plan_change_conflicts(db, org.id, plan_limits(plan, qty, req.extra_domains))
+        if conflicts and not req.accept_over_limit:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={
+                "code": "plan_change_over_limit",
+                "conflicts": conflicts,
+                "message": "Your organization uses more than this plan allows. Confirm to continue: "
+                           "the oldest root domains up to the new allowance keep working and the rest "
+                           "are paused; no new users can be invited until you are under the limit.",
+            })
     result = _stripe_call(
         svc.create_checkout_session, db, org, current_user.email,
         plan_id=req.plan, interval=req.interval, quantity=req.clients,

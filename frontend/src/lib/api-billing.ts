@@ -41,6 +41,13 @@ export interface UsageMeter {
   unlimited: boolean;
 }
 
+export interface RootDomainStatus {
+  domain: string;
+  first_seen: string | null;
+  /** False when the domain is beyond the plan allowance (paused). */
+  active: boolean;
+}
+
 export interface BillingOverview {
   organization_id: string;
   plan: PlanInfo;
@@ -55,6 +62,8 @@ export interface BillingOverview {
   cancel_at_period_end: boolean;
   last_payment_error: string | null;
   has_customer: boolean;
+  managed_by_staff: boolean;
+  root_domains: RootDomainStatus[];
   usage: Record<LimitKey, UsageMeter>;
   checkout_enabled: boolean;
   test_mode: boolean;
@@ -101,6 +110,7 @@ export interface CheckoutOrder {
   clients?: number;
   extra_domains?: number;
   payment: PaymentChoice;
+  accept_over_limit?: boolean;
 }
 
 export async function getPlans(): Promise<PlanCatalog> {
@@ -196,6 +206,78 @@ export function billingErrorMessage(err: unknown, fallback = "Something went wro
   }
   return fallback;
 }
+
+/** The HTTP 402 body the API sends when a plan allowance is used up. */
+export interface PlanLimitDetail {
+  code: "plan_limit_reached";
+  metric: LimitKey | "scan_frequency";
+  limit: number | null;
+  used: number;
+  plan: string;
+  plan_name: string;
+  message: string;
+  upgrade_url: string;
+}
+
+export function planLimitFromError(err: unknown): PlanLimitDetail | null {
+  const res = (err as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
+  const detail = res?.data?.detail as Partial<PlanLimitDetail> | undefined;
+  if (detail && typeof detail === "object" && detail.code === "plan_limit_reached") {
+    return detail as PlanLimitDetail;
+  }
+  return null;
+}
+
+export interface OverLimitConflict {
+  metric: LimitKey;
+  used: number;
+  limit: number;
+}
+
+/** What the org already uses beyond a candidate plan's allowances. */
+export function overLimitConflicts(
+  usage: Record<LimitKey, UsageMeter> | undefined,
+  limits: Record<LimitKey, number | null> | undefined
+): OverLimitConflict[] {
+  if (!usage || !limits) return [];
+  const keys: LimitKey[] = ["root_domains", "users", "hosts"];
+  return keys
+    .filter((k) => limits[k] != null && usage[k] && usage[k].used > (limits[k] as number))
+    .map((k) => ({ metric: k, used: usage[k].used, limit: limits[k] as number }));
+}
+
+// Same list as backend/app/billing/entitlements.py (_MULTI_LABEL_SUFFIXES).
+const MULTI_LABEL_SUFFIXES = new Set([
+  "com.my", "net.my", "org.my", "edu.my", "gov.my", "name.my", "biz.my", "mil.my",
+  "co.uk", "org.uk", "ac.uk", "gov.uk",
+  "com.au", "net.au", "org.au", "edu.au", "gov.au",
+  "com.sg", "edu.sg", "gov.sg", "org.sg", "net.sg",
+  "co.id", "or.id", "ac.id", "go.id", "web.id",
+  "com.ph", "gov.ph", "edu.ph",
+  "co.th", "ac.th", "go.th", "in.th", "or.th",
+  "com.vn", "gov.vn", "edu.vn",
+  "co.nz", "org.nz", "govt.nz",
+  "co.jp", "ne.jp", "or.jp", "ac.jp", "go.jp",
+  "co.in", "net.in", "org.in", "gov.in", "ac.in",
+  "com.br", "com.cn", "com.hk", "com.tw", "co.kr", "co.za", "com.mx", "com.tr",
+]);
+
+/** Registrable root of a hostname, URL or wildcard (mirrors the backend; the API decides). */
+export function rootDomainOf(target: string): string {
+  let host = (target || "").trim().toLowerCase();
+  if (host.includes("://")) host = host.split("://")[1];
+  host = host.split("/")[0].split("?")[0];
+  if ((host.match(/:/g) || []).length === 1) host = host.split(":")[0];
+  host = host.replace(/^[*.]+/, "").replace(/\.+$/, "");
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return host;
+  const labels = host.split(".").filter(Boolean);
+  if (labels.length <= 2) return labels.join(".");
+  if (MULTI_LABEL_SUFFIXES.has(labels.slice(-2).join("."))) return labels.slice(-3).join(".");
+  return labels.slice(-2).join(".");
+}
+
+export const MAX_EXTRA_DOMAINS = 500;
+export const MAX_CLIENTS = 10_000;
 
 export const LIMIT_LABELS: Record<LimitKey, string> = {
   root_domains: "Root domains",

@@ -115,6 +115,10 @@ async def enable_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     _assert_same_org(user, admin)
+    if not user.is_active and user.organization_id:
+        # Re-enabling takes a seat back (HTTP 402 if the plan is full).
+        from app.billing.entitlements import check_seat_available
+        check_seat_available(db, user.organization_id, joining=True)
     user.is_active = True
     user.failed_login_attempts = 0
     user.locked_until = None

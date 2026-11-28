@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CreditCard, Landmark, Loader2, Lock, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CreditCard, Info, Landmark, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -17,7 +17,11 @@ import {
   getBillingOverview,
   getPlans,
   getQuote,
+  LIMIT_LABELS,
+  MAX_CLIENTS,
+  MAX_EXTRA_DOMAINS,
   METHOD_LABELS,
+  overLimitConflicts,
   startCheckout,
   type BillingInterval,
   type BillingOverview,
@@ -41,6 +45,8 @@ function CheckoutInner() {
   const [extraDomains, setExtraDomains] = useState(0);
   const [payment, setPayment] = useState<PaymentChoice>("subscription");
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoteError, setQuoteError] = useState("");
+  const [acceptOver, setAcceptOver] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const canceled = params.get("canceled") === "1";
@@ -52,22 +58,57 @@ function CheckoutInner() {
       .then(([c, o]) => {
         setCatalog(c);
         setOverview(o);
+        // Start from what the organization already has, so "Change plan" does
+        // not silently drop extra domains or clients the customer pays for.
+        if (o && o.plan.id !== "free" && ["active", "trialing", "past_due"].includes(o.status)) {
+          setExtraDomains(o.extra_domains || 0);
+          if (o.plan.per_client && !params.get("clients")) setClients(o.clients);
+          if (!params.get("interval") && o.interval) setBillingInterval(o.interval);
+          if (o.payment_mode === "prepaid") setPayment("prepaid");
+        }
       })
       .catch(() => setError("Could not load plans."));
   }, []);
 
   const plan = useMemo(() => catalog?.plans.find((p) => p.id === planId) ?? null, [catalog, planId]);
+  // MSSP needs at least the minimum number of clients; other plans are one unit.
+  const qty = plan?.per_client ? Math.min(MAX_CLIENTS, Math.max(clients, plan.min_quantity)) : 1;
 
   useEffect(() => {
     if (!plan) return;
     let cancelled = false;
-    getQuote({ plan: plan.id, interval, clients, extra_domains: extraDomains })
+    setQuoteError("");
+    getQuote({ plan: plan.id, interval, clients: qty, extra_domains: extraDomains })
       .then((q) => !cancelled && setQuote(q))
-      .catch(() => !cancelled && setQuote(null));
+      .catch((e) => {
+        if (cancelled) return;
+        setQuote(null);
+        setQuoteError(billingErrorMessage(e, "This order cannot be priced right now."));
+      });
     return () => {
       cancelled = true;
     };
-  }, [plan, interval, clients, extraDomains]);
+  }, [plan, interval, qty, extraDomains]);
+
+  useEffect(() => setAcceptOver(false), [planId, qty, extraDomains]);
+
+  const currentIsPaid =
+    !!overview && overview.plan.id !== "free" && ["active", "trialing", "past_due"].includes(overview.status);
+  const managed = !!overview?.managed_by_staff;
+  const conflicts = overLimitConflicts(overview?.usage, quote?.limits);
+  const sameAsCurrent =
+    currentIsPaid &&
+    !!plan &&
+    overview!.payment_mode === "subscription" &&
+    payment === "subscription" &&
+    overview!.plan.id === plan.id &&
+    overview!.interval === interval &&
+    (overview!.extra_domains || 0) === extraDomains &&
+    (!plan.per_client || overview!.clients === qty);
+  const prepaidSwitch =
+    currentIsPaid && overview!.payment_mode === "prepaid" && payment === "prepaid" && !!plan && overview!.plan.id !== plan.id;
+  const prepaidRenewal =
+    currentIsPaid && overview!.payment_mode === "prepaid" && payment === "prepaid" && !!plan && overview!.plan.id === plan.id;
 
   const hasAutoRenew =
     overview?.payment_mode === "subscription" &&
@@ -81,9 +122,10 @@ function CheckoutInner() {
       const res = await startCheckout({
         plan: plan.id,
         interval,
-        clients,
+        clients: qty,
         extra_domains: extraDomains,
         payment,
+        accept_over_limit: conflicts.length > 0 && acceptOver,
       });
       if (res.url) {
         window.location.href = res.url;
@@ -178,7 +220,7 @@ function CheckoutInner() {
                 <span className="text-sm text-muted-foreground">
                   Client organizations <span className="opacity-60">(min {plan.min_quantity})</span>
                 </span>
-                <ClientStepper value={Math.max(clients, plan.min_quantity)} min={plan.min_quantity} onChange={setClients} />
+                <ClientStepper value={qty} min={plan.min_quantity} max={MAX_CLIENTS} onChange={setClients} />
               </div>
             )}
 
@@ -189,7 +231,13 @@ function CheckoutInner() {
                   ({formatMoney(catalog.addons.extra_domain.monthly_price, catalog.currency)}/mo each)
                 </span>
               </span>
-              <ClientStepper value={extraDomains} min={0} onChange={setExtraDomains} />
+              <ClientStepper
+                value={extraDomains}
+                min={0}
+                max={MAX_EXTRA_DOMAINS}
+                label="extra root domains"
+                onChange={setExtraDomains}
+              />
             </div>
           </SectionCard>
 
@@ -238,9 +286,9 @@ function CheckoutInner() {
             {plan && (
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <dt>{plan.name}{plan.per_client ? ` × ${quote?.clients ?? clients} clients` : ""}</dt>
+                  <dt>{plan.name}{plan.per_client ? ` × ${qty} clients` : ""}</dt>
                   <dd className="font-mono">
-                    {formatMoney((plan.prices[interval] ?? 0) * (plan.per_client ? quote?.clients ?? clients : 1), catalog.currency)}
+                    {formatMoney((plan.prices[interval] ?? 0) * qty, catalog.currency)}
                   </dd>
                 </div>
                 {extraDomains > 0 && (
@@ -263,12 +311,66 @@ function CheckoutInner() {
                     Includes {quote.limits.root_domains ?? "unlimited"} root domains,{" "}
                     {quote.limits.hosts?.toLocaleString() ?? "unlimited"} hosts,{" "}
                     {quote.limits.users ?? "unlimited"} users and{" "}
-                    {quote.limits.scans_per_month?.toLocaleString() ?? "unlimited"} scans a month.
+                    {quote.limits.scans_per_month?.toLocaleString() ?? "unlimited"} scans a month, with{" "}
+                    {plan.scan_frequency} scheduled scans.
                   </div>
+                )}
+                {quoteError && (
+                  <p className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                    {quoteError}
+                  </p>
                 )}
               </dl>
             )}
 
+            {conflicts.length > 0 && !sameAsCurrent && (
+              <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/[0.08] p-3 text-xs">
+                <p className="flex items-center gap-1.5 font-medium text-foreground">
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-400" /> You use more than this plan allows
+                </p>
+                <ul className="mt-1.5 space-y-0.5 text-muted-foreground">
+                  {conflicts.map((c) => (
+                    <li key={c.metric}>
+                      {LIMIT_LABELS[c.metric]}: {c.used.toLocaleString()} in use, plan allows {c.limit.toLocaleString()}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1.5 text-muted-foreground">
+                  {conflicts.some((c) => c.metric === "root_domains")
+                    ? "Your oldest root domains up to the new allowance keep scanning and the rest are paused. Adding extra root domains above avoids this. "
+                    : ""}
+                  {conflicts.some((c) => c.metric === "users") ? "No new members can be invited until you are under the seat limit. " : ""}
+                  Nothing is deleted.
+                </p>
+                <label className="mt-2 flex cursor-pointer items-start gap-2 text-foreground">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 accent-[hsl(var(--primary))]"
+                    checked={acceptOver}
+                    onChange={(e) => setAcceptOver(e.target.checked)}
+                  />
+                  I understand, continue with this plan
+                </label>
+              </div>
+            )}
+            {prepaidSwitch && (
+              <p className="mt-4 flex gap-2 rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Your prepaid {overview!.plan.name} term ends {overview!.current_period_end ? new Date(overview!.current_period_end).toLocaleDateString() : "soon"}.
+                Paying for {plan!.name} now starts a new term today and the unused days are not refunded automatically.
+                Contact us if you want them credited.
+              </p>
+            )}
+            {prepaidRenewal && (
+              <p className="mt-4 text-xs text-muted-foreground">
+                The new term starts when your current one ends, so no days are lost.
+              </p>
+            )}
+            {managed && (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Your plan is managed by CAZO and invoiced directly. Contact us to change it.
+              </p>
+            )}
             {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
             {!canManage && (
               <p className="mt-4 text-sm text-muted-foreground">
@@ -279,11 +381,25 @@ function CheckoutInner() {
             <Button
               className="mt-5 w-full"
               size="lg"
-              disabled={!plan || !quote || submitting || !catalog.checkout_enabled || !canManage || !user?.organization_id}
+              disabled={
+                !plan ||
+                !quote ||
+                submitting ||
+                !catalog.checkout_enabled ||
+                !canManage ||
+                !user?.organization_id ||
+                managed ||
+                sameAsCurrent ||
+                (conflicts.length > 0 && !acceptOver)
+              }
               onClick={submit}
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-              {hasAutoRenew && payment === "subscription" ? "Switch plan" : "Continue to secure payment"}
+              {sameAsCurrent
+                ? "This is your current plan"
+                : hasAutoRenew && payment === "subscription"
+                  ? "Switch plan"
+                  : "Continue to secure payment"}
             </Button>
             <p className="mt-3 text-center text-[11px] text-muted-foreground">
               {selectedOption?.id === "prepaid"

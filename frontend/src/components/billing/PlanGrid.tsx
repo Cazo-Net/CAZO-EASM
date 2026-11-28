@@ -52,18 +52,24 @@ export function IntervalToggle({
 export function ClientStepper({
   value,
   min,
+  max = Number.MAX_SAFE_INTEGER,
+  label = "clients",
   onChange,
 }: {
   value: number;
   min: number;
+  max?: number;
+  /** What is being counted, for screen readers ("clients", "extra root domains"). */
+  label?: string;
   onChange: (v: number) => void;
 }) {
+  const clamp = (v: number) => Math.min(max, Math.max(min, Math.floor(v)));
   return (
     <div className="flex items-center gap-2">
       <button
         type="button"
-        aria-label="Fewer clients"
-        onClick={() => onChange(Math.max(min, value - 1))}
+        aria-label={`Fewer ${label}`}
+        onClick={() => onChange(clamp(value - 1))}
         disabled={value <= min}
         className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:text-foreground disabled:opacity-40"
       >
@@ -72,16 +78,18 @@ export function ClientStepper({
       <input
         type="number"
         min={min}
+        max={max === Number.MAX_SAFE_INTEGER ? undefined : max}
         value={value}
-        aria-label="Number of clients"
-        onChange={(e) => onChange(Math.max(min, Number(e.target.value) || min))}
+        aria-label={`Number of ${label}`}
+        onChange={(e) => onChange(clamp(Number(e.target.value) || min))}
         className="h-8 w-16 rounded-lg border border-border bg-transparent text-center font-mono text-sm"
       />
       <button
         type="button"
-        aria-label="More clients"
-        onClick={() => onChange(value + 1)}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:text-foreground"
+        aria-label={`More ${label}`}
+        onClick={() => onChange(clamp(value + 1))}
+        disabled={value >= max}
+        className="disabled:opacity-40 flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:text-foreground"
       >
         <Plus className="h-3.5 w-3.5" />
       </button>
@@ -114,6 +122,7 @@ export function PlanCard({
     limitText(plan.limits.root_domains, "root domains", plan.per_client),
     limitText(plan.limits.hosts, "hosts monitored", plan.per_client),
     `${plan.scan_frequency.charAt(0).toUpperCase()}${plan.scan_frequency.slice(1)} scheduled scans`,
+    limitText(plan.limits.scans_per_month, "scans a month", plan.per_client),
     plan.limits.users == null ? "Unlimited users" : `${plan.limits.users} user seats`,
   ];
 
@@ -159,7 +168,7 @@ export function PlanCard({
       {plan.per_client && (
         <div className="mt-3 flex items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground">Clients (min {plan.min_quantity})</span>
-          <ClientStepper value={qty} min={plan.min_quantity} onChange={onClientsChange} />
+          <ClientStepper value={qty} min={plan.min_quantity} max={10_000} onChange={onClientsChange} />
         </div>
       )}
 
