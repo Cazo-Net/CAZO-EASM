@@ -611,9 +611,9 @@ export default function OrganizationSettingsPage() {
                 <p className="text-xs font-medium text-muted-foreground mb-2">
                   Role distribution
                 </p>
-                {stats && Object.keys(stats.role_distribution).length > 0 ? (
+                {stats && Object.keys(stats.role_distribution ?? {}).length > 0 ? (
                   <div className="flex flex-wrap gap-2">
-                    {Object.entries(stats.role_distribution).map(([role, count]) => (
+                    {Object.entries(stats.role_distribution ?? {}).map(([role, count]) => (
                       <Badge
                         key={role}
                         variant={ROLE_ACCENT[role as OrgRole] || "secondary"}

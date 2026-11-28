@@ -2,20 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Same palette as the customer app: navy ink, signal blue. */
 :root {
-  --bg: #0a0a0f;
-  --card: #12121a;
-  --border: #1e1e2e;
-  --text: #e4e4e7;
-  --muted: #71717a;
-  --primary: #3b82f6;
-  --destructive: #ef4444;
-  --green: #22c55e;
-  --amber: #f59e0b;
+  --bg: hsl(225 35% 6%);
+  --card: hsl(225 28% 9%);
+  --border: hsl(225 18% 17%);
+  --text: hsl(220 25% 94%);
+  --muted: hsl(220 13% 64%);
+  --primary: hsl(221 92% 62%);
+  --destructive: hsl(0 84% 63%);
+  --green: hsl(152 58% 46%);
+  --amber: hsl(38 92% 56%);
+  color-scheme: dark;
 }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+table {
+  font-variant-numeric: tabular-nums;
 }

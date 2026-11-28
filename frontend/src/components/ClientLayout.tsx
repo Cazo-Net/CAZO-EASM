@@ -6,7 +6,6 @@ import { ToastProvider } from "@/components/Toast";
 
 const PUBLIC_ROUTES = [
   "/",
-  "/home",
   "/login",
   "/register",
   "/pricing",

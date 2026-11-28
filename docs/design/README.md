@@ -41,3 +41,15 @@ Mono only for machine data: hostnames, IPs, ports, hashes, evidence.
 ## Screenshots
 
 See `screenshots/` for before/after captures of the first redesigned screens.
+
+## Admin panel
+
+`admin-panel/frontend` shares the palette without sharing code: its Tailwind
+config remaps `zinc` to the navy-ink neutrals and `blue` to signal blue, and
+`globals.css` carries the same base colours. It uses the same mark
+(`src/components/CazoMark.tsx`) and Inter.
+
+## Error and not-found pages
+
+`app/not-found.tsx` and `app/error.tsx` are plain, token-based pages. The 404
+no longer redirects after a countdown; it offers links instead.

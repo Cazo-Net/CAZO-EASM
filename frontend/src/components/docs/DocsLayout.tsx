@@ -32,11 +32,9 @@ export function DocsLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-void/80">
+      <header className="border-b border-border bg-background">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <CazoLogo />
-          </Link>
+          <CazoLogo />
           <Link
             href="/dashboard"
             className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"

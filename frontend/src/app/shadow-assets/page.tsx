@@ -89,9 +89,9 @@ function ShadowAssetsContent() {
     setLoadError(null);
     try {
       const data = await listShadowAssets();
-      setShadows(data.shadows);
-      setKnownCount(data.known_count);
-      setDiscoveredCount(data.discovered_count);
+      setShadows(data?.shadows ?? []);
+      setKnownCount(data?.known_count ?? 0);
+      setDiscoveredCount(data?.discovered_count ?? 0);
     } catch (err: any) {
       const detail = err?.response?.data?.detail || err?.message || "Failed to load shadow assets.";
       setLoadError(detail);
@@ -140,7 +140,7 @@ function ShadowAssetsContent() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="page-container-lg space-y-6 py-6">
       <PageHeader
         title="Shadow Asset Detection"
         description="Hosts that share infrastructure (IP, TLS certificate, or ASN) with your confirmed inventory but were never confirmed as yours."
