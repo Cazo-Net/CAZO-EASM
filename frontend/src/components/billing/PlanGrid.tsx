@@ -110,78 +110,75 @@ export function PlanCard({
   const qty = plan.per_client ? Math.max(clients, plan.min_quantity) : 1;
   const term = (plan.prices[interval] ?? 0) * qty;
 
+  const limits = [
+    limitText(plan.limits.root_domains, "root domains", plan.per_client),
+    limitText(plan.limits.hosts, "hosts monitored", plan.per_client),
+    `${plan.scan_frequency.charAt(0).toUpperCase()}${plan.scan_frequency.slice(1)} scheduled scans`,
+    plan.limits.users == null ? "Unlimited users" : `${plan.limits.users} user seats`,
+  ];
+
   return (
     <div
       className={cn(
-        "relative flex flex-col rounded-xl border bg-card p-6",
-        plan.highlight ? "border-primary/60" : "border-border"
+        "relative flex flex-col rounded-xl border p-6",
+        plan.highlight
+          ? "border-primary/60 bg-gradient-to-b from-primary/[0.09] via-card to-card shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_24px_60px_-30px_hsl(var(--primary)/0.55)]"
+          : "border-border bg-card"
       )}
     >
-      {plan.highlight && (
-        <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
-          Most popular
-        </span>
-      )}
-      {current && (
-        <span className="absolute -top-3 right-6 rounded-full border border-cyan-signal/60 bg-void px-3 py-0.5 text-[11px] uppercase tracking-wide text-cyan-signal">
-          Current plan
-        </span>
-      )}
-      <h3 className="text-xl font-semibold">{plan.name}</h3>
-      <p className="mt-1 min-h-[40px] text-sm text-muted-foreground">{plan.tagline}</p>
+      <div className="flex min-h-[26px] items-center justify-between gap-2">
+        <h3 className="text-lg font-semibold">{plan.name}</h3>
+        {current ? (
+          <span className="rounded-full border border-border px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Current plan
+          </span>
+        ) : plan.highlight ? (
+          <span className="rounded-full bg-primary/15 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
+            Most popular
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-1.5 text-sm text-muted-foreground xl:min-h-[60px]">{plan.tagline}</p>
 
       <div className="mt-5">
         <div className="flex items-baseline gap-1.5">
-          <span className="text-4xl font-semibold">
+          <span className="text-4xl font-semibold tracking-tight tabular-nums">
             {formatMoney(plan.monthly_price, catalog.currency)}
           </span>
-          <span className="text-sm text-muted-foreground">
-            /month{plan.per_client ? " per client" : ""}
-          </span>
+          <span className="text-sm text-muted-foreground">/ month</span>
         </div>
-        <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+        <p className="mt-1.5 text-xs text-muted-foreground xl:min-h-[32px]">
+          {plan.per_client ? "Per client. " : ""}
           {formatMoney(term, catalog.currency)} billed every {months === 12 ? "year" : `${months} months`}
-          {plan.per_client ? ` for ${qty} clients` : ""}
+          {plan.per_client ? ` for ${qty} clients` : ""}.
         </p>
       </div>
 
+      <div className="mt-5">{cta}</div>
+
       {plan.per_client && (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border p-3">
-          <span className="text-xs text-muted-foreground">
-            Clients <span className="opacity-60">(min {plan.min_quantity})</span>
-          </span>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground">Clients (min {plan.min_quantity})</span>
           <ClientStepper value={qty} min={plan.min_quantity} onChange={onClientsChange} />
         </div>
       )}
 
-      <ul className="mt-5 space-y-2 text-sm">
-        <li className="flex gap-2">
-          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          {limitText(plan.limits.root_domains, "root domains", plan.per_client)}
-        </li>
-        <li className="flex gap-2">
-          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          {limitText(plan.limits.hosts, "hosts monitored", plan.per_client)}
-        </li>
-        <li className="flex gap-2">
-          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <span>
-            <span className="capitalize">{plan.scan_frequency}</span> scheduled scans
-          </span>
-        </li>
-        <li className="flex gap-2">
-          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          {plan.limits.users == null ? "Unlimited users" : `${plan.limits.users} user seats`}
-        </li>
-        {plan.features.map((f) => (
-          <li key={f} className="flex gap-2">
+      <div className="my-6 h-px bg-border" />
+
+      <ul className="space-y-2.5 text-sm">
+        {limits.map((l) => (
+          <li key={l} className="flex gap-2.5 font-medium">
             <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            {l}
+          </li>
+        ))}
+        {plan.features.map((f) => (
+          <li key={f} className="flex gap-2.5 text-muted-foreground">
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/60" />
             {f}
           </li>
         ))}
       </ul>
-
-      <div className="mt-auto pt-6">{cta}</div>
     </div>
   );
 }
