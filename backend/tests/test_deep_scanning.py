@@ -371,3 +371,12 @@ def test_stage_kwargs_feed_web_tls_and_vuln_stages():
     assert 6379 in vuln["open_ports"]
     assert "example.com" in vuln["scan_results"]["ports"]
     assert vuln["subdomains"] == ["api.example.com"]
+
+
+def test_same_site_on_http_and_https_is_checked_once():
+    seen = []
+    scanner = _scanner(_site(seen))
+    res = asyncio.run(scanner.scan("example.com", root_domain="example.com",
+                                   web_targets=["http://app.example.com", "https://app.example.com"]))
+    env = [f for f in res.data["findings"] if f["template_id"] == "exposure/env-file"]
+    assert len(env) == 1 and env[0]["matched_at"].startswith("https://")

@@ -244,23 +244,31 @@ class WebExposureScanner(EnhancedBaseScanner):
         sem = asyncio.Semaphore(self.host_parallelism)
         started = time.monotonic()
 
-        async with self._client() as client:
-            async def _one(url: str) -> None:
-                async with sem:
-                    try:
-                        svc, f, techs = await self._scan_service(client, url, root_domain, seen_final)
-                    except Exception as exc:  # noqa: BLE001 — one service must not sink the scan
-                        logger.warning("web-exposure failed for %s: %s", url, exc)
-                        return
-                    if svc:
-                        services.append(svc)
-                        host = svc["host"]
-                        merged = technologies.setdefault(host, [])
-                        names = {t["name"].lower() for t in merged}
-                        merged.extend(t for t in techs if t["name"].lower() not in names)
-                    findings.extend(f)
+        # Services on the same host run one after another (HTTPS first), so a
+        # plain-HTTP copy of the same site is recognised and not checked twice.
+        by_host: Dict[str, List[str]] = {}
+        for u in sorted(in_scope, key=lambda u: (not u.startswith("https"), u)):
+            by_host.setdefault(parse_web_target(u)[1], []).append(u)
 
-            await asyncio.gather(*(_one(u) for u in in_scope))
+        async with self._client() as client:
+            async def _host(urls: List[str]) -> None:
+                async with sem:
+                    content_seen: Dict[str, str] = {}
+                    for url in urls:
+                        try:
+                            svc, f, techs = await self._scan_service(
+                                client, url, root_domain, seen_final, content_seen)
+                        except Exception as exc:  # noqa: BLE001 — one service must not sink the scan
+                            logger.warning("web-exposure failed for %s: %s", url, exc)
+                            continue
+                        if svc:
+                            services.append(svc)
+                            merged = technologies.setdefault(svc["host"], [])
+                            names = {t["name"].lower() for t in merged}
+                            merged.extend(t for t in techs if t["name"].lower() not in names)
+                        findings.extend(f)
+
+            await asyncio.gather(*(_host(urls) for urls in by_host.values()))
 
         findings = _dedupe(findings)
         findings.sort(key=lambda f: _SEV_RANK.get(f["severity"], 9))
@@ -290,6 +298,7 @@ class WebExposureScanner(EnhancedBaseScanner):
 
     async def _scan_service(
         self, client: httpx.AsyncClient, url: str, root_domain: str, seen_final: Dict[str, str],
+        content_seen: Optional[Dict[str, str]] = None,
     ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
         scheme, host, port = parse_web_target(url)
         base = _base(scheme, host, port)
@@ -325,9 +334,16 @@ class WebExposureScanner(EnhancedBaseScanner):
         final_key = _base(f_scheme, f_host, f_port)
         duplicate = final_key != base and final_key in seen_final
         seen_final.setdefault(final_key, base)
+        # Same page already served on another scheme/port of this host.
+        if content_seen is not None:
+            body_key = svc["body_sha256"]
+            if root.status == 200 and body_key in content_seen and content_seen[body_key] != base:
+                duplicate = True
+                svc["same_content_as"] = content_seen[body_key]
+            content_seen.setdefault(body_key, base)
         check_base = final_key if host_in_scope(f_host, root_domain) else base
 
-        if offscope is None:
+        if offscope is None and not duplicate:
             findings += self._header_findings(root, host, final_url, f_scheme)
         for rule_id, rtitle, sev in match_root_signatures(root):
             findings.append(_finding(
@@ -343,7 +359,8 @@ class WebExposureScanner(EnhancedBaseScanner):
             ))
 
         # Secrets in what every visitor already downloads.
-        findings += await self._secret_findings(client, root, final_url, host, root_domain)
+        if not duplicate:
+            findings += await self._secret_findings(client, root, final_url, host, root_domain)
 
         if self.exposure_checks and not duplicate and offscope is None:
             findings += await self._path_checks(client, check_base, host)
