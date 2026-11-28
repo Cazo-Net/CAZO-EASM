@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CazoLogo } from "@/components/marketing/CazoLogo";
+import { GhostGuard } from "@/components/error/GhostGuard";
 import { useAuth } from "@/contexts/AuthContext";
 
 const LINKS = [
@@ -22,6 +23,7 @@ export default function NotFound() {
       )}
 
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-16">
+        <GhostGuard className="mb-6 h-[168px] w-[120px]" />
         <p className="font-mono text-sm text-primary">404</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
           This page is not in scope

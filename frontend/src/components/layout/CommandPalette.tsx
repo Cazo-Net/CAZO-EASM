@@ -1,5 +1,6 @@
 "use client";
 
+import { CazoMark } from "@/components/marketing/CazoLogo";
 import * as React from "react";
 import { Command } from "cmdk";
 import { useRouter } from "next/navigation";
@@ -19,7 +20,6 @@ import {
   Sun,
   Moon,
   LogOut,
-  Shield,
   Wallet,
   Eye,
 } from "lucide-react";
@@ -238,7 +238,7 @@ export function CommandPalette({
       </Command.List>
       <div className="flex items-center justify-between border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <Shield className="h-3 w-3 text-brand" /> CAZO EASM Command
+          <CazoMark className="h-4 w-4" /> CAZO EASM Command
         </span>
         <span className="flex items-center gap-2">
           <kbd className="rounded border border-border bg-surface-2 px-1.5 py-0.5">↑</kbd>

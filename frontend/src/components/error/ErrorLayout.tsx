@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { AnimatedBackground } from "./AnimatedBackground";
-import { ErrorIllustration } from "./ErrorIllustration";
+import { GhostGuard } from "./GhostGuard";
 import { ErrorActions } from "./ErrorActions";
 import { ErrorFooter } from "./ErrorFooter";
 import { StatusBadge } from "./StatusBadge";
@@ -26,7 +26,7 @@ export function ErrorLayout({ config }: { config: ErrorPageConfig }) {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.1 }}
           >
-            <ErrorIllustration size="lg" />
+            <GhostGuard />
           </motion.div>
 
           <motion.div

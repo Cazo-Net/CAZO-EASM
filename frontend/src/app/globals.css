@@ -832,3 +832,16 @@
   background: #1f1f1f;
   fill: #fafafa;
 }
+
+/* 403 guard blink: eyes-closed layer shows briefly, twice in quick succession now and then */
+@keyframes ghost-blink {
+  0%, 86%, 90%, 93%, 100% { opacity: 0; }
+  87.5%, 88.5%, 94%, 95% { opacity: 1; }
+}
+.ghost-blink {
+  opacity: 0;
+  animation: ghost-blink 4.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ghost-blink { animation: none; }
+}

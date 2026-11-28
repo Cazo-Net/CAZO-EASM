@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CazoLogo } from "@/components/marketing/CazoLogo";
+import { GhostGuard } from "@/components/error/GhostGuard";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Error({
@@ -23,6 +24,7 @@ export default function Error({
       )}
 
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-16">
+        <GhostGuard className="mb-6 h-[168px] w-[120px]" />
         <p className="text-sm font-medium text-destructive">Something went wrong</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-foreground">
           This page could not be loaded
