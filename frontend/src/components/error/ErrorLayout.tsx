@@ -35,7 +35,7 @@ export function ErrorLayout({ config }: { config: ErrorPageConfig }) {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="mt-8"
           >
-            <StatusBadge severity={config.severity} label={`Error ${config.code}`} />
+            <StatusBadge severity={config.severity} label={Number(config.code) >= 400 ? `Error ${config.code}` : "Notice"} />
           </motion.div>
 
           <motion.h1

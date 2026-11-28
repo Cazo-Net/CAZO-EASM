@@ -23,7 +23,7 @@ export function ErrorFooter() {
               Settings
             </Link>
             <a
-              href="https://status.CAZO EASM.io"
+              href="https://status.cazoeasm.io"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-foreground transition-colors"
@@ -31,7 +31,7 @@ export function ErrorFooter() {
               System Status
             </a>
             <a
-              href="mailto:support@CAZO EASM.io"
+              href="mailto:support@cazoeasm.io"
               className="hover:text-foreground transition-colors"
             >
               Contact Support
