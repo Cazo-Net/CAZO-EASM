@@ -417,22 +417,11 @@ class ScanService:
 
         db.commit()  # single commit for all results
 
-        # Build the canonical, cross-scan asset inventory + relationships.
-        try:
-            from app.repositories.assets import backfill_from_scan
+        # Fold the results into the deduplicated asset inventory, record what
+        # changed since earlier scans and send the organization's change alerts.
+        from app.services.inventory import process_completed_scan
 
-            backfill_from_scan(db, scan)
-        except Exception as exc:  # noqa: BLE001
-            logger.error("Asset backfill failed for scan %s: %s", scan.id, exc)
-
-        # Record the change timeline vs the previous completed scan.
-        try:
-            from app.services.change_detector import detect_changes
-
-            if organization_id := self._resolve_org(db, scan):
-                detect_changes(db, organization_id, scan.id)
-        except Exception as exc:  # noqa: BLE001
-            logger.error("Change detection failed for scan %s: %s", scan.id, exc)
+        process_completed_scan(db, scan)
     
     def _extract_ips(self, dns_records: Dict) -> list:
         """Extract IP addresses from DNS records."""

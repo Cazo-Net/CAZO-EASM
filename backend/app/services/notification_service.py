@@ -51,7 +51,24 @@ _TYPE_PRIORITY = {
     "password_changed": "critical",
     "email_changed": "critical",
     "weekly_digest": "low",
+    # Asset inventory change alerts (app/services/inventory_alerts.py)
+    "inventory_new_asset": "high",
+    "inventory_new_service": "high",
+    "inventory_new_finding": "critical",
+    "inventory_cert_expiring": "high",
+    "inventory_cert_changed": "normal",
+    "inventory_asset_missing": "normal",
+    "inventory_plan_limit": "high",
 }
+
+INVENTORY_NOTIFICATION_TYPES = (
+    "inventory_new_asset",
+    "inventory_new_service",
+    "inventory_new_finding",
+    "inventory_cert_expiring",
+    "inventory_cert_changed",
+    "inventory_asset_missing",
+)
 
 # Types that should trigger email delivery when priority is high/critical
 _EMAIL_ELIGIBLE_TYPES = {
@@ -66,6 +83,7 @@ _EMAIL_ELIGIBLE_TYPES = {
     "password_changed",
     "email_changed",
     "weekly_digest",
+    *INVENTORY_NOTIFICATION_TYPES,
 }
 
 # Default preferences for new users (all channels enabled)
@@ -82,6 +100,9 @@ DEFAULT_PREFERENCES: Dict[str, Dict[str, bool]] = {
     "password_changed":        {"in_app_enabled": True,  "email_enabled": True},
     "email_changed":           {"in_app_enabled": True,  "email_enabled": True},
     "weekly_digest":           {"in_app_enabled": False, "email_enabled": False},
+    # Inventory alerts: on for both channels; the organization's alert
+    # settings decide which of them are actually used.
+    **{t: {"in_app_enabled": True, "email_enabled": True} for t in INVENTORY_NOTIFICATION_TYPES},
 }
 
 
@@ -182,6 +203,9 @@ def dispatch_notification(
     priority: Optional[str] = None,
     data: Optional[Dict[str, Any]] = None,
     skip_dedup: bool = False,
+    allow_in_app: bool = True,
+    allow_email: bool = True,
+    fire_webhooks: bool = True,
 ) -> Optional[Notification]:
     """Central notification dispatch — the single entry point for all notifications.
 
@@ -207,9 +231,12 @@ def dispatch_notification(
         if pref:
             in_app_enabled = pref.in_app_enabled
             email_enabled = pref.email_enabled
+        # Organization-level channel switches (inventory alert settings).
+        in_app_enabled = in_app_enabled and allow_in_app
+        email_enabled = email_enabled and allow_email
 
         # If both channels disabled, skip entirely
-        if not in_app_enabled and not email_enabled:
+        if not in_app_enabled and not email_enabled and not fire_webhooks:
             return None
 
         # Deduplication check (skip for security events and weekly digest)
@@ -252,7 +279,7 @@ def dispatch_notification(
             )
 
         # Dispatch to webhooks (async, fire-and-forget)
-        if organization_id:
+        if organization_id and fire_webhooks:
             _dispatch_webhook_async(
                 db=db,
                 organization_id=organization_id,
@@ -366,6 +393,12 @@ def _dispatch_webhook_async(
             "new_finding_medium": "finding.medium",
             "ssl_expiring": "ssl.certificate_expiring",
             "new_cve_match": "cve.new_match",
+            "inventory_new_asset": "asset.new_subdomain",
+            "inventory_new_service": "asset.new_port",
+            "inventory_new_finding": "finding.critical",
+            "inventory_cert_expiring": "ssl.certificate_expiring",
+            "inventory_cert_changed": "ssl.certificate_changed",
+            "inventory_asset_missing": "asset.disappeared",
         }
 
         event_type = event_type_map.get(notification_type)
@@ -520,6 +553,19 @@ def _build_email_content(
             ip=data.get("ip_address", "Unknown"),
             browser=data.get("user_agent", "Unknown"),
             timestamp=data.get("timestamp", datetime.now(timezone.utc).isoformat()),
+        )
+
+    elif notification_type.startswith("inventory_"):
+        from app.services.email.templates import inventory_alert_email
+
+        return inventory_alert_email(
+            name=user_name,
+            title=title,
+            intro=data.get("intro") or message,
+            items=data.get("items") or [],
+            more=int(data.get("more") or 0),
+            url=data.get("url") or "/inventory",
+            tone=data.get("tone") or "warning",
         )
 
     # No template for this type — skip email

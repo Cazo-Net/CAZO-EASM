@@ -152,7 +152,16 @@ def compute_asset_scores(db: Session, organization_id: str) -> int:
     associated findings. Pure-scoring functions keep this side-effect free beyond
     the DB write, which makes the logic trivially unit-testable.
     """
-    assets = db.query(Asset).filter(Asset.organization_id == organization_id).all()
+    from app.services.inventory import INVENTORY_ONLY_TYPES
+
+    assets = (
+        db.query(Asset)
+        .filter(
+            Asset.organization_id == organization_id,
+            Asset.asset_type.notin_(INVENTORY_ONLY_TYPES),
+        )
+        .all()
+    )
     count = 0
     now = _now()
     for asset in assets:

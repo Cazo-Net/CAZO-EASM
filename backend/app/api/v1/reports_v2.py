@@ -25,7 +25,11 @@ def _build_summary(
 ) -> ExecutiveReport:
     org_id = current_user.organization_id
 
-    total_assets = db.query(Asset).filter(Asset.organization_id == org_id).count()
+    total_assets = (
+        db.query(Asset)
+        .filter(Asset.organization_id == org_id, Asset.asset_type.in_(("host", "ip", "certificate")))
+        .count()
+    )
 
     # Scans are scoped directly by organization_id (created_by may be NULL for
     # system/orchestrated scans, so we must not infer org via the user join).
