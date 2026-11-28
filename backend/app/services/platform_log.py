@@ -279,6 +279,7 @@ def log_client_error(
     detail: Optional[dict] = None,
     client_ip: Optional[str] = None,
     user_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
 ) -> None:
     """Record a client-side JS error POSTed from the frontend ErrorBoundary."""
     _write(PlatformLog(
@@ -288,4 +289,5 @@ def log_client_error(
         detail=dict(detail or {}),
         client_ip=client_ip,
         user_id=user_id,
+        organization_id=organization_id,
     ))

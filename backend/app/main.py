@@ -323,6 +323,10 @@ async def log_requests_middleware(request: Request, call_next):
                 method=request.method,
                 status_code=response.status_code,
                 duration_ms=duration_ms,
+                # Set by get_current_user, so staff can see a customer's
+                # failed requests in the admin diagnostics view.
+                user_id=getattr(request.state, "user_id", None),
+                organization_id=getattr(request.state, "organization_id", None),
             )
         except Exception:  # noqa: BLE001
             pass
