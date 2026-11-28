@@ -335,7 +335,7 @@ function IntelContent() {
             {/* Vulnerabilities */}
             <SectionCard
               title="Known Vulnerabilities"
-              description="CVEs from NVD, flagged if present in CISA KEV"
+              description="NVD keyword matches for detected technologies (versions not confirmed), flagged if in CISA KEV. For confirmed exploited CVEs see Dark Web & Threat Intelligence."
               icon={<ShieldAlert className="h-4 w-4" />}
             >
               {data.vulnerabilities.length === 0 ? (

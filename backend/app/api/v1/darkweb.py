@@ -1,426 +1,234 @@
-"""Dark Web Intelligence API routes.
+"""Dark web & threat intelligence API.
 
-Provides search, monitoring, and reports for dark web intelligence.
-Returns simulated data for development — production would integrate
-with Tor crawlers, OSINT feeds, and threat intel APIs.
+Everything returned here is either:
+
+* real data from a named source (each finding has ``source`` and a
+  ``reference_url``), or
+* sample data from ``/sample``, which is flagged ``is_sample: true`` at the
+  top level and on every record, uses reserved example domains, and is never
+  stored or mixed with real findings.
+
+Sources that need a key or subscription the operator has not configured are
+reported as ``not_configured`` by ``/sources``; they never return results.
+
+Monitors and findings are scoped to the caller's organization, and monitors
+can only be created for domains in the organization's authorized scope.
 """
 from __future__ import annotations
 
-import hashlib
-import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Any
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.concurrency import run_in_threadpool
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from app.api.deps import get_current_user
+from app.core.permissions import Permission, require_any_permission
+from app.database import get_db
+from app.models.threat_intel import ThreatIntelFinding, ThreatIntelMonitor
+from app.models.user import User
+from app.services import threat_intel as ti
 
 router = APIRouter()
 
-# ── Simulated Data ──────────────────────────────────────────────────────────
-
-_NOW = datetime.now(timezone.utc)
-
-_SIMULATED_MENTIONS: list[dict[str, Any]] = [
-    # --- Credentials & Data Breaches ---
-    {
-        "id": str(uuid.uuid4()),
-        "source": "tor_search",
-        "source_url": "http://alphaxdd7k7.onion/forum/thread/4821",
-        "content_type": "forum_post",
-        "title": "Database dump containing 2.4M user records",
-        "summary": "Threat actor posting a database dump allegedly from a major SaaS platform. Includes email, password hashes, and API keys.",
-        "discovered_at": (_NOW - timedelta(hours=3)).isoformat(),
-        "keywords": ["database", "credentials", "data_breach", "password", "hash", "api_keys"],
-        "entities": ["saas-platform"],
-        "threat_level": "critical",
-        "confidence": 78,
-    },
-    {
-        "id": str(uuid.uuid4()),
-        "source": "paste_site",
-        "source_url": "https://paste.gg/p/abc123/raw",
-        "content_type": "data_dump",
-        "title": "Corporate email list with plaintext passwords",
-        "summary": "Paste containing ~50K corporate email/password pairs. Passwords appear to be from a credential stuffing attack.",
-        "discovered_at": (_NOW - timedelta(hours=6)).isoformat(),
-        "keywords": ["credentials", "email", "password", "corporate", "credential_stuffing"],
-        "entities": ["enterprise-corp"],
-        "threat_level": "critical",
-        "confidence": 82,
-    },
-    {
-        "id": str(uuid.uuid4()),
-        "source": "telegram",
-        "source_url": "https://t.me/leakdb_channel/4521",
-        "content_type": "announcement",
-        "title": "New credential leak from financial services API",
-        "summary": "Threat actor claims access to leaked API tokens from a financial services provider. Tokens allegedly grant read access to customer accounts.",
-        "discovered_at": (_NOW - timedelta(hours=12)).isoformat(),
-        "keywords": ["api", "tokens", "financial", "credentials", "leak", "customer"],
-        "entities": ["finserv-provider"],
-        "threat_level": "high",
-        "confidence": 60,
-    },
-    # --- Exploits & Vulnerabilities ---
-    {
-        "id": str(uuid.uuid4()),
-        "source": "tor_search",
-        "source_url": "http://exploit0x3.onion/vuln/cve-2025-1234",
-        "content_type": "exploit_listing",
-        "title": "Zero-day exploit for popular web framework",
-        "summary": "0-day RCE exploit targeting a widely-used JavaScript framework. Affects versions 4.x through 5.2. Proof-of-concept available.",
-        "discovered_at": (_NOW - timedelta(days=1)).isoformat(),
-        "keywords": ["exploit", "zero_day", "rce", "web", "framework", "javascript", "vulnerability"],
-        "entities": [],
-        "threat_level": "critical",
-        "confidence": 70,
-    },
-    {
-        "id": str(uuid.uuid4()),
-        "source": "forum",
-        "source_url": "http://darkforum01.onion/thread/99234",
-        "content_type": "forum_post",
-        "title": "SQL injection technique for modern ORMs",
-        "summary": "New SQL injection bypass technique for Sequelize, Prisma, and TypeORM. Works on default configurations.",
-        "discovered_at": (_NOW - timedelta(days=2)).isoformat(),
-        "keywords": ["sql_injection", "orm", "sequelize", "prisma", "vulnerability", "web"],
-        "entities": [],
-        "threat_level": "high",
-        "confidence": 65,
-    },
-    {
-        "id": str(uuid.uuid4()),
-        "source": "tor_search",
-        "source_url": "http://vulnmarket.onion/item/8812",
-        "content_type": "marketplace_listing",
-        "title": "Privilege escalation exploit — cloud providers",
-        "summary": "Privilege escalation vulnerability affecting major cloud providers. Allows lateral movement from container to host.",
-        "discovered_at": (_NOW - timedelta(days=3)).isoformat(),
-        "keywords": ["privilege_escalation", "cloud", "container", "lateral_movement", "exploit"],
-        "entities": ["cloud-provider"],
-        "threat_level": "high",
-        "confidence": 55,
-    },
-    # --- Threat Actors & Campaigns ---
-    {
-        "id": str(uuid.uuid4()),
-        "source": "telegram",
-        "source_url": "https://t.me/apt_watch/112",
-        "content_type": "announcement",
-        "title": "APT group targeting cryptocurrency exchanges",
-        "summary": "Known APT group (Lazarus-associated) actively targeting crypto exchange APIs and hot wallets with phishing campaigns.",
-        "discovered_at": (_NOW - timedelta(hours=18)).isoformat(),
-        "keywords": ["apt", "cryptocurrency", "exchange", "phishing", "lazarus", "threat_actor"],
-        "entities": ["crypto-exchange", "lazarus-group"],
-        "threat_level": "critical",
-        "confidence": 72,
-    },
-    {
-        "id": str(uuid.uuid4()),
-        "source": "forum",
-        "source_url": "http://threatintel.onion/thread/5567",
-        "content_type": "forum_post",
-        "title": "Ransomware group recruiting affiliates",
-        "summary": "Major ransomware-as-a-service operation recruiting new affiliates. Offering 80/20 revenue split. Targeting healthcare and education.",
-        "discovered_at": (_NOW - timedelta(days=1, hours=6)).isoformat(),
-        "keywords": ["ransomware", "recruiting", "affiliate", "healthcare", "education", "threat_actor"],
-        "entities": ["ransomware-group"],
-        "threat_level": "high",
-        "confidence": 68,
-    },
-    # --- Marketplace Listings ---
-    {
-        "id": str(uuid.uuid4()),
-        "source": "marketplace",
-        "source_url": "http://darkmarket01.onion/item/33456",
-        "content_type": "marketplace_listing",
-        "title": "Stolen OAuth tokens for enterprise SaaS",
-        "summary": "Listing selling active OAuth tokens for popular enterprise tools. Tokens allegedly valid for 30 days.",
-        "discovered_at": (_NOW - timedelta(hours=9)).isoformat(),
-        "keywords": ["oauth", "tokens", "enterprise", "saas", "stolen", "access"],
-        "entities": ["enterprise-saas"],
-        "threat_level": "high",
-        "confidence": 50,
-    },
-    {
-        "id": str(uuid.uuid4()),
-        "source": "marketplace",
-        "source_url": "http://hydra2market.onion/product/78901",
-        "content_type": "marketplace_listing",
-        "title": "VPN credentials — Fortune 500 companies",
-        "summary": "Bulk listing of VPN credentials for major corporations. Includes username, password, and MFA seed.",
-        "discovered_at": (_NOW - timedelta(days=2, hours=4)).isoformat(),
-        "keywords": ["vpn", "credentials", "fortune500", "mfa", "bulk", "corporate"],
-        "entities": ["fortune-500"],
-        "threat_level": "critical",
-        "confidence": 45,
-    },
-    # --- Malware & Tools ---
-    {
-        "id": str(uuid.uuid4()),
-        "source": "tor_search",
-        "source_url": "http://malwarevault.onion/tool/new_stealer",
-        "content_type": "malware_listing",
-        "title": "New infostealer targeting browser wallets",
-        "summary": "Sophisticated infostealer that extracts cryptocurrency wallet private keys from Chrome, Firefox, and Brave extensions.",
-        "discovered_at": (_NOW - timedelta(hours=15)).isoformat(),
-        "keywords": ["malware", "infostealer", "browser", "wallet", "crypto", "private_key", "extension"],
-        "entities": [],
-        "threat_level": "high",
-        "confidence": 75,
-    },
-    {
-        "id": str(uuid.uuid4()),
-        "source": "forum",
-        "source_url": "http://crimeware.onion/thread/2234",
-        "content_type": "forum_post",
-        "title": "Phishing kit for banking apps — updated 2025",
-        "summary": "Updated phishing kit with real-time proxy for banking 2FA bypass. Supports 20+ banks.",
-        "discovered_at": (_NOW - timedelta(days=4)).isoformat(),
-        "keywords": ["phishing", "banking", "2fa", "bypass", "kit", "fraud"],
-        "entities": [],
-        "threat_level": "high",
-        "confidence": 62,
-    },
-    # --- Supply Chain ---
-    {
-        "id": str(uuid.uuid4()),
-        "source": "tor_search",
-        "source_url": "http://supplychainsec.onion/advisory/npm_backdoor",
-        "content_type": "advisory",
-        "title": "Backdoor discovered in popular npm package",
-        "summary": "A popular npm package with 2M+ weekly downloads found to contain a backdoor exfiltrating environment variables to a C2 server.",
-        "discovered_at": (_NOW - timedelta(hours=5)).isoformat(),
-        "keywords": ["supply_chain", "npm", "backdoor", "malware", "javascript", "exfiltration", "c2"],
-        "entities": ["npm-package"],
-        "threat_level": "critical",
-        "confidence": 85,
-    },
-    {
-        "id": str(uuid.uuid4()),
-        "source": "telegram",
-        "source_url": "https://t.me/supply_chain_intel/78",
-        "content_type": "announcement",
-        "title": "Compromised Docker image on public registry",
-        "summary": "Malicious Docker image discovered on Docker Hub mimicking a popular base image. Contains cryptocurrency miner.",
-        "discovered_at": (_NOW - timedelta(days=1, hours=12)).isoformat(),
-        "keywords": ["docker", "supply_chain", "malware", "cryptominer", "container", "registry"],
-        "entities": ["docker-hub"],
-        "threat_level": "high",
-        "confidence": 70,
-    },
-    # --- Data for sale ---
-    {
-        "id": str(uuid.uuid4()),
-        "source": "marketplace",
-        "source_url": "http://datalekmarket.onion/product/9981",
-        "content_type": "marketplace_listing",
-        "title": "Healthcare patient records — 500K entries",
-        "summary": "For sale: complete patient records including SSN, medical history, insurance IDs. Allegedly from a US hospital network.",
-        "discovered_at": (_NOW - timedelta(days=5)).isoformat(),
-        "keywords": ["healthcare", "patient_records", "ssn", "medical", "data_breach", "insurance"],
-        "entities": ["hospital-network"],
-        "threat_level": "critical",
-        "confidence": 40,
-    },
-    {
-        "id": str(uuid.uuid4()),
-        "source": "paste_site",
-        "source_url": "https://rentry.co/leaked_data_xyz/raw",
-        "content_type": "data_dump",
-        "title": "Internal source code repository leak",
-        "summary": "Leaked Git repository containing internal API keys, database credentials, and proprietary source code.",
-        "discovered_at": (_NOW - timedelta(hours=20)).isoformat(),
-        "keywords": ["source_code", "git", "api_keys", "database", "credentials", "internal"],
-        "entities": ["target-org"],
-        "threat_level": "critical",
-        "confidence": 73,
-    },
-    # --- Recon & Targeting ---
-    {
-        "id": str(uuid.uuid4()),
-        "source": "tor_search",
-        "source_url": "http://recon0nion.onion/target/corp_x",
-        "content_type": "forum_post",
-        "title": "Active recon thread — corporate infrastructure mapping",
-        "summary": "Detailed mapping of target's cloud infrastructure, including AWS subnets, Kubernetes clusters, and exposed services.",
-        "discovered_at": (_NOW - timedelta(hours=8)).isoformat(),
-        "keywords": ["recon", "infrastructure", "aws", "kubernetes", "cloud", "mapping", "exposed"],
-        "entities": ["target-corp"],
-        "threat_level": "medium",
-        "confidence": 58,
-    },
-    {
-        "id": str(uuid.uuid4()),
-        "source": "forum",
-        "source_url": "http://hackforum01.onion/thread/88123",
-        "content_type": "forum_post",
-        "title": "Web application attack surface analysis shared",
-        "summary": "Detailed attack surface map for a major e-commerce platform. Includes subdomains, APIs, and admin panels.",
-        "discovered_at": (_NOW - timedelta(days=2, hours=8)).isoformat(),
-        "keywords": ["attack_surface", "subdomains", "api", "admin_panel", "web", "ecommerce"],
-        "entities": ["ecommerce-platform"],
-        "threat_level": "medium",
-        "confidence": 52,
-    },
-]
+_SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
 
-def _filter_mentions(query: str) -> list[dict[str, Any]]:
-    """Fuzzy keyword matching for simulated data.
-
-    Splits the query into words and matches against any mention where
-    at least one word appears (case-insensitive substring) in the
-    title, summary, keywords, or entities.
-    """
-    query_lower = query.lower().strip()
-    words = query_lower.split()
-    results = []
-    for mention in _SIMULATED_MENTIONS:
-        searchable = " ".join([
-            mention.get("title", ""),
-            mention.get("summary", ""),
-            " ".join(mention.get("keywords", [])),
-            " ".join(mention.get("entities", [])),
-        ]).lower()
-        # Match if the full query or any individual word appears
-        if query_lower in searchable or any(w in searchable for w in words):
-            results.append(mention)
-    return results
+def _org(user: User) -> str:
+    if not user.organization_id:
+        raise HTTPException(status_code=400, detail="No organization linked to your account")
+    return user.organization_id
 
 
-def _generate_contextual_results(query: str) -> list[dict[str, Any]]:
-    """Generate realistic contextual results for any query term."""
-    h = int(hashlib.sha256(query.lower().encode()).hexdigest(), 16)
-    now = datetime.now(timezone.utc)
-
-    templates = [
-        {
-            "source": "tor_search",
-            "source_url": f"http://{hashlib.md5(f'{h}a'.encode()).hexdigest()[:16]}.onion/forum/thread/{h % 100000}",
-            "content_type": "forum_post",
-            "title": f"Discussion about {query} in underground forums",
-            "summary": f"Forum thread discussing potential exploitation of {query}-related systems. Multiple threat actors participating with technical details.",
-            "keywords": [query.lower(), "forum", "exploitation", "discussion"],
-            "entities": [query.lower()] if len(query) > 3 else [],
-            "threat_level": ["medium", "high", "low"][h % 3],
-            "confidence": min(40 + (h % 50), 90),
-        },
-        {
-            "source": "marketplace",
-            "source_url": f"http://{hashlib.md5(f'{h}b'.encode()).hexdigest()[:16]}.onion/item/{h % 100000}",
-            "content_type": "marketplace_listing",
-            "title": f"Stolen {query} credentials circulating on dark web markets",
-            "summary": f"Listings found selling compromised {query} access credentials. Prices range from $50-$500 depending on access level.",
-            "keywords": [query.lower(), "credentials", "stolen", "marketplace", "access"],
-            "entities": [query.lower()] if len(query) > 3 else [],
-            "threat_level": ["high", "critical"][h % 2],
-            "confidence": min(35 + (h % 45), 80),
-        },
-        {
-            "source": "paste_site",
-            "source_url": f"https://rentry.co/{hashlib.md5(f'{h}c'.encode()).hexdigest()[:12]}/raw",
-            "content_type": "data_dump",
-            "title": f"Leaked {query} data found on paste site",
-            "summary": f"Data paste containing what appears to be {query}-related information. Includes email addresses and partial credentials.",
-            "keywords": [query.lower(), "leak", "paste", "credentials", "data"],
-            "entities": [],
-            "threat_level": "medium",
-            "confidence": min(30 + (h % 40), 70),
-        },
-        {
-            "source": "telegram",
-            "source_url": f"https://t.me/{hashlib.md5(f'{h}d'.encode()).hexdigest()[:12]}/{h % 10000}",
-            "content_type": "announcement",
-            "title": f"Threat actor claims {query} breach",
-            "summary": f"Anonymous threat actor claiming to have breached {query} systems. Claims include user database and internal documents.",
-            "keywords": [query.lower(), "breach", "threat_actor", "claim", "access"],
-            "entities": [query.lower()] if len(query) > 3 else [],
-            "threat_level": ["high", "critical"][h % 2],
-            "confidence": min(25 + (h % 40), 65),
-        },
-        {
-            "source": "forum",
-            "source_url": f"http://{hashlib.md5(f'{h}e'.encode()).hexdigest()[:16]}.onion/thread/{h % 100000}",
-            "content_type": "forum_post",
-            "title": f"Exploit development targeting {query} infrastructure",
-            "summary": f"Active thread where threat actors are collaborating on exploit development for {query}-related vulnerabilities.",
-            "keywords": [query.lower(), "exploit", "vulnerability", "development", "infrastructure"],
-            "entities": [],
-            "threat_level": "high",
-            "confidence": min(45 + (h % 35), 80),
-        },
-    ]
-
-    # Pick 3-4 results based on the hash
-    count = 3 + (h % 2)
-    selected = []
-    for i, t in enumerate(templates[:count]):
-        mention = dict(t)
-        mention["id"] = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{query}-{i}"))
-        mention["discovered_at"] = (now - timedelta(hours=(h + i * 7) % 168)).isoformat()
-        selected.append(mention)
-    return selected
-
-
-# ── Routes ──────────────────────────────────────────────────────────────────
-
-@router.get("/search")
-async def search_darkweb(
-    q: str = Query(..., min_length=1, max_length=200),
-):
-    """Search dark web intelligence for a query."""
-    # First, try to match against simulated data
-    results = _filter_mentions(q)
-
-    # Always add contextual results so the engine returns something useful
-    contextual = _generate_contextual_results(q)
-    results.extend(contextual)
-
+def _monitor_dict(m: ThreatIntelMonitor, counts: Optional[dict] = None) -> dict:
     return {
-        "query": q,
-        "results": results,
-        "total": len(results),
-        "page": 1,
-        "has_next": False,
+        "id": m.id, "kind": m.kind, "value": m.value,
+        "created_at": m.created_at.isoformat() if m.created_at else None,
+        "last_checked_at": m.last_checked_at.isoformat() if m.last_checked_at else None,
+        "last_status": m.last_status or {},
+        "open_findings": (counts or {}).get(m.id, 0),
     }
+
+
+def _finding_dict(f: ThreatIntelFinding) -> dict:
+    return {
+        "id": f.id, "is_sample": False, "monitor_id": f.monitor_id,
+        "source": f.source, "category": f.category, "subject": f.subject,
+        "title": f.title, "summary": f.summary, "severity": f.severity,
+        "reference_url": f.reference_url, "observed_at": f.observed_at,
+        "data": f.data or {}, "status": f.status, "times_seen": f.times_seen,
+        "first_seen": f.first_seen.isoformat() if f.first_seen else None,
+        "last_seen": f.last_seen.isoformat() if f.last_seen else None,
+    }
+
+
+def _get_monitor(db: Session, org_id: str, monitor_id: str) -> ThreatIntelMonitor:
+    m = (db.query(ThreatIntelMonitor)
+         .filter(ThreatIntelMonitor.id == monitor_id, ThreatIntelMonitor.organization_id == org_id)
+         .first())
+    if not m:
+        raise HTTPException(status_code=404, detail="Monitor not found")
+    return m
+
+
+# ── Sources ────────────────────────────────────────────────────────────
+
+
+@router.get("/sources")
+async def list_sources():
+    """Which sources are connected, which need a key, and which need a subscription."""
+    return {"sources": ti.source_catalog()}
+
+
+# ── Monitors ───────────────────────────────────────────────────────────
+
+
+class MonitorCreate(BaseModel):
+    kind: Literal["domain", "email"]
+    value: str = Field(..., min_length=3, max_length=320)
 
 
 @router.get("/monitors")
-async def list_monitors():
-    """List active monitoring targets."""
-    return {
-        "monitors": [
-            {
-                "id": str(uuid.uuid4()),
-                "query": "example.com",
-                "type": "domain",
-                "is_active": True,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "query": "admin@company.com",
-                "type": "email",
-                "is_active": True,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-            },
-        ],
-        "total": 2,
-    }
+async def list_monitors(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = _org(current_user)
+    monitors = (db.query(ThreatIntelMonitor)
+                .filter(ThreatIntelMonitor.organization_id == org_id)
+                .order_by(ThreatIntelMonitor.created_at.desc()).all())
+    counts: dict = {}
+    for (mid,) in (db.query(ThreatIntelFinding.monitor_id)
+                   .filter(ThreatIntelFinding.organization_id == org_id,
+                           ThreatIntelFinding.status == "open").all()):
+        counts[mid] = counts.get(mid, 0) + 1
+    return {"monitors": [_monitor_dict(m, counts) for m in monitors], "total": len(monitors)}
 
 
-@router.get("/reports")
-async def list_reports():
-    """List dark web intelligence reports."""
-    return {
-        "reports": [
-            {
-                "id": str(uuid.uuid4()),
-                "title": "Weekly Dark Web Summary",
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "mentions_count": 12,
-                "threat_level": "medium",
-            },
-        ],
-        "total": 1,
-    }
+@router.post("/monitors", status_code=201)
+async def create_monitor(
+    body: MonitorCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN)),
+):
+    org_id = _org(current_user)
+    ok, value, reason = await run_in_threadpool(ti.authorize_monitor_value, db, org_id, body.kind, body.value)
+    if not ok:
+        raise HTTPException(status_code=403 if value else 400, detail=reason)
+    existing = (db.query(ThreatIntelMonitor)
+                .filter(ThreatIntelMonitor.organization_id == org_id,
+                        ThreatIntelMonitor.kind == body.kind, ThreatIntelMonitor.value == value)
+                .first())
+    if existing:
+        raise HTTPException(status_code=409, detail="That is already being monitored.")
+    if db.query(ThreatIntelMonitor).filter(ThreatIntelMonitor.organization_id == org_id).count() >= ti.MAX_MONITORS_PER_ORG:
+        raise HTTPException(status_code=400, detail=f"You can monitor at most {ti.MAX_MONITORS_PER_ORG} items.")
+    m = ThreatIntelMonitor(organization_id=org_id, kind=body.kind, value=value,
+                           created_by=current_user.id, last_status={})
+    db.add(m)
+    db.commit()
+    db.refresh(m)
+    try:
+        from app.services.audit import log_event
+        log_event(db, action="threat_intel.monitor.create", organization_id=org_id, actor_id=current_user.id,
+                  target_type="threat_intel_monitor", target_id=m.id, detail={"kind": m.kind, "value": m.value})
+    except Exception:  # noqa: BLE001 - auditing must not block the request
+        db.rollback()
+    return _monitor_dict(m)
+
+
+@router.delete("/monitors/{monitor_id}", status_code=204)
+async def delete_monitor(
+    monitor_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN)),
+):
+    org_id = _org(current_user)
+    m = _get_monitor(db, org_id, monitor_id)
+    db.query(ThreatIntelFinding).filter(ThreatIntelFinding.organization_id == org_id,
+                                        ThreatIntelFinding.monitor_id == m.id).delete()
+    db.delete(m)
+    db.commit()
+    return None
+
+
+@router.post("/monitors/{monitor_id}/check")
+async def check_monitor(
+    monitor_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN)),
+):
+    """Query every source for this monitor now and store the results."""
+    org_id = _org(current_user)
+    m = _get_monitor(db, org_id, monitor_id)
+    result = await run_in_threadpool(ti.run_monitor, db, m, False)
+    db.refresh(m)
+    return {"monitor": _monitor_dict(m), **result}
+
+
+# ── Findings ───────────────────────────────────────────────────────────
+
+
+@router.get("/findings")
+async def list_findings(
+    monitor_id: Optional[str] = None,
+    status: Optional[Literal["open", "acknowledged", "resolved"]] = None,
+    category: Optional[str] = Query(None, max_length=40),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    org_id = _org(current_user)
+    q = db.query(ThreatIntelFinding).filter(ThreatIntelFinding.organization_id == org_id)
+    if monitor_id:
+        q = q.filter(ThreatIntelFinding.monitor_id == monitor_id)
+    if status:
+        q = q.filter(ThreatIntelFinding.status == status)
+    if category:
+        q = q.filter(ThreatIntelFinding.category == category)
+    rows = q.order_by(ThreatIntelFinding.last_seen.desc()).limit(1000).all()
+    rows.sort(key=lambda f: _SEVERITY_ORDER.get(f.severity, 9))
+    return {"is_sample": False, "findings": [_finding_dict(f) for f in rows], "total": len(rows)}
+
+
+class FindingUpdate(BaseModel):
+    status: Literal["open", "acknowledged", "resolved"]
+
+
+@router.patch("/findings/{finding_id}")
+async def update_finding(
+    finding_id: str,
+    body: FindingUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN)),
+):
+    org_id = _org(current_user)
+    f = (db.query(ThreatIntelFinding)
+         .filter(ThreatIntelFinding.id == finding_id, ThreatIntelFinding.organization_id == org_id)
+         .first())
+    if not f:
+        raise HTTPException(status_code=404, detail="Finding not found")
+    f.status = body.status
+    db.commit()
+    return _finding_dict(f)
+
+
+# ── Exploited vulnerabilities (CISA KEV + FIRST EPSS) ─────────────────
+
+
+@router.get("/exploited")
+async def exploited_vulnerabilities(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Known-exploited vulnerabilities that match this organization's scan results."""
+    org_id = _org(current_user)
+    return await run_in_threadpool(ti.exploited_for_org, db, org_id)
+
+
+# ── Sample data (clearly labelled, never stored) ──────────────────────
+
+
+@router.get("/sample")
+async def sample_data():
+    return {"is_sample": True, "notice": ti.SAMPLE_NOTICE, "findings": ti.sample_findings()}
