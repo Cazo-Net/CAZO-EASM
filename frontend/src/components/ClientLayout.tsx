@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { ToastProvider } from "@/components/Toast";
+import { SupportChat } from "@/components/support/SupportChat";
 
 const PUBLIC_ROUTES = [
   "/",
@@ -22,7 +23,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <ToastProvider>
       {isPublic ? (
-        <>{children}</>
+        <>
+          {children}
+          {/* Visitors can reach the team too; the setup flow stays focused. */}
+          {!pathname.startsWith("/onboarding") && <SupportChat />}
+        </>
       ) : (
         <AppShell>{children}</AppShell>
       )}

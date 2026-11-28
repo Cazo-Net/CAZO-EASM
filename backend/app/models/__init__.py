@@ -36,6 +36,9 @@ from app.models.support import SupportConversation, SupportMessage
 from app.models.periodic_task import PeriodicTaskState
 from app.models.v2_scanner import MonitorSchedule, ScanHistory, AssetLifecycle, NotificationTrigger
 from app.models.threat_intel import ThreatIntelMonitor, ThreatIntelFinding
+from app.models.blockchain import (
+    BlockchainWatch, BlockchainAlert, BlockchainCase, BlockchainCaseMember, BlockchainCaseEntry,
+)
 
 __all__ = [
     "User", "Organization", "Project", "Scan", "ScanJob", "Subdomain",
@@ -53,4 +56,5 @@ __all__ = [
     "PeriodicTaskState",
     "MonitorSchedule", "ScanHistory", "AssetLifecycle", "NotificationTrigger",
     "ThreatIntelMonitor", "ThreatIntelFinding",
+    "BlockchainWatch", "BlockchainAlert", "BlockchainCase", "BlockchainCaseMember", "BlockchainCaseEntry",
 ]

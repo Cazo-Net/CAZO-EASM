@@ -15,7 +15,6 @@ import {
   CheckCircle,
   XCircle,
   Coins,
-  Globe,
   FileWarning,
   ChevronLeft,
   ChevronRight,
@@ -29,6 +28,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useBlockchainStore } from "@/lib/blockchainStore";
+import { authFetch } from "@/lib/api";
+import { WalletMonitoring, addWatch } from "@/components/blockchain/WalletMonitoring";
 
 const CHAINS = [
   { value: "ethereum", label: "Ethereum", token: "ETH", color: "bg-blue-500" },
@@ -63,12 +64,11 @@ const EXAMPLE_ADDRESSES: Record<string, { address: string; label: string }[]> = 
     { address: "0x28C6c06298d514Db089934071355E5743bf21d60", label: "Binance Hot Wallet" },
   ],
   bitcoin: [
-    { address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", label: "Genesis Block" },
+    { address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", label: "Genesis block reward" },
     { address: "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo", label: "Binance Cold Wallet" },
   ],
   solana: [
     { address: "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", label: "Binance Hot Wallet" },
-    { address: "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9", label: "FTX Cold Wallet" },
   ],
   polygon: [
     { address: "0x37305B1cD40574E4C5Ce33f8e8306Be057fD7341", label: "Polygon Bridge" },
@@ -108,10 +108,10 @@ function BlockchainContent() {
     walletData,
     walletLoading,
     walletError,
+    walletErrorSetting,
     txData,
     txLoading,
     tokens,
-    intel,
     sanctions,
     contractDetail,
     lookupWallet,
@@ -123,12 +123,38 @@ function BlockchainContent() {
   const [localAddress, setLocalAddress] = useState(address);
   const [txPage, setTxPage] = useState(1);
   const [copied, setCopied] = useState(false);
+  const [chainStatus, setChainStatus] = useState<Record<string, { live: boolean; needs: string | null; source: string }>>({});
+  const [watchMsg, setWatchMsg] = useState("");
+  const [watching, setWatching] = useState(false);
   const selectedChain = CHAINS.find((c) => c.value === chain) || CHAINS[0];
   const chainExamples = EXAMPLE_ADDRESSES[chain] || EXAMPLE_ADDRESSES.ethereum;
 
   useEffect(() => {
     setLocalAddress(address);
   }, [address]);
+
+  useEffect(() => {
+    authFetch("/api/v1/blockchain/chains")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.status) return;
+        const map: Record<string, { live: boolean; needs: string | null; source: string }> = {};
+        for (const c of d.status) map[c.chain] = c;
+        setChainStatus(map);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setWatchMsg("");
+  }, [address, chain]);
+
+  const handleWatch = async () => {
+    setWatching(true);
+    const err = await addWatch(address, chain);
+    setWatching(false);
+    setWatchMsg(err ? err : "Added to watched wallets. You'll be alerted on new activity and sanctioned counterparties.");
+  };
 
   const handleSearch = useCallback(
     (e: React.FormEvent) => {
@@ -170,9 +196,11 @@ function BlockchainContent() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         <PageHeader
           title="Blockchain Intelligence"
-          description="Wallet analysis, entity attribution, and on-chain risk scoring"
+          description="Watch your organization's wallets, and look up any address with live on-chain data and OFAC sanctions screening"
           icon={<Wallet className="h-5 w-5" />}
         />
+
+        <WalletMonitoring defaultChain={chain} />
 
         {/* Search */}
         <SectionCard title="Wallet Lookup" icon={<Search className="h-4 w-4" />} className="mt-6">
@@ -219,6 +247,11 @@ function BlockchainContent() {
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${c.color}`} />
                 {c.label}
+                {chainStatus[c.value] && !chainStatus[c.value].live && (
+                  <span className="text-[10px] text-yellow-400" title={`Needs ${chainStatus[c.value].needs}`}>
+                    · not connected
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -240,7 +273,19 @@ function BlockchainContent() {
         </SectionCard>
 
         {/* Error */}
-        {walletError && (
+        {walletError && walletErrorSetting && (
+          <div className="mt-4 p-4 border border-yellow-500/30 bg-yellow-500/5 rounded-lg text-sm flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium text-yellow-300">Live data for {selectedChain.label} is not connected</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {walletError} No sample or simulated numbers are shown in its place. A platform administrator can add{" "}
+                <code>{walletErrorSetting}</code> to the backend environment to turn it on.
+              </p>
+            </div>
+          </div>
+        )}
+        {walletError && !walletErrorSetting && (
           <div className="mt-4 p-4 border border-red-500/20 bg-red-500/5 rounded-lg text-destructive text-sm flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             {walletError}
@@ -271,7 +316,9 @@ function BlockchainContent() {
                     </div>
                     <div>
                       <div className="text-xs text-muted-foreground">Transactions</div>
-                      <div className="text-sm font-medium mt-1">{wallet.tx_count?.toLocaleString()}</div>
+                      <div className="text-sm font-medium mt-1">
+                        {wallet.tx_count != null ? wallet.tx_count.toLocaleString() : "\u2014"}
+                      </div>
                     </div>
                     <div>
                       <div className="text-xs text-muted-foreground">Type</div>
@@ -435,61 +482,44 @@ function BlockchainContent() {
 
               {/* Sanctions / OFAC */}
               {sanctions && (
-                <SectionCard title="Sanctions & Compliance" icon={<FileWarning className="h-4 w-4" />}>
+                <SectionCard title="Sanctions screening" icon={<FileWarning className="h-4 w-4" />}>
                   <div className="space-y-2">
-                    {sanctions.sanctioned ? (
+                    {sanctions.is_sanctioned === true ? (
                       <div className="text-xs bg-destructive/10 border border-red-500/20 rounded p-3 font-medium text-destructive flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4" />
-                        OFAC SANCTIONS MATCH: {sanctions.entity_name || sanctions.ofac?.entity_name || "Unknown"}
+                        This address is on the OFAC SDN sanctions list
                       </div>
-                    ) : (
+                    ) : sanctions.is_sanctioned === false ? (
                       <div className="text-xs text-success flex items-center gap-2">
                         <CheckCircle className="w-4 h-4" />
-                        Not on OFAC sanctions list
+                        Not on the OFAC SDN sanctions list
+                      </div>
+                    ) : (
+                      <div className="text-xs text-yellow-400 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        Not screened: {sanctions.message || "the sanctions list could not be read right now."}
                       </div>
                     )}
-                    {sanctions.ofac && (
-                      <div className="text-xs border border-border rounded p-2 space-y-1">
-                        {sanctions.ofac.entity_name && <div>Entity: {sanctions.ofac.entity_name}</div>}
-                        {sanctions.ofac.program && <div>Program: {sanctions.ofac.program}</div>}
-                        {sanctions.ofac_listed !== undefined && <div>Listed: {sanctions.ofac_listed ? "Yes" : "No"}</div>}
-                      </div>
-                    )}
-                  </div>
-                </SectionCard>
-              )}
-
-              {/* External Intel */}
-              {intel && (
-                <SectionCard title="External Intelligence" icon={<Globe className="h-4 w-4" />}>
-                  <div className="space-y-2">
-                    {intel.sanctioned && (
-                      <div className="text-xs bg-destructive/10 border border-red-500/20 rounded p-2 font-medium text-destructive">
-                        OFAC SANCTIONS MATCH: {intel.ofac?.entity_name}
-                      </div>
-                    )}
-                    {intel.ofac && !intel.sanctioned && (
-                      <div className="text-xs text-muted-foreground">OFAC: Not sanctioned</div>
-                    )}
-                    {intel.etherscan_labels && intel.etherscan_labels.length > 0 && (
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Labels:</div>
-                        {intel.etherscan_labels.map((l: any, i: number) => (
-                          <div key={i} className="text-xs border border-border rounded p-2">
-                            <span className="font-medium">{l.label}</span>
-                            <span className="text-muted-foreground ml-2">({l.address?.slice(0, 10)}...)</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {intel.chainalysis && (
+                    <div className="text-xs text-muted-foreground">
+                      Source: {sanctions.source || "OFAC SDN list"}
+                      {sanctions.list_updated_at && ` · list fetched ${new Date(sanctions.list_updated_at).toLocaleString()}`}
+                      {sanctions.list_size ? ` · ${sanctions.list_size} listed addresses for this chain family` : ""}
+                      {sanctions.reference_url && (
+                        <>
+                          {" · "}
+                          <a href={sanctions.reference_url} target="_blank" rel="noopener noreferrer" className="underline">
+                            OFAC search
+                          </a>
+                        </>
+                      )}
+                    </div>
+                    {sanctions.chainalysis?.status === "ok" && (
                       <div className="text-xs border border-border rounded p-2">
-                        <span className="font-medium">Chainalysis:</span>{" "}
-                        <span className="text-muted-foreground">{JSON.stringify(intel.chainalysis)}</span>
+                        Chainalysis sanctions API:{" "}
+                        {sanctions.chainalysis.is_sanctioned
+                          ? sanctions.chainalysis.identifications?.map((i: any) => i.name).join(", ") || "listed"
+                          : "no identification"}
                       </div>
-                    )}
-                    {!intel.sanctioned && (!intel.etherscan_labels || intel.etherscan_labels.length === 0) && !intel.chainalysis && (
-                      <div className="text-xs text-muted-foreground">No external intelligence available</div>
                     )}
                   </div>
                 </SectionCard>
@@ -565,6 +595,11 @@ function BlockchainContent() {
               {/* Actions */}
               <SectionCard title="Actions" icon={<Scale className="h-4 w-4" />}>
                 <div className="space-y-2">
+                  <Button size="sm" className="w-full justify-start" onClick={handleWatch} disabled={watching}>
+                    {watching ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Clock className="w-4 h-4 mr-2" />}
+                    Watch this wallet
+                  </Button>
+                  {watchMsg && <p className="text-xs text-muted-foreground">{watchMsg}</p>}
                   <Button
                     variant="outline"
                     size="sm"
