@@ -406,6 +406,33 @@ def ssl_expiring_email(name: str, hostname: str, days_left: int, cert_url: str) 
     return f"SSL {'expired' if days_left <= 0 else 'expiring'}: {hostname}", html
 
 
+def inventory_alert_email(name: str, title: str, intro: str, items: list, more: int = 0,
+                          url: str = "/inventory", tone: str = "warning") -> tuple[str, str]:
+    """Asset inventory change alert: one email per alert type per scan."""
+    from html import escape
+
+    alert_class = {"danger": "alert-danger", "success": "alert-success"}.get(tone, "alert-warning")
+    rows = "".join(
+        f'<div style="padding:8px 0;border-bottom:1px solid #F3F4F6;font-size:13px;color:#1F2937;">{escape(str(i))}</div>'
+        for i in items
+    )
+    if more > 0:
+        rows += f'<div style="padding:8px 0;font-size:13px;color:#6B7280;">and {more} more</div>'
+    link = url if str(url).startswith("http") else f"{_FRONTEND_BASE}{url}"
+    html = _base(escape(title), f"""
+      <h1>{escape(title)}</h1>
+      <p>Hi {escape(name)},</p>
+      <div class="alert {alert_class}">{escape(intro)}</div>
+      <div class="card">{rows}</div>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="{escape(link)}" class="btn">Open asset inventory</a>
+      </div>
+      <p style="font-size:12px;color:#9CA3AF;">You get this because your organization has change alerts
+      turned on. An admin can change them under Assets, Alert settings.</p>
+    """, intro)
+    return f"[CAZO EASM] {title}", html
+
+
 def new_shadow_asset_email(name: str, domain: str, asset_count: int, shadow_url: str) -> tuple[str, str]:
     """New shadow asset detected notification email."""
     html = _base(f"Shadow Assets Detected: {domain}", f"""

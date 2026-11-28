@@ -189,6 +189,9 @@ class Settings(BaseSettings):
     BILLING_ENFORCE_LIMITS: bool = os.getenv("BILLING_ENFORCE_LIMITS", "true").lower() in ("1", "true", "yes")
     # Days a past-due or just-expired plan keeps working before limits fall back.
     BILLING_GRACE_DAYS: int = int(os.getenv("BILLING_GRACE_DAYS", "7"))
+    # Let Stripe Tax calculate tax (e.g. Malaysian SST) at checkout. Needs Stripe
+    # Tax set up with your tax registrations in the Stripe Dashboard first.
+    BILLING_AUTOMATIC_TAX: bool = os.getenv("BILLING_AUTOMATIC_TAX", "false").lower() in ("1", "true", "yes")
 
     # Frontend base URL (for links in emails, invitations, etc.)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")

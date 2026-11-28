@@ -186,8 +186,32 @@ def monitored_root_domains(db: Session, organization_id: str) -> set[str]:
 
 
 def count_hosts(db: Session, organization_id: str) -> int:
+    """Hosts that count toward the plan.
+
+    The deduplicated inventory is the source of truth: every host that has not
+    gone missing. Organizations whose inventory has not been built yet fall
+    back to distinct hostnames across their scans.
+    """
     from app.models.asset import Subdomain
+    from app.models.asset_inventory import Asset
     from app.models.scan import Scan
+
+    has_inventory = (
+        db.query(Asset.id)
+        .filter(Asset.organization_id == organization_id, Asset.asset_type == "domain")
+        .first()
+    )
+    if has_inventory:
+        return (
+            db.query(func.count(Asset.id))
+            .filter(
+                Asset.organization_id == organization_id,
+                Asset.asset_type == "host",
+                Asset.state != "missing",
+            )
+            .scalar()
+            or 0
+        )
 
     return (
         db.query(func.count(func.distinct(Subdomain.hostname)))

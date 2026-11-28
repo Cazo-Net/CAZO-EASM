@@ -25,7 +25,8 @@ class EmailMessage:
     html_body: str
     text_body: str = ""
     from_name: str = "CAZO"
-    from_email: str = "noreply@cazo.io"
+    # Empty = use the provider's configured sender (EMAIL_FROM).
+    from_email: str = ""
     retries: int = 0
     max_retries: int = 3
 
@@ -115,7 +116,7 @@ class EmailService:
         self._worker: Optional[threading.Thread] = None
 
     def send(self, to: str, subject: str, html_body: str, text_body: str = "",
-             from_name: str = "CAZO", from_email: str = "noreply@cazo.io") -> bool:
+             from_name: str = "CAZO", from_email: str = "") -> bool:
         """Send email immediately (synchronous)."""
         msg = EmailMessage(
             to=to, subject=subject, html_body=html_body,
@@ -124,7 +125,7 @@ class EmailService:
         return self.provider.send(msg)
 
     def send_async(self, to: str, subject: str, html_body: str, text_body: str = "",
-                   from_name: str = "CAZO", from_email: str = "noreply@cazo.io") -> None:
+                   from_name: str = "CAZO", from_email: str = "") -> None:
         """Queue email for async sending with retry."""
         msg = EmailMessage(
             to=to, subject=subject, html_body=html_body,

@@ -28,8 +28,13 @@ def upsert_asset(
     is_alive: bool = True,
     last_scan_id: Optional[str] = None,
     attributes: Optional[dict] = None,
+    touch: bool = True,
 ) -> Asset:
-    """Insert or update a canonical asset (idempotent on org+type+value)."""
+    """Insert or update a canonical asset (idempotent on org+type+value).
+
+    ``touch=False`` only enriches attributes of an existing asset: sightings
+    (``last_seen``, liveness, label) are then owned by the inventory sync.
+    """
     value = value.strip().lower() if asset_type in ("host", "domain", "ip") else value.strip()
     existing = (
         db.query(Asset)
@@ -42,12 +47,13 @@ def upsert_asset(
     )
     now = datetime.now(timezone.utc)
     if existing:
-        existing.is_alive = is_alive
-        existing.last_seen = now
-        if label:
-            existing.label = label
-        if last_scan_id:
-            existing.last_scan_id = last_scan_id
+        if touch:
+            existing.is_alive = is_alive
+            existing.last_seen = now
+            if label:
+                existing.label = label
+            if last_scan_id:
+                existing.last_scan_id = last_scan_id
         if attributes:
             merged = dict(existing.attributes or {})
             merged.update(attributes)
@@ -132,6 +138,12 @@ def get_asset_graph(
         query = query.filter(Asset.is_alive == True)  # noqa: E712
     if asset_types:
         query = query.filter(Asset.asset_type.in_(asset_types))
+    else:
+        # Services, technologies and root-domain records belong to the
+        # inventory; they have no edges and would only clutter the graph.
+        from app.services.inventory import INVENTORY_ONLY_TYPES
+
+        query = query.filter(Asset.asset_type.notin_(INVENTORY_ONLY_TYPES))
     assets = query.all()
     asset_ids = {a.id for a in assets}
 
@@ -170,10 +182,12 @@ def get_asset_graph(
     return {"nodes": nodes, "edges": edges, "counts": {"nodes": len(nodes), "edges": len(edges)}}
 
 
-def backfill_from_scan(db: Session, scan) -> None:
-    """Create/update canonical assets and relationships from a completed scan.
+def backfill_from_scan(db: Session, scan, host_assets: Optional[dict] = None) -> None:
+    """Create/update graph relationships (and enrichment) from a completed scan.
 
-    Called by the scan service after results are stored. Non-destructive: it
+    Called after ``inventory.sync_scan``. When ``host_assets`` (hostname ->
+    Asset, from the inventory sync) is given, only those hosts are linked, so
+    hosts the plan did not admit get no graph nodes either. Non-destructive: it
     only inserts/updates Asset rows and never touches raw scan tables.
     """
     org_id = getattr(scan, "organization_id", None)
@@ -187,6 +201,7 @@ def backfill_from_scan(db: Session, scan) -> None:
         logger.info("Skipping asset backfill: no organization for scan %s", scan.id)
         return
 
+    touch = host_assets is None
     subdomains = db.query(Subdomain).filter(Subdomain.scan_id == scan.id).all()
     asset_by_host: dict[str, Asset] = {}
     ip_assets: dict[str, Asset] = {}
@@ -201,7 +216,9 @@ def backfill_from_scan(db: Session, scan) -> None:
     parent_domain = (scan.domain or "").lower()
 
     for sub in subdomains:
-        host_attrs = {"ip_addresses": sub.ip_addresses or []}
+        if host_assets is not None and sub.hostname.strip().strip(".").lower() not in host_assets:
+            continue
+        host_attrs = {"ip_addresses": sub.ip_addresses or []} if sub.ip_addresses else {}
         # Registrar for the scanned (apex) domain enriches clustering.
         if sub.hostname.lower() == parent_domain or sub.hostname.lower().endswith(f".{parent_domain}"):
             reg = registrar_by_domain.get(parent_domain)
@@ -216,7 +233,7 @@ def backfill_from_scan(db: Session, scan) -> None:
         host_asset = upsert_asset(
             db, org_id, "host", sub.hostname,
             label=sub.hostname, is_alive=bool(sub.is_alive),
-            last_scan_id=scan.id,
+            last_scan_id=scan.id, touch=touch,
             attributes=host_attrs,
         )
         asset_by_host[sub.hostname.lower()] = host_asset
@@ -224,7 +241,7 @@ def backfill_from_scan(db: Session, scan) -> None:
         for ip in (sub.ip_addresses or []):
             ip_str = str(ip)
             ip_asset = ip_assets.get(ip_str) or upsert_asset(
-                db, org_id, "ip", ip_str, label=ip_str, last_scan_id=scan.id
+                db, org_id, "ip", ip_str, label=ip_str, last_scan_id=scan.id, touch=touch
             )
             ip_assets[ip_str] = ip_asset
             upsert_relationship(db, org_id, host_asset.id, ip_asset.id, "resolves_to")
@@ -234,7 +251,7 @@ def backfill_from_scan(db: Session, scan) -> None:
             if asn_info:
                 asn_asset = upsert_asset(
                     db, org_id, "asn", asn_info["asn"],
-                    label=asn_info["provider"], last_scan_id=scan.id,
+                    label=asn_info["provider"], last_scan_id=scan.id, touch=touch,
                     attributes={"provider": asn_info["provider"]},
                 )
                 upsert_relationship(db, org_id, host_asset.id, asn_asset.id, "belongs_to")
@@ -245,7 +262,7 @@ def backfill_from_scan(db: Session, scan) -> None:
             cert_id_val = cert.serial_number or cert.subject or f"cert:{sub.hostname}"
             cert_asset = upsert_asset(
                 db, org_id, "certificate", str(cert_id_val),
-                label=sub.hostname, last_scan_id=scan.id,
+                label=sub.hostname, last_scan_id=scan.id, touch=touch,
                 attributes={
                     "grade": cert.grade,
                     "issuer": cert.issuer,
@@ -255,12 +272,11 @@ def backfill_from_scan(db: Session, scan) -> None:
             )
             upsert_relationship(db, org_id, host_asset.id, cert_asset.id, "serves")
 
-        # Ports -> host (open port attribute)
-        for port in sub.ports:
+        # Ports -> host (open port attribute). The inventory sync already set
+        # the current list; only fill it in when running without the inventory.
+        if host_assets is None:
             attrs = dict(host_asset.attributes or {})
-            ports = attrs.get("open_ports", [])
-            ports.append(port.port_number)
-            attrs["open_ports"] = sorted(set(ports))
+            attrs["open_ports"] = sorted({p.port_number for p in sub.ports if p.port_number is not None})
             host_asset.attributes = attrs
 
     # Shared-hosting edges: hosts resolving to the same IP are co-located.
@@ -286,7 +302,7 @@ def backfill_from_scan(db: Session, scan) -> None:
         reg_slug = reg.strip().lower().replace(" ", "-")
         registrar_asset = upsert_asset(
             db, org_id, "registrar", reg_slug,
-            label=reg, last_scan_id=scan.id,
+            label=reg, last_scan_id=scan.id, touch=touch,
             attributes={"registrar": reg},
         )
         for host_id in host_ids:
