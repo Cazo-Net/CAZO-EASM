@@ -24,7 +24,6 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.core.permissions import require_permission, Permission
-from app.billing.guards import schedule_plan_guard
 from app.services.audit import log_user_action
 
 router = APIRouter()
@@ -564,7 +563,7 @@ def _schedule_out(row) -> "ScheduleResponse":
     )
 
 
-@router.post("/schedule", response_model=ScheduleResponse, dependencies=[Depends(schedule_plan_guard)])
+@router.post("/schedule", response_model=ScheduleResponse)
 async def create_schedule(
     request: ScheduleCreateRequest,
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),
@@ -587,6 +586,10 @@ async def create_schedule(
     )
     if not auth.authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=auth.as_error_detail())
+
+    # Plan allowance: root domains and scan frequency (HTTP 402 if over).
+    from app.billing.entitlements import check_schedule_allowed
+    check_schedule_allowed(db, current_user.organization_id, auth.target, request.interval_hours)
 
     now = datetime.now(timezone.utc)
     row = MonitorSchedule(

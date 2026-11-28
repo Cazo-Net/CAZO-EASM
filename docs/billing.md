@@ -1,7 +1,8 @@
 # Billing
 
 CAZO EASM sells plans through Stripe. This page covers the plans, how limits are
-enforced, and how to set up payments in test mode.
+enforced, and how to set up payments in test mode. To switch to real payments,
+follow [billing-go-live.md](billing-go-live.md).
 
 ## Plans
 

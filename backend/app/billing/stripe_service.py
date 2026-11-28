@@ -254,6 +254,7 @@ def create_checkout_session(
         "allow_promotion_codes": True,
         "billing_address_collection": "required",
         "tax_id_collection": {"enabled": True},
+        "automatic_tax": {"enabled": bool(settings.BILLING_AUTOMATIC_TAX)},
         "customer_update": {"name": "auto", "address": "auto"},
         "metadata": metadata,
         "success_url": frontend_url("/billing/success?session_id={CHECKOUT_SESSION_ID}"),
