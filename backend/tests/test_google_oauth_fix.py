@@ -10,6 +10,7 @@ FAKE_GOOGLE_PAYLOAD = {
     "sub": "google-user-id-12345",
     "email": "oauth_collision@test.com",
     "name": "OAuth Attacker",
+    "email_verified": True,
 }
 
 
@@ -72,6 +73,7 @@ class TestGoogleOAuthSilentLinkingBlock:
             "sub": "new-google-id-67890",
             "email": "google_only@test.com",
             "name": "Google User",
+            "email_verified": True,
         }
         with patch(
             "app.api.v1.auth_google.verify_google_credential",
@@ -109,3 +111,13 @@ class TestGoogleOAuthSilentLinkingBlock:
         assert user is not None, "User was not created"
         assert user.google_id == "google-user-id-12345"
         assert user.hashed_password.startswith("GOOGLE_OAUTH:")
+
+
+def test_unverified_google_email_rejected(client):
+    """Google accounts whose email is not verified must not sign in."""
+    with patch(
+        "app.api.v1.auth_google.verify_google_credential",
+        return_value={**FAKE_GOOGLE_PAYLOAD, "sub": "unverified-1", "email": "unverified@test.com", "email_verified": False},
+    ):
+        resp = client.post("/api/v1/auth/google", json={"credential": "fake"})
+    assert resp.status_code == 401

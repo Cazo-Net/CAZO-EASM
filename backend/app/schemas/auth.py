@@ -4,9 +4,19 @@ from datetime import datetime
 import re
 
 
+def _normalize_email(v):
+    """Emails are case-insensitive: store and compare them lower-cased."""
+    return v.strip().lower() if isinstance(v, str) else v
+
+
 class UserBase(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _norm_email(cls, v):
+        return _normalize_email(v)
 
 
 class UserCreate(UserBase):
@@ -32,6 +42,11 @@ class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+    @field_validator("email", mode="before")
+    @classmethod
+    def _norm_email(cls, v):
+        return _normalize_email(v)
+
 
 class UserResponse(UserBase):
     id: str
@@ -49,10 +64,22 @@ class UserResponse(UserBase):
 
 
 class Token(BaseModel):
-    access_token: str
-    refresh_token: str
+    """Login result.
+
+    When the account has two-factor authentication enabled, the password step
+    returns ``requires_2fa=True`` and a short-lived ``mfa_token`` instead of
+    session tokens. The client then calls POST /auth/2fa/verify-login.
+    """
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
     requires_2fa: bool = False
+    mfa_token: Optional[str] = None
+
+
+class TwoFactorLogin(BaseModel):
+    mfa_token: str
+    code: str
 
 
 class TokenRefresh(BaseModel):
@@ -65,6 +92,11 @@ class VerifyEmail(BaseModel):
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _norm_email(cls, v):
+        return _normalize_email(v)
 
 
 class PasswordReset(BaseModel):

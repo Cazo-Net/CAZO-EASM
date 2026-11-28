@@ -82,6 +82,9 @@ class Settings(BaseSettings):
     # Rate limiting
     RATE_LIMIT_ENABLED: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() in ("1", "true", "yes")
     RATE_LIMIT_PER_MINUTE: int = 60
+    # Proxies in front of the backend that append to X-Forwarded-For (see
+    # app/core/client_ip.py). 0 = legacy: trust the left-most (spoofable) entry.
+    TRUSTED_PROXY_HOPS: int = int(os.getenv("TRUSTED_PROXY_HOPS", "0"))
 
     # Authorized-scope enforcement.
     # When True, an organization must have at least one matching AuthorizedScope

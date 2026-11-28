@@ -56,7 +56,7 @@ function SupplyChainContent() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/scans/?limit=20`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+          Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
         },
       });
       if (res.ok) {
@@ -83,7 +83,7 @@ function SupplyChainContent() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/scans/${selectedScanId}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+          Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
         },
       });
       if (res.ok) {

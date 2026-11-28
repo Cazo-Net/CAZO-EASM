@@ -1,17 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
-from app.models.auth_models import UserSession
+from app.models.auth_models import UserSession, RecoveryCode
 from app.schemas.auth import (
     UserCreate, UserLogin, UserResponse, Token, TokenRefresh,
     PasswordResetRequest, PasswordReset, VerifyEmail, TOTPSetup, TOTPVerify,
+    TwoFactorLogin,
 )
 from app.core.security import (
     get_password_hash, verify_password,
     create_access_token, create_refresh_token, decode_token,
     generate_verification_token, generate_totp_secret, verify_totp,
-    hash_api_key,
+    hash_api_key, create_mfa_token,
 )
 from app.config import frontend_url
 from app.services.notification_service import dispatch_notification
@@ -25,16 +27,183 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-MAX_FAILED_ATTEMPTS = 5
+# Two layers against password guessing:
+# - per email + client IP: 5 failures -> that IP is blocked for that account
+#   for 15 minutes (stops one attacker without locking the real user out);
+# - per account: 20 failures from anywhere -> account locked 15 minutes
+#   (stops distributed guessing; needs 4x more attempts to abuse as a DoS).
+# Plus a per-email request limit that a spoofed IP header can't get around.
+MAX_FAILED_ATTEMPTS = 20
+MAX_FAILED_PER_IP = 5
+LOGIN_PER_EMAIL_PER_MINUTE = 10
 LOCKOUT_MINUTES = 15
 RESET_TOKEN_EXPIRY_MINUTES = 30
+
+
+def find_user_by_email(db: Session, email: str):
+    """Case-insensitive email lookup (older rows may be stored mixed-case)."""
+    if not email:
+        return None
+    return db.query(User).filter(func.lower(User.email) == email.strip().lower()).first()
+
+
+def _client_ip(request: Request) -> str:
+    from app.core.client_ip import get_client_ip
+    return get_client_ip(request)
+
+
+def _ip_fail_key(user: User, request: Request) -> str:
+    return f"loginfail:{user.id}:{_client_ip(request)}"
+
+
+def _check_login_throttles(db: Session, user: User, request: Request) -> None:
+    """Per-email rate limit, per (account, IP) failure block, account lock."""
+    from app.config import settings
+    from app.core.rate_limit import get_rate_limiter, get_failure_limiter
+    if settings.RATE_LIMIT_ENABLED and not get_rate_limiter().is_allowed(
+        f"auth-user:{user.id}", LOGIN_PER_EMAIL_PER_MINUTE
+    ):
+        raise HTTPException(status_code=429, detail="Too many sign-in attempts. Wait a minute and try again.")
+    if get_failure_limiter().count(_ip_fail_key(user, request)) >= MAX_FAILED_PER_IP:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many failed attempts. Try again in {LOCKOUT_MINUTES} minutes or reset your password.",
+        )
+    _raise_if_locked(db, user)
+
+
+def _register_failed_attempt(db: Session, user: User, request: Request, reason: str) -> None:
+    """Count a failed password / 2FA attempt and lock the account after too many."""
+    from app.core.rate_limit import get_failure_limiter
+    get_failure_limiter().is_allowed(_ip_fail_key(user, request), 10**6)
+    user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+    if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
+        user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=LOCKOUT_MINUTES)
+        logger.warning(f"Account locked: {user.email} after {MAX_FAILED_ATTEMPTS} failed attempts")
+        log_auth_event(db, "account_locked", user.id,
+                       ip_address=_client_ip(request),
+                       success=False, detail={"email": user.email})
+        try:
+            email_service = get_email_service()
+            subject, html = templates.account_locked(
+                user.full_name or user.email,
+                "Too many failed login attempts",
+            )
+            email_service.send_async(to=user.email, subject=subject, html_body=html)
+        except Exception as e:
+            logger.error(f"Failed to send lockout email: {e}")
+    db.commit()
+    log_auth_event(db, "login_failed", user.id,
+                   ip_address=_client_ip(request),
+                   success=False, detail={"reason": reason})
+
+
+def _raise_if_locked(db: Session, user: User) -> None:
+    locked_until = db.query(User.locked_until).filter(User.id == user.id).scalar()
+    if locked_until:
+        if locked_until.tzinfo is None:
+            locked_until = locked_until.replace(tzinfo=timezone.utc)
+        if locked_until > datetime.now(timezone.utc):
+            remaining = (locked_until - datetime.now(timezone.utc)).seconds // 60 + 1
+            raise HTTPException(
+                status_code=423,
+                detail=f"Account locked. Try again in {remaining} minute(s)."
+            )
+
+
+def issue_session_tokens(db: Session, user: User, request: Request, method: str = "password") -> dict:
+    """Create a UserSession and return a fresh access/refresh token pair.
+
+    Shared by password login, 2FA completion and Google sign-in so that every
+    login path stores the refresh-token hash (needed for rotation) and embeds
+    the token_version used for revocation.
+    """
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.last_login = datetime.now(timezone.utc)
+    db.commit()
+    from app.core.rate_limit import get_failure_limiter
+    get_failure_limiter().clear(_ip_fail_key(user, request))
+
+    token_version = user.token_version or 0
+    access_token = create_access_token(
+        data={"sub": user.id, "role": user.role, "tv": token_version}
+    )
+    refresh_token = create_refresh_token(
+        data={"sub": user.id, "tv": token_version}
+    )
+
+    client_ip = _client_ip(request)
+    ua = request.headers.get("user-agent", "")
+    session = UserSession(
+        user_id=user.id,
+        refresh_token_hash=hash_api_key(refresh_token),
+        ip_address=client_ip,
+        user_agent=ua,
+        browser=ua[:50] if ua else "Unknown",
+        os=ua[50:100] if len(ua) > 50 else "Unknown",
+    )
+    db.add(session)
+    db.commit()
+
+    try:
+        email_service = get_email_service()
+        subject, html = templates.new_login(
+            user.full_name or user.email,
+            client_ip,
+            ua[:50] or "Unknown",
+            "Unknown",
+        )
+        email_service.send_async(to=user.email, subject=subject, html_body=html)
+    except Exception as e:
+        logger.error(f"Failed to send login email: {e}")
+
+    log_auth_event(db, "login_success", user.id,
+                   ip_address=client_ip, detail={"session_id": session.id, "method": method})
+
+    try:
+        dispatch_notification(
+            db=db,
+            organization_id=user.organization_id,
+            user_id=user.id,
+            notification_type="new_login",
+            title="New login detected",
+            message=f"New login from {client_ip} ({ua[:60] or 'Unknown device'})",
+            related_entity_type="user",
+            related_entity_id=user.id,
+            data={
+                "ip_address": client_ip,
+                "user_agent": ua,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    except Exception as e:
+        logger.error(f"Failed to dispatch login notification: {e}")
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "requires_2fa": False,
+    }
+
+
+def mfa_challenge(user: User) -> dict:
+    """Response for a correct first factor on an account with 2FA enabled."""
+    return {
+        "access_token": None,
+        "refresh_token": None,
+        "token_type": "bearer",
+        "requires_2fa": True,
+        "mfa_token": create_mfa_token(user.id, user.token_version or 0),
+    }
 
 
 @router.post("/register", response_model=UserResponse)
 async def register(user_data: UserCreate, request: Request, db: Session = Depends(get_db)):
     """Register a new user."""
     try:
-        existing_user = db.query(User).filter(User.email == user_data.email).first()
+        existing_user = find_user_by_email(db, user_data.email)
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -103,139 +272,74 @@ async def verify_email(data: VerifyEmail, request: Request, db: Session = Depend
 
 @router.post("/login", response_model=Token)
 async def login(login_data: UserLogin, request: Request, db: Session = Depends(get_db)):
-    """Login with brute-force protection and optional 2FA."""
-    user = db.query(User).filter(User.email == login_data.email).first()
+    """Login with brute-force protection and enforced 2FA."""
+    user = find_user_by_email(db, login_data.email)
 
     if not user:
         log_auth_event(db, "login_failed", None,
-                       ip_address=request.client.host if request.client else None,
+                       ip_address=_client_ip(request),
                        success=False, detail={"email": login_data.email, "reason": "user_not_found"})
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
-    # Check account lockout using a fresh query to avoid session caching issues
-    locked_until = db.query(User.locked_until).filter(User.id == user.id).scalar()
-    if locked_until:
-        # Ensure both are timezone-aware for comparison
-        if locked_until.tzinfo is None:
-            locked_until = locked_until.replace(tzinfo=timezone.utc)
-        if locked_until > datetime.now(timezone.utc):
-            remaining = (locked_until - datetime.now(timezone.utc)).seconds // 60 + 1
-            raise HTTPException(
-                status_code=423,
-                detail=f"Account locked. Try again in {remaining} minute(s)."
-            )
+    _check_login_throttles(db, user, request)
 
-    if not verify_password(login_data.password, user.hashed_password):
-        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
-        if user.failed_login_attempts >= MAX_FAILED_ATTEMPTS:
-            user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=LOCKOUT_MINUTES)
-            logger.warning(f"Account locked: {user.email} after {MAX_FAILED_ATTEMPTS} failed attempts")
-            log_auth_event(db, "account_locked", user.id,
-                           ip_address=request.client.host if request.client else None,
-                           success=False, detail={"email": user.email})
-            try:
-                email_service = get_email_service()
-                subject, html = templates.account_locked(
-                    user.full_name or user.email,
-                    "Too many failed login attempts",
-                )
-                email_service.send_async(to=user.email, subject=subject, html_body=html)
-            except Exception as e:
-                logger.error(f"Failed to send lockout email: {e}")
-        db.commit()
-        log_auth_event(db, "login_failed", user.id,
-                       ip_address=request.client.host if request.client else None,
-                       success=False, detail={"reason": "wrong_password"})
+    if not user.hashed_password or not verify_password(login_data.password, user.hashed_password):
+        _register_failed_attempt(db, user, request, "wrong_password")
         raise HTTPException(status_code=401, detail="Incorrect email or password")
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Inactive user")
 
-    # Reset failed attempts on success
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    user.last_login = datetime.now(timezone.utc)
-    db.commit()
+    # Second factor: no session tokens until the TOTP / recovery code is checked.
+    if user.totp_enabled and user.totp_secret:
+        return mfa_challenge(user)
 
-    # Create tokens (embed token_version so logout / password change can
-    # invalidate previously issued tokens)
-    token_version = user.token_version or 0
-    access_token = create_access_token(
-        data={"sub": user.id, "role": user.role, "tv": token_version}
-    )
-    refresh_token = create_refresh_token(
-        data={"sub": user.id, "tv": token_version}
-    )
+    return issue_session_tokens(db, user, request, method="password")
 
-    # Create session — store hash of the refresh token (not access token)
-    # so rotation can invalidate the old session on refresh.
-    client_ip = request.client.host if request.client else "unknown"
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        client_ip = forwarded.split(",")[0].strip()
-    ua = request.headers.get("user-agent", "")
 
-    session = UserSession(
-        user_id=user.id,
-        refresh_token_hash=hash_api_key(refresh_token),
-        ip_address=client_ip,
-        user_agent=ua,
-        browser=ua[:50] if ua else "Unknown",
-        os=ua[50:100] if len(ua) > 50 else "Unknown",
-    )
-    db.add(session)
-    db.commit()
+@router.post("/2fa/verify-login", response_model=Token)
+async def verify_2fa_login(data: TwoFactorLogin, request: Request, db: Session = Depends(get_db)):
+    """Second login step: exchange the mfa_token + a TOTP or recovery code for tokens."""
+    payload = decode_token(data.mfa_token)
+    if not payload or payload.get("type") != "mfa":
+        raise HTTPException(status_code=401, detail="Login step expired. Please sign in again.")
 
-    # Send new login notification
-    try:
-        email_service = get_email_service()
-        subject, html = templates.new_login(
-            user.full_name or user.email,
-            client_ip,
-            ua[:50] or "Unknown",
-            "Unknown",
-        )
-        email_service.send_async(to=user.email, subject=subject, html_body=html)
-    except Exception as e:
-        logger.error(f"Failed to send login email: {e}")
+    user = db.query(User).filter(User.id == payload.get("sub")).first()
+    if not user or not user.is_active or not user.totp_enabled or not user.totp_secret:
+        raise HTTPException(status_code=401, detail="Login step expired. Please sign in again.")
+    if payload.get("tv") != (user.token_version or 0):
+        raise HTTPException(status_code=401, detail="Login step expired. Please sign in again.")
 
-    log_auth_event(db, "login_success", user.id,
-                   ip_address=client_ip, detail={"session_id": session.id})
+    _check_login_throttles(db, user, request)
 
-    # Dispatch login notification (detects new device/IP via dedup logic)
-    try:
-        dispatch_notification(
-            db=db,
-            organization_id=user.organization_id,
-            user_id=user.id,
-            notification_type="new_login",
-            title="New login detected",
-            message=f"New login from {client_ip} ({ua[:60] or 'Unknown device'})",
-            related_entity_type="user",
-            related_entity_id=user.id,
-            data={
-                "ip_address": client_ip,
-                "user_agent": ua,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            },
-        )
-    except Exception as e:
-        logger.error(f"Failed to dispatch login notification: {e}")
+    code = (data.code or "").strip().replace(" ", "")
+    ok = False
+    method = "totp"
+    if code.isdigit() and len(code) == 6:
+        ok = verify_totp(user.totp_secret, code)
+    elif code:
+        # Recovery code (format XXXX-XXXX), single use.
+        method = "recovery_code"
+        for rc in db.query(RecoveryCode).filter(
+            RecoveryCode.user_id == user.id, RecoveryCode.used.is_(False)
+        ).all():
+            if verify_password(code.upper(), rc.code_hash) or verify_password(code, rc.code_hash):
+                rc.used = True
+                rc.used_at = datetime.now(timezone.utc)
+                db.commit()
+                ok = True
+                break
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "requires_2fa": user.totp_enabled,
-    }
+    if not ok:
+        _register_failed_attempt(db, user, request, "wrong_2fa_code")
+        raise HTTPException(status_code=401, detail="Invalid authentication code")
+
+    return issue_session_tokens(db, user, request, method=f"password+{method}")
 
 
 def _validate_token_version(user: User, payload: dict) -> None:
     """Raise 401 if the token's embedded version is stale."""
-    token_tv = payload.get("tv")
-    if token_tv is None:
-        return
-    if token_tv != (user.token_version or 0):
+    if payload.get("tv") != (user.token_version or 0):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session invalidated. Please log in again.",
@@ -270,7 +374,12 @@ async def refresh_token(token_data: TokenRefresh, db: Session = Depends(get_db))
         UserSession.refresh_token_hash == old_token_hash,
     ).first()
 
-    if session and not session.is_active:
+    if not session:
+        # Refresh tokens are only valid while their session exists. This also
+        # makes "revoke session" in the UI actually end that session.
+        raise HTTPException(status_code=401, detail="Session not found. Please log in again.")
+
+    if not session.is_active:
         # REUSE DETECTION: A revoked refresh token was reused.
         # This strongly suggests token theft. Kill all sessions.
         logger.warning(f"Refresh token reuse detected for user {user_id} — terminating all sessions")
@@ -284,8 +393,7 @@ async def refresh_token(token_data: TokenRefresh, db: Session = Depends(get_db))
         )
 
     # Invalidate the old session
-    if session:
-        session.is_active = False
+    session.is_active = False
 
     # Issue new token pair
     token_version = user.token_version or 0
@@ -300,6 +408,10 @@ async def refresh_token(token_data: TokenRefresh, db: Session = Depends(get_db))
     new_session = UserSession(
         user_id=user.id,
         refresh_token_hash=hash_api_key(new_refresh),
+        ip_address=session.ip_address,
+        user_agent=session.user_agent,
+        browser=session.browser,
+        os=session.os,
         is_active=True,
     )
     db.add(new_session)
@@ -329,8 +441,8 @@ async def logout(current_user: User = Depends(get_current_user), db: Session = D
 @router.post("/forgot-password")
 async def forgot_password(data: PasswordResetRequest, request: Request, db: Session = Depends(get_db)):
     """Request a password reset token."""
-    user = db.query(User).filter(User.email == data.email).first()
-    if user:
+    user = find_user_by_email(db, data.email)
+    if user and user.is_active:
         from secrets import token_urlsafe
         user.reset_token = token_urlsafe(32)
         user.reset_token_expires = datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_EXPIRY_MINUTES)

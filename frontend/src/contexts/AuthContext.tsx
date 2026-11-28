@@ -9,15 +9,41 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import api, { login as apiLogin, register as apiRegister, logout as apiLogout, getToken, loginWithGoogle as apiLoginWithGoogle } from "@/lib/api";
+import api, {
+  login as apiLogin,
+  register as apiRegister,
+  logout as apiLogout,
+  getToken,
+  loginWithGoogle as apiLoginWithGoogle,
+  verifyTwoFactorLogin as apiVerifyTwoFactorLogin,
+} from "@/lib/api";
+
+// Kept between the password step and the 2FA step (also survives the Google
+// callback redirect). Holds only the short-lived mfa_token, never session tokens.
+const MFA_PENDING_KEY = "_mfa_pending";
+
+export interface SignInResult {
+  requires2fa: boolean;
+}
+
+export function hasPendingTwoFactor(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return !!sessionStorage.getItem(MFA_PENDING_KEY);
+  } catch {
+    return false;
+  }
+}
 import type { User } from "@/types";
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<SignInResult>;
+  verifyTwoFactor: (code: string) => Promise<void>;
+  cancelTwoFactor: () => void;
   register: (email: string, password: string, fullName?: string) => Promise<void>;
-  loginWithGoogle: (credential: string) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<SignInResult>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   updateOnboardingState: (patch: Record<string, any>) => Promise<void>;
@@ -97,13 +123,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [router]);
 
-  const login = async (email: string, password: string, rememberMe = true) => {
+  const login = async (email: string, password: string, rememberMe = true): Promise<SignInResult> => {
     const data = await apiLogin(email, password, rememberMe);
+    if (data.requires_2fa && data.mfa_token) {
+      sessionStorage.setItem(MFA_PENDING_KEY, JSON.stringify({ mfaToken: data.mfa_token, rememberMe }));
+      return { requires2fa: true };
+    }
     setToken(data.access_token);
-    const storage = rememberMe ? localStorage : sessionStorage;
-    storage.setItem("access_token", data.access_token);
-    storage.setItem("refresh_token", data.refresh_token);
     await fetchUser();
+    return { requires2fa: false };
+  };
+
+  const verifyTwoFactor = async (code: string) => {
+    const raw = sessionStorage.getItem(MFA_PENDING_KEY);
+    if (!raw) throw new Error("Your sign-in expired. Please enter your password again.");
+    const { mfaToken, rememberMe } = JSON.parse(raw);
+    const data = await apiVerifyTwoFactorLogin(mfaToken, code, rememberMe);
+    sessionStorage.removeItem(MFA_PENDING_KEY);
+    setToken(data.access_token);
+    await fetchUser();
+  };
+
+  const cancelTwoFactor = () => {
+    try {
+      sessionStorage.removeItem(MFA_PENDING_KEY);
+    } catch {}
   };
 
   const register = async (email: string, password: string, fullName?: string) => {
@@ -111,12 +155,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await login(email, password);
   };
 
-  const loginWithGoogle = async (credential: string) => {
+  const loginWithGoogle = async (credential: string): Promise<SignInResult> => {
     const data = await apiLoginWithGoogle(credential);
+    if (data.requires_2fa && data.mfa_token) {
+      sessionStorage.setItem(MFA_PENDING_KEY, JSON.stringify({ mfaToken: data.mfa_token, rememberMe: true }));
+      return { requires2fa: true };
+    }
     setToken(data.access_token);
-    localStorage.setItem("access_token", data.access_token);
-    localStorage.setItem("refresh_token", data.refresh_token);
     await fetchUser();
+    return { requires2fa: false };
   };
 
   const logout = () => {
@@ -160,6 +207,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         token,
         login,
+        verifyTwoFactor,
+        cancelTwoFactor,
         register,
         loginWithGoogle,
         logout,
