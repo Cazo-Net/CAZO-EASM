@@ -621,9 +621,11 @@ function GraphCanvas({
           showZoom
           showFitView
           showInteractive={false}
-          position="bottom-right"
+          // Bottom-left, above the HEAT meter: the support chat button owns the
+          // bottom-right corner on every page.
+          position="bottom-left"
           className="graph-controls !rounded !border"
-          style={{ borderColor: "#292929", background: "#141414dd" }}
+          style={{ borderColor: "#292929", background: "#141414dd", marginBottom: 56 }}
         />
       </ReactFlow>
     </div>
