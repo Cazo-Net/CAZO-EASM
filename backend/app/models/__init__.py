@@ -38,6 +38,7 @@ from app.models.v2_scanner import MonitorSchedule, ScanHistory, AssetLifecycle, 
 from app.models.threat_intel import ThreatIntelMonitor, ThreatIntelFinding
 from app.models.integration import OrgIntegration, IntegrationDelivery
 from app.models.report_schedule import ReportSchedule
+from app.models.sso import OrgSsoConfig, SsoDomain, SsoLoginState
 from app.models.blockchain import (
     BlockchainWatch, BlockchainAlert, BlockchainCase, BlockchainCaseMember, BlockchainCaseEntry,
 )

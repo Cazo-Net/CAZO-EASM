@@ -15,6 +15,7 @@ import api, {
   logout as apiLogout,
   getToken,
   loginWithGoogle as apiLoginWithGoogle,
+  loginWithSso as apiLoginWithSso,
   verifyTwoFactorLogin as apiVerifyTwoFactorLogin,
 } from "@/lib/api";
 
@@ -44,6 +45,7 @@ interface AuthContextType {
   cancelTwoFactor: () => void;
   register: (email: string, password: string, fullName?: string) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<SignInResult>;
+  loginWithSso: (code: string) => Promise<SignInResult>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   updateOnboardingState: (patch: Record<string, any>) => Promise<void>;
@@ -166,6 +168,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { requires2fa: false };
   };
 
+  const loginWithSso = async (code: string): Promise<SignInResult> => {
+    const data = await apiLoginWithSso(code);
+    if (data.requires_2fa && data.mfa_token) {
+      sessionStorage.setItem(MFA_PENDING_KEY, JSON.stringify({ mfaToken: data.mfa_token, rememberMe: true }));
+      return { requires2fa: true };
+    }
+    setToken(data.access_token);
+    await fetchUser();
+    return { requires2fa: false };
+  };
+
   const logout = () => {
     apiLogout();
     setToken(null);
@@ -211,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         cancelTwoFactor,
         register,
         loginWithGoogle,
+        loginWithSso,
         logout,
         refreshUser,
         updateOnboardingState,
