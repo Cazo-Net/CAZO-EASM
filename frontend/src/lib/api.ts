@@ -80,6 +80,41 @@ export function storeTokens(data: { access_token?: string | null; refresh_token?
   other.removeItem("refresh_token");
 }
 
+// One refresh at a time. A page fires many requests at once; when the access
+// token has expired they all fail with 401 together. Sending the same refresh
+// token more than once trips the server's reuse detection, which ends every
+// session of the user. So concurrent callers share one refresh in this tab,
+// and the Web Locks API serializes refreshes across tabs (tokens kept with
+// "Remember me" live in localStorage, which all tabs share).
+let refreshInFlight: Promise<string> | null = null;
+
+export function refreshSession(): Promise<string> {
+  if (typeof window === "undefined") return Promise.reject(new Error("No window"));
+  if (refreshInFlight) return refreshInFlight;
+  const seen = localStorage.getItem("refresh_token") || sessionStorage.getItem("refresh_token");
+  const run = async (): Promise<string> => {
+    const current = localStorage.getItem("refresh_token") || sessionStorage.getItem("refresh_token");
+    if (!current) throw new Error("No refresh token");
+    // Another tab refreshed while this one waited for the lock: use its tokens.
+    if (seen && current !== seen) {
+      const fresh = getToken();
+      if (fresh) return fresh;
+    }
+    const rememberMe = !!localStorage.getItem("refresh_token");
+    const { data } = await api.post("/auth/refresh", { refresh_token: current });
+    storeTokens(data, rememberMe);
+    return data.access_token as string;
+  };
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  const pending: Promise<string> = locks?.request
+    ? (locks.request("cazo-token-refresh", run) as unknown as Promise<string>)
+    : run();
+  refreshInFlight = pending.finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
 // Step 1 of sign-in. When the account has 2FA, no tokens come back yet:
 // the result has requires_2fa=true and an mfa_token for verifyTwoFactorLogin.
 export async function login(email: string, password: string, rememberMe = true): Promise<LoginResult> {
@@ -816,7 +851,8 @@ export async function getSecurityDashboard() {
 
 export async function listSecurityCenterSessions() {
   const res = await api.get("/security-center/sessions");
-  return res.data;
+  // The API wraps the list: { "sessions": [...] }.
+  return Array.isArray(res.data) ? res.data : res.data?.sessions ?? [];
 }
 
 export async function revokeSecurityCenterSession(sessionId: string) {
@@ -830,7 +866,8 @@ export async function revokeAllSecurityCenterSessions() {
 
 export async function listSecurityCenterDevices() {
   const res = await api.get("/security-center/devices");
-  return res.data;
+  // The API wraps the list: { "devices": [...] }.
+  return Array.isArray(res.data) ? res.data : res.data?.devices ?? [];
 }
 
 export async function removeSecurityCenterDevice(deviceId: string) {
@@ -839,7 +876,7 @@ export async function removeSecurityCenterDevice(deviceId: string) {
 
 export async function getSecurityCenterLoginHistory(limit = 20) {
   const res = await api.get(`/security-center/login-history?limit=${limit}`);
-  return res.data;
+  return Array.isArray(res.data) ? res.data : res.data?.history ?? [];
 }
 
 export async function getSecurityCenterAuditTrail(limit = 50) {

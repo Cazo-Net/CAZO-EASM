@@ -17,6 +17,7 @@ import api, {
   loginWithGoogle as apiLoginWithGoogle,
   loginWithSso as apiLoginWithSso,
   verifyTwoFactorLogin as apiVerifyTwoFactorLogin,
+  refreshSession,
 } from "@/lib/api";
 
 // Kept between the password step and the 2FA step (also survives the Google
@@ -73,10 +74,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.get("/auth/me");
       setUser(response.data);
       setToken(storedToken);
-    } catch {
-      apiLogout();
-      setToken(null);
-      setUser(null);
+    } catch (err: any) {
+      // An expired access token is normal after 15 minutes: renew it with the
+      // refresh token before giving up, so "Remember me" keeps the user signed in.
+      let renewed = false;
+      if (err?.response?.status === 401) {
+        try {
+          const fresh = await refreshSession();
+          const response = await api.get("/auth/me");
+          setUser(response.data);
+          setToken(fresh);
+          renewed = true;
+        } catch {
+          renewed = false;
+        }
+      }
+      if (!renewed) {
+        apiLogout();
+        setToken(null);
+        setUser(null);
+      }
     }
     setLoading(false);
   }, []);
@@ -95,14 +112,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (refreshToken) {
             originalRequest._retry = true;
             try {
-              const { data } = await api.post("/auth/refresh", { refresh_token: refreshToken });
-              const storage = localStorage.getItem("access_token") ? localStorage : sessionStorage;
-              storage.setItem("access_token", data.access_token);
-              if (data.refresh_token) {
-                storage.setItem("refresh_token", data.refresh_token);
-              }
-              setToken(data.access_token);
-              originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+              const accessToken = await refreshSession();
+              setToken(accessToken);
+              originalRequest.headers.Authorization = `Bearer ${accessToken}`;
               return api(originalRequest);
             } catch {
               apiLogout();
