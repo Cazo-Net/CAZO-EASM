@@ -7,6 +7,7 @@ from app.schemas.api_key import APIKeyCreate, APIKeyResponse
 from app.api.deps import get_current_user
 from app.core.permissions import require_permission, Permission
 from app.core.security import generate_api_key, hash_api_key
+from app.services.audit import log_user_action
 from datetime import datetime, timezone
 
 router = APIRouter()
@@ -37,6 +38,7 @@ async def create_api_key(
     raw_key = generate_api_key()
     current_user.api_key = hash_api_key(raw_key)
     db.commit()
+    log_user_action(db, current_user, "api_key.create", "api_key", detail={"name": key_data.name, "kind": "personal"})
 
     return APIKeyResponse(
         id="new",
@@ -59,5 +61,6 @@ async def revoke_api_key(
 
     current_user.api_key = None
     db.commit()
+    log_user_action(db, current_user, "api_key.revoke", "api_key", detail={"kind": "personal"})
 
     return {"message": "API key revoked successfully"}
