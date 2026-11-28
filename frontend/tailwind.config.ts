@@ -95,8 +95,8 @@ const config: Config = {
         /* Legacy names, now mapped onto the design tokens so every page
            follows the palette in globals.css. `void`/`obsidian` stay fixed
            because the marketing site is always dark. */
-        void: "#090C13",
-        obsidian: "#0F131C",
+        void: "#0A0A0A",
+        obsidian: "#121212",
         graphite: "#161B26",
         slate: "#1E2636",
         phosphor: "hsl(var(--brand))",

@@ -1,4 +1,4 @@
-# CAZO design system ("Ink & Signal")
+# CAZO design system ("Crimson on black")
 
 The frontend's look is driven by CSS variables in `frontend/src/app/globals.css`
 and mapped to Tailwind names in `frontend/tailwind.config.ts`. Change a token
@@ -6,19 +6,33 @@ and every page follows.
 
 ## Palette
 
+Chosen by the owner on 2026-11-28 from four options (signal blue, emerald,
+violet, crimson on black).
+
 | Role | Dark (default) | Light |
 | --- | --- | --- |
-| Background | `#0A0D14` navy ink | `#F7F9FC` |
-| Card / surface | `#11151E` | `#FFFFFF` |
-| Border | `#232937` | `#DDE2EA` |
-| Primary / focus | `#4A82F5` signal blue | `#2563EB` |
-| Secondary accent | cyan `hsl(190 85% 52%)` | cyan |
+| Background | `#0B0B0B` near black | `#FAFAFA` |
+| Card / surface | `#141414` | `#FFFFFF` |
+| Border | `#292929` | `#E3E3E3` |
+| Primary text, icons, focus | `#EC3C53` crimson | `#D11A38` |
+| Primary fill (buttons) | `hsl(350 82% 50%)` | `#D11A38` |
+| Secondary accent | warm orange `hsl(20 90% 60%)` | orange |
 
-Severity is one scale everywhere: critical red, high orange, medium amber,
-low blue, info grey (`--sev-*`, Tailwind `severity-*`). Success stays green.
+Two things follow from a red brand colour:
 
-To re-brand, change `--brand`, `--primary` and `--ring` in both blocks, and the
-two gradient stops in `components/marketing/CazoLogo.tsx` and `public/logo.svg` (then regenerate `public/favicon.ico`).
+- **Buttons use a darker red than text.** One red cannot both read on black as
+  text and sit under white text at AA contrast, so `bg-primary` takes
+  `--primary-fill` (see the end of `globals.css`).
+- **Critical severity is magenta-pink, not red**, so a critical finding is not
+  mistaken for a brand accent. The scale is critical pink, high orange, medium
+  amber, low blue, info grey (`--sev-*`, Tailwind `severity-*`). Success stays
+  green. Destructive actions and error text stay red, close to the brand
+  colour; label them in words, never by colour alone.
+
+To re-brand, change `--brand`, `--primary`, `--primary-fill` and `--ring` in
+both blocks, and the two gradient stops in `components/marketing/CazoLogo.tsx`
+and `public/logo.svg` (then regenerate `public/favicon.ico`). The attack graph
+and canvas pages use fixed hex values and need the same swap.
 
 Legacy colour names (`phosphor`, `cyan-signal`, `signal-red`, `amber`,
 `neon-violet`) now point at tokens, so older pages pick up the palette without
@@ -45,7 +59,7 @@ See `screenshots/` for before/after captures of the first redesigned screens.
 ## Admin panel
 
 `admin-panel/frontend` shares the palette without sharing code: its Tailwind
-config remaps `zinc` to the navy-ink neutrals and `blue` to signal blue, and
+config remaps `zinc` to the neutral greys and `blue` to crimson, and
 `globals.css` carries the same base colours. It uses the same mark
 (`src/components/CazoMark.tsx`) and Inter.
 

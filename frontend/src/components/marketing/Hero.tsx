@@ -129,7 +129,7 @@ function ProductFrame() {
     <div className="relative">
       <div aria-hidden="true" className="absolute -inset-px rounded-xl bg-gradient-to-b from-white/15 to-white/0" />
       <div
-        className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0C1019] shadow-[0_40px_120px_-30px_rgba(37,99,235,0.35)]"
+        className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0E0E0E] shadow-[0_40px_120px_-30px_rgba(225,29,72,0.30)]"
         role="img"
         aria-label="CAZO dashboard showing asset counts and a list of findings sorted by severity"
       >

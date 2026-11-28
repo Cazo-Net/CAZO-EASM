@@ -401,12 +401,12 @@ export default function AdminPage() {
 
   const severityColor = (s: string) => ({
     critical: "text-red-500 bg-red-500/10", high: "text-orange-500 bg-orange-500/10",
-    medium: "text-yellow-500 bg-yellow-500/10", low: "text-blue-500 bg-blue-500/10",
+    medium: "text-yellow-500 bg-yellow-500/10", low: "text-sky-400 bg-sky-500/10",
     info: "text-zinc-400 bg-zinc-500/10",
   }[s] || "text-zinc-400 bg-zinc-500/10");
 
   const statusColor = (s: string) => ({
-    completed: "bg-green-500", running: "bg-blue-500 animate-pulse",
+    completed: "bg-green-500", running: "bg-sky-500 animate-pulse",
     failed: "bg-red-500", pending: "bg-yellow-500",
     open: "bg-red-500", confirmed: "bg-orange-500", fixed: "bg-green-500",
     active: "bg-green-500", inactive: "bg-zinc-500",

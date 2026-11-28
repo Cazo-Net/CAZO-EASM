@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
   <defs>
     <linearGradient id="cazo-gradient" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#5B9BFF" />
-      <stop offset="1" stop-color="#2563EB" />
+      <stop stop-color="#FB7185" />
+      <stop offset="1" stop-color="#E11D48" />
     </linearGradient>
   </defs>
   <!-- Open perimeter: a hexagon with one edge missing, reading as a "C" -->

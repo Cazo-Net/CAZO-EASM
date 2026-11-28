@@ -2,14 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Same palette as the customer app: navy ink, signal blue. */
+/* Same palette as the customer app: crimson on black. */
 :root {
-  --bg: hsl(225 35% 6%);
-  --card: hsl(225 28% 9%);
-  --border: hsl(225 18% 17%);
-  --text: hsl(220 25% 94%);
-  --muted: hsl(220 13% 64%);
-  --primary: hsl(221 92% 62%);
+  --bg: hsl(0 0% 4.5%);
+  --card: hsl(0 0% 8%);
+  --border: hsl(0 0% 16%);
+  --text: hsl(0 0% 95%);
+  --muted: hsl(0 0% 66%);
+  --primary: hsl(352 82% 58%);
   --destructive: hsl(0 84% 63%);
   --green: hsl(152 58% 46%);
   --amber: hsl(38 92% 56%);

@@ -7,8 +7,8 @@ export function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
     <svg viewBox="0 0 64 64" fill="none" className={className} aria-hidden="true">
       <defs>
         <linearGradient id={id} x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#5B9BFF" />
-          <stop offset="1" stopColor="#2563EB" />
+          <stop stopColor="#FB7185" />
+          <stop offset="1" stopColor="#E11D48" />
         </linearGradient>
       </defs>
       <path
