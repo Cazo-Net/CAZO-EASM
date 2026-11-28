@@ -36,6 +36,7 @@ from app.models.support import SupportConversation, SupportMessage
 from app.models.periodic_task import PeriodicTaskState
 from app.models.v2_scanner import MonitorSchedule, ScanHistory, AssetLifecycle, NotificationTrigger
 from app.models.threat_intel import ThreatIntelMonitor, ThreatIntelFinding
+from app.models.integration import OrgIntegration, IntegrationDelivery
 
 __all__ = [
     "User", "Organization", "Project", "Scan", "ScanJob", "Subdomain",
@@ -53,4 +54,5 @@ __all__ = [
     "PeriodicTaskState",
     "MonitorSchedule", "ScanHistory", "AssetLifecycle", "NotificationTrigger",
     "ThreatIntelMonitor", "ThreatIntelFinding",
+    "OrgIntegration", "IntegrationDelivery",
 ]
