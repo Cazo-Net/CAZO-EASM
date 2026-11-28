@@ -66,7 +66,7 @@ const navSections = [
       { href: "/scans", label: "Scans", icon: ScanSearch },
       { href: "/intel", label: "Intelligence", icon: Zap },
       { href: "/blockchain", label: "Blockchain Intel", icon: Wallet },
-      { href: "/darkweb", label: "Dark Web Intel", icon: Eye },
+      { href: "/darkweb", label: "Threat Intel", icon: Eye },
       { href: "/supply-chain", label: "Supply Chain", icon: Boxes },
       { href: "/assets", label: "Assets", icon: Globe },
       { href: "/shadow-assets", label: "Shadow Assets", icon: Ghost },

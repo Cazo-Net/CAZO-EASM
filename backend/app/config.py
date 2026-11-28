@@ -148,6 +148,17 @@ class Settings(BaseSettings):
     # Blockchain Intelligence
     ETHERSCAN_API_KEY: str = os.getenv("ETHERSCAN_API_KEY", "")
 
+    # Dark web & threat intelligence sources. Each one is optional: a source
+    # without its key shows as "not configured" instead of returning results.
+    # Have I Been Pwned (https://haveibeenpwned.com/API/Key) — breached
+    # accounts and domain search. Domain search also needs the domain verified
+    # in the HIBP dashboard.
+    HIBP_API_KEY: str = os.getenv("HIBP_API_KEY", "")
+    # abuse.ch Auth-Key (https://auth.abuse.ch/) — URLhaus and ThreatFox.
+    ABUSECH_AUTH_KEY: str = os.getenv("ABUSECH_AUTH_KEY", "")
+    # How often saved monitors are re-checked by the worker.
+    THREAT_INTEL_CHECK_HOURS: int = int(os.getenv("THREAT_INTEL_CHECK_HOURS", "24"))
+
     # Neo4j (Phase 2: graph analytics)
     NEO4J_URI: str = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     NEO4J_USER: str = os.getenv("NEO4J_USER", "neo4j")

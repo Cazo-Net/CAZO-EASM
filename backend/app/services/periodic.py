@@ -225,7 +225,19 @@ def _cve_sync():
     sync_cve_database()
 
 
+def _threat_intel_monitors():
+    from app.database import SessionLocal
+    from app.services.threat_intel import run_due_monitors
+
+    db = SessionLocal()
+    try:
+        run_due_monitors(db)
+    finally:
+        db.close()
+
+
 MAINTENANCE_JOBS: List[PeriodicJob] = [
+    PeriodicJob("threat_intel_monitors", timedelta(hours=1), _threat_intel_monitors),
     PeriodicJob("check_ssl_expiry", timedelta(days=1), _ssl_expiry),
     PeriodicJob("send_weekly_digest", timedelta(days=7), _weekly_digest),
     PeriodicJob("sync_cve_database", timedelta(days=7), _cve_sync),

@@ -1235,3 +1235,117 @@ export async function analyzeDomain(params: {
   const { data } = await api.post("/scanner-v2/analyze", params);
   return data;
 }
+
+// --- Dark web & threat intelligence ---
+// Every record is either real (with a source + reference link) or comes from
+// /darkweb/sample, which is flagged is_sample and must be shown as sample.
+
+export interface ThreatIntelSource {
+  id: string;
+  name: string;
+  provides: string;
+  requires: string;
+  configured: boolean;
+  commercial?: boolean;
+  env?: string;
+  url?: string;
+}
+
+export interface ThreatIntelMonitor {
+  id: string;
+  kind: "domain" | "email";
+  value: string;
+  created_at: string | null;
+  last_checked_at: string | null;
+  last_status: Record<string, string>;
+  open_findings: number;
+}
+
+export interface ThreatIntelFinding {
+  id: string;
+  is_sample: boolean;
+  monitor_id?: string | null;
+  source: string;
+  category: string;
+  subject: string;
+  title: string;
+  summary: string | null;
+  severity: string;
+  reference_url: string | null;
+  observed_at: string | null;
+  data: Record<string, any>;
+  status: "open" | "acknowledged" | "resolved";
+  times_seen?: number;
+  first_seen?: string | null;
+  last_seen?: string | null;
+}
+
+export interface KevItem {
+  cve_id: string;
+  vendor: string | null;
+  product: string | null;
+  name: string | null;
+  description: string | null;
+  date_added: string | null;
+  due_date: string | null;
+  required_action: string | null;
+  ransomware_use: string | null;
+  reference_url: string;
+  epss: number | null;
+  epss_percentile: number | null;
+  hosts?: string[];
+  technology?: string;
+  detected_versions?: string[];
+}
+
+export interface ExploitedIntel {
+  confirmed: KevItem[];
+  possible: KevItem[];
+  recent: KevItem[];
+  kev_total: number;
+  sources_status: Record<string, string>;
+}
+
+export async function getThreatIntelSources(): Promise<ThreatIntelSource[]> {
+  const { data } = await api.get("/darkweb/sources");
+  return data.sources;
+}
+
+export async function listThreatIntelMonitors(): Promise<ThreatIntelMonitor[]> {
+  const { data } = await api.get("/darkweb/monitors");
+  return data.monitors;
+}
+
+export async function createThreatIntelMonitor(kind: "domain" | "email", value: string): Promise<ThreatIntelMonitor> {
+  const { data } = await api.post("/darkweb/monitors", { kind, value });
+  return data;
+}
+
+export async function deleteThreatIntelMonitor(id: string): Promise<void> {
+  await api.delete(`/darkweb/monitors/${id}`);
+}
+
+export async function checkThreatIntelMonitor(id: string): Promise<{ new: number; total: number; status: Record<string, string> }> {
+  const { data } = await api.post(`/darkweb/monitors/${id}/check`, null, { timeout: 180000 });
+  return data;
+}
+
+export async function listThreatIntelFindings(): Promise<ThreatIntelFinding[]> {
+  const { data } = await api.get("/darkweb/findings");
+  return data.findings;
+}
+
+export async function updateThreatIntelFinding(id: string, status: ThreatIntelFinding["status"]): Promise<ThreatIntelFinding> {
+  const { data } = await api.patch(`/darkweb/findings/${id}`, { status });
+  return data;
+}
+
+export async function getExploitedIntel(): Promise<ExploitedIntel> {
+  const { data } = await api.get("/darkweb/exploited", { timeout: 120000 });
+  return data;
+}
+
+export async function getThreatIntelSample(): Promise<{ is_sample: true; notice: string; findings: ThreatIntelFinding[] }> {
+  const { data } = await api.get("/darkweb/sample");
+  return data;
+}
