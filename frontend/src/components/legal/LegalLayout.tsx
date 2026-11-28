@@ -16,12 +16,10 @@ export function LegalLayout({
   lastUpdated: string;
 }) {
   return (
-    <div className="min-h-screen bg-[#09090B]">
-      <header className="border-b border-border/40 bg-void/80 backdrop-blur-xl">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-background">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <CazoLogo />
-          </Link>
+          <CazoLogo />
           <Link
             href="/"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -33,7 +31,7 @@ export function LegalLayout({
 
       <div className="mx-auto max-w-5xl px-6 py-12 lg:flex lg:gap-16">
         <nav className="mb-8 shrink-0 lg:mb-0 lg:w-48 lg:sticky lg:top-24 lg:self-start">
-          <p className="mb-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground/60">
+          <p className="mb-3 text-[11px] uppercase tracking-wider text-muted-foreground">
             Legal
           </p>
           <ul className="space-y-1">
@@ -54,7 +52,7 @@ export function LegalLayout({
           <div className="prose prose-invert prose-sm max-w-none">
             {children}
           </div>
-          <p className="mt-12 border-t border-border/40 pt-6 font-mono text-[11px] text-muted-foreground/50">
+          <p className="mt-12 border-t border-border pt-6 font-mono text-[11px] text-muted-foreground">
             Last updated: {lastUpdated} &middot; These documents should be reviewed
             by a qualified legal professional before being relied upon as binding
             legal agreements.
@@ -62,14 +60,14 @@ export function LegalLayout({
         </main>
       </div>
 
-      <footer className="border-t border-border/40 bg-void">
+      <footer className="border-t border-border bg-void">
         <div className="mx-auto flex h-12 max-w-5xl items-center justify-between px-6">
-          <p className="font-mono text-[11px] text-muted-foreground/50">
+          <p className="font-mono text-[11px] text-muted-foreground">
             &copy; {new Date().getFullYear()} CAZO
           </p>
           <Link
             href="/"
-            className="font-mono text-[11px] text-muted-foreground/50 hover:text-foreground"
+            className="font-mono text-[11px] text-muted-foreground hover:text-foreground"
           >
             cazo.io
           </Link>

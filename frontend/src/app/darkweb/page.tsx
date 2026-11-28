@@ -45,11 +45,11 @@ import {
 } from "@/lib/api";
 
 const SEVERITY_CLASS: Record<string, string> = {
-  critical: "text-red-400 bg-red-500/10 border-red-500/20",
+  critical: "text-destructive bg-destructive/10 border-red-500/20",
   high: "text-orange-400 bg-orange-500/10 border-orange-500/20",
   medium: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
   low: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  info: "text-green-400 bg-green-500/10 border-green-500/20",
+  info: "text-success bg-success/10 border-green-500/20",
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -171,7 +171,7 @@ function MonitorStatus({ m }: { m: ThreatIntelMonitor }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {entries.map(([k, v]) => (
-        <span key={k} className={`rounded px-1.5 py-0.5 text-[10px] ${v === "ok" ? "bg-green-500/10 text-green-400" : "bg-muted text-muted-foreground"}`}
+        <span key={k} className={`rounded px-1.5 py-0.5 text-[10px] ${v === "ok" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}
               title={m.last_status.reason || v}>
           {k}: {STATUS_TEXT[v] || v}
         </span>
@@ -286,7 +286,7 @@ function ExposureTab({ showSample }: { showSample: boolean }) {
           Need to add a domain first? Go to <Link href="/scopes" className="underline">Scopes</Link>.
         </p>
         {error && (
-          <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-sm text-red-400">
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-sm text-destructive">
             <AlertTriangle className="h-4 w-4 shrink-0" /> {error}
           </div>
         )}
@@ -399,7 +399,7 @@ function ExploitedTab() {
     getExploitedIntel().then(setData).catch((e) => setError(getErrorMessage(e, "Could not load threat feed")));
   }, []);
 
-  if (error) return <p className="text-sm text-red-400">{error}</p>;
+  if (error) return <p className="text-sm text-destructive">{error}</p>;
   if (!data) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />;
   return (
     <div className="space-y-6">
@@ -434,7 +434,7 @@ function SourcesTab() {
           <div key={s.id} className="flex items-start justify-between gap-3 rounded-lg border border-border/60 p-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-sm font-medium">
-                {s.configured ? <CheckCircle2 className="h-4 w-4 text-green-400" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+                {s.configured ? <CheckCircle2 className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
                 {s.name}
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">{s.provides}</p>

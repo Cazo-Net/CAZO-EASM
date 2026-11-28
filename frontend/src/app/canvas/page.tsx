@@ -71,7 +71,7 @@ const NODE_CATEGORIES = [
   {
     label: "Data",
     nodes: [
-      { type: "domain", icon: Globe, color: "#10B981", label: "Domain", inputs: ["Flow"], outputs: ["Flow", "Data"] },
+      { type: "domain", icon: Globe, color: "#EC3C53", label: "Domain", inputs: ["Flow"], outputs: ["Flow", "Data"] },
       { type: "subdomain", icon: Server, color: "#06B6D4", label: "Subdomain", inputs: ["Flow"], outputs: ["Flow", "Data"] },
       { type: "ip_address", icon: Circle, color: "#818CF8", label: "IP Address", inputs: ["Flow"], outputs: ["Flow", "Data"] },
     ],
@@ -80,16 +80,16 @@ const NODE_CATEGORIES = [
     label: "Analysis",
     nodes: [
       { type: "port", icon: Server, color: "#EC4899", label: "Port Scan", inputs: ["Flow", "Target"], outputs: ["Flow", "Ports"] },
-      { type: "ssl_certificate", icon: LockIcon, color: "#10B981", label: "SSL Check", inputs: ["Flow", "Target"], outputs: ["Flow", "Cert"] },
-      { type: "dns_record", icon: Network, color: "#F59E0B", label: "DNS Lookup", inputs: ["Flow", "Target"], outputs: ["Flow", "Records"] },
+      { type: "ssl_certificate", icon: LockIcon, color: "#EC3C53", label: "SSL Check", inputs: ["Flow", "Target"], outputs: ["Flow", "Cert"] },
+      { type: "dns_record", icon: Network, color: "#F8B925", label: "DNS Lookup", inputs: ["Flow", "Target"], outputs: ["Flow", "Records"] },
       { type: "technology", icon: Cpu, color: "#818CF8", label: "Tech Detect", inputs: ["Flow", "Target"], outputs: ["Flow", "Tech"] },
     ],
   },
   {
     label: "Security",
     nodes: [
-      { type: "vulnerability", icon: Bug, color: "#FB7185", label: "Vuln Scan", inputs: ["Flow", "Target"], outputs: ["Flow", "Findings"] },
-      { type: "scan_network", icon: Network, color: "#10B981", label: "Scan Network", inputs: ["Flow"], outputs: ["Flow", "Devices"] },
+      { type: "vulnerability", icon: Bug, color: "#F05151", label: "Vuln Scan", inputs: ["Flow", "Target"], outputs: ["Flow", "Findings"] },
+      { type: "scan_network", icon: Network, color: "#EC3C53", label: "Scan Network", inputs: ["Flow"], outputs: ["Flow", "Devices"] },
     ],
   },
   {
@@ -106,16 +106,16 @@ const NODE_CATEGORIES = [
 // ---------------------------------------------------------------------------
 
 const NODE_COLORS: Record<string, string> = {
-  domain: "#10B981", subdomain: "#06B6D4", ip_address: "#818CF8",
-  port: "#EC4899", ssl_certificate: "#10B981", dns_record: "#F59E0B",
-  technology: "#818CF8", vulnerability: "#FB7185", organization: "#6366F1",
-  email: "#EC4899", cloud_asset: "#06B6D4", web_application: "#3B82F6",
-  external_service: "#F97316", note: "#6B7280", print: "#06B6D4",
-  scan_network: "#10B981",
+  domain: "#EC3C53", subdomain: "#06B6D4", ip_address: "#818CF8",
+  port: "#EC4899", ssl_certificate: "#EC3C53", dns_record: "#F8B925",
+  technology: "#818CF8", vulnerability: "#F05151", organization: "#6366F1",
+  email: "#EC4899", cloud_asset: "#06B6D4", web_application: "#EC3C53",
+  external_service: "#F67A31", note: "#6B7280", print: "#06B6D4",
+  scan_network: "#EC3C53",
 };
 
 function PortNode({ data, selected }: { data: any; selected?: boolean }) {
-  const color = NODE_COLORS[data.asset_type || data.nodeType] || "#10B981";
+  const color = NODE_COLORS[data.asset_type || data.nodeType] || "#EC3C53";
   const inputs: string[] = data.inputs || [];
   const outputs: string[] = data.outputs || [];
 
@@ -133,7 +133,7 @@ function PortNode({ data, selected }: { data: any; selected?: boolean }) {
           id={`in-${i}`}
           style={{
             width: 8, height: 8, borderRadius: "50%",
-            background: color, border: `2px solid #0A0B0F`,
+            background: color, border: `2px solid #141414`,
             top: 30 + i * 18,
           }}
         />
@@ -148,7 +148,7 @@ function PortNode({ data, selected }: { data: any; selected?: boolean }) {
           id={`out-${i}`}
           style={{
             width: 8, height: 8, borderRadius: "50%",
-            background: color, border: `2px solid #0A0B0F`,
+            background: color, border: `2px solid #141414`,
             top: 30 + i * 18,
           }}
         />
@@ -158,7 +158,7 @@ function PortNode({ data, selected }: { data: any; selected?: boolean }) {
       <div
         className="rounded-lg overflow-hidden"
         style={{
-          background: "#0D1117",
+          background: "#1B1B1B",
           border: `1.5px solid ${selected ? color : color + "44"}`,
           boxShadow: selected ? `0 0 16px ${color}44` : `0 0 8px ${color}11`,
         }}
@@ -168,7 +168,7 @@ function PortNode({ data, selected }: { data: any; selected?: boolean }) {
           className="flex items-center gap-2 px-3 py-2"
           style={{ background: `${color}11`, borderBottom: `1px solid ${color}22` }}
         >
-          <span className="font-mono text-[10px] font-bold uppercase" style={{ color }}>
+          <span className=" text-[11px] font-semibold uppercase" style={{ color }}>
             {data.label || data.asset_type || "Node"}
           </span>
         </div>
@@ -270,7 +270,7 @@ function CanvasContent() {
         label: e.label,
         type: "smoothstep",
         animated: e.animated,
-        style: { stroke: "#10B98166", strokeWidth: 1.5 },
+        style: { stroke: "#EC3C5366", strokeWidth: 1.5 },
       }));
       setNodes(rfNodes);
       setEdges(rfEdges);
@@ -349,7 +349,7 @@ function CanvasContent() {
           label: "",
           edge_type: "default",
         });
-        setEdges((eds) => addEdge({ ...connection, id: edge.id, style: { stroke: "#10B98166", strokeWidth: 1.5 }, type: "smoothstep" }, eds));
+        setEdges((eds) => addEdge({ ...connection, id: edge.id, style: { stroke: "#EC3C5366", strokeWidth: 1.5 }, type: "smoothstep" }, eds));
       } catch {}
     },
     [activeCanvas, setEdges]
@@ -422,30 +422,30 @@ function CanvasContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen" style={{ background: "#050608" }}>
-        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#10B981" }} />
+      <div className="flex items-center justify-center h-screen" style={{ background: "#0B0B0B" }}>
+        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#EC3C53" }} />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "#050608" }}>
+    <div className="flex h-screen overflow-hidden" style={{ background: "#0B0B0B" }}>
       {/* ── Left sidebar: Node palette ── */}
-      <div className="w-56 border-r flex flex-col shrink-0" style={{ borderColor: "#161B26", background: "#0A0B0F" }}>
+      <div className="w-56 border-r flex flex-col shrink-0" style={{ borderColor: "#292929", background: "#141414" }}>
         {/* Header */}
-        <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: "#161B26" }}>
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: "#10B981" }}>
+        <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: "#292929" }}>
+          <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#EC3C53" }}>
             Node Editor
           </span>
           <span className="font-mono text-[9px] text-muted-foreground">*.gnt</span>
         </div>
 
         {/* Canvas list */}
-        <div className="px-3 py-2 border-b" style={{ borderColor: "#161B26" }}>
+        <div className="px-3 py-2 border-b" style={{ borderColor: "#292929" }}>
           <button
             onClick={handleCreateCanvas}
             className="flex items-center gap-1.5 w-full rounded px-2 py-1.5 text-[10px] font-mono transition-colors"
-            style={{ background: "#10B98111", color: "#10B981", border: "1px solid #10B98133" }}
+            style={{ background: "#EC3C5311", color: "#EC3C53", border: "1px solid #EC3C5333" }}
           >
             <Plus className="h-3 w-3" /> NEW
           </button>
@@ -458,7 +458,7 @@ function CanvasContent() {
                   "flex items-center justify-between w-full rounded px-2 py-1 text-[10px] font-mono transition-colors",
                   activeCanvas?.id === c.id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
-                style={{ background: activeCanvas?.id === c.id ? "#161B26" : "transparent" }}
+                style={{ background: activeCanvas?.id === c.id ? "#292929" : "transparent" }}
               >
                 <span className="truncate">{c.name}</span>
                 <button
@@ -473,15 +473,15 @@ function CanvasContent() {
         </div>
 
         {/* Search */}
-        <div className="px-3 py-2 border-b" style={{ borderColor: "#161B26" }}>
-          <div className="flex items-center gap-1.5 rounded px-2 py-1" style={{ background: "#0D1117", border: "1px solid #161B26" }}>
-            <Search className="h-3 w-3" style={{ color: "#10B98166" }} />
+        <div className="px-3 py-2 border-b" style={{ borderColor: "#292929" }}>
+          <div className="flex items-center gap-1.5 rounded px-2 py-1" style={{ background: "#1B1B1B", border: "1px solid #292929" }}>
+            <Search className="h-3 w-3" style={{ color: "#EC3C5366" }} />
             <input
               value={paletteSearch}
               onChange={(e) => setPaletteSearch(e.target.value)}
-              placeholder="print"
+              placeholder="Search nodes" aria-label="Search nodes"
               className="flex-1 bg-transparent text-[10px] font-mono focus:outline-none"
-              style={{ color: "#10B981" }}
+              style={{ color: "#EC3C53" }}
             />
           </div>
         </div>
@@ -490,7 +490,7 @@ function CanvasContent() {
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
           {filteredCategories.map((cat) => (
             <div key={cat.label}>
-              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider">
+              <span className=" text-[11px] text-muted-foreground uppercase tracking-wider">
                 {cat.label} ({cat.nodes.length})
               </span>
               <div className="mt-1 space-y-1">
@@ -514,7 +514,7 @@ function CanvasContent() {
         </div>
 
         {/* Stats */}
-        <div className="px-3 py-2 border-t font-mono text-[9px] text-muted-foreground" style={{ borderColor: "#161B26" }}>
+        <div className="px-3 py-2 border-t font-mono text-[9px] text-muted-foreground" style={{ borderColor: "#292929" }}>
           Nodes: {nodes.length} | Connections: {edges.length}
         </div>
       </div>
@@ -522,8 +522,8 @@ function CanvasContent() {
       {/* ── Main area ── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Toolbar */}
-        <div className="flex items-center gap-2 border-b px-4 py-1.5 shrink-0" style={{ borderColor: "#161B26", background: "#0A0B0Fee" }}>
-          <button onClick={handleCreateCanvas} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-mono hover:bg-white/5" style={{ color: "#10B981" }}>
+        <div className="flex items-center gap-2 border-b px-4 py-1.5 shrink-0" style={{ borderColor: "#292929", background: "#141414ee" }}>
+          <button onClick={handleCreateCanvas} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-mono hover:bg-white/5" style={{ color: "#EC3C53" }}>
             <Plus className="h-3 w-3" /> NEW
           </button>
           <button onClick={() => activeCanvas && loadCanvas(activeCanvas.id)} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-mono hover:bg-white/5 text-muted-foreground">
@@ -563,24 +563,24 @@ function CanvasContent() {
               proOptions={{ hideAttribution: true }}
               className="bg-transparent"
             >
-              <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#161B2644" />
+              <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#29292944" />
               <Controls
                 showZoom
                 showFitView
                 showInteractive={false}
-                className="!rounded !border !bg-[#0A0B0Fdd] !backdrop-blur-xl"
-                style={{ borderColor: "#161B26" }}
+                className="!rounded !border !bg-[#141414dd] !"
+                style={{ borderColor: "#292929" }}
               />
             </ReactFlow>
           ) : (
             <div className="flex flex-col items-center justify-center h-full">
               <div className="text-center space-y-3">
-                <Network className="h-10 w-10 mx-auto" style={{ color: "#161B26" }} />
+                <Network className="h-10 w-10 mx-auto" style={{ color: "#292929" }} />
                 <p className="font-mono text-xs text-muted-foreground">No canvas selected</p>
                 <button
                   onClick={handleCreateCanvas}
                   className="font-mono text-[10px] px-3 py-1.5 rounded"
-                  style={{ background: "#10B98111", color: "#10B981", border: "1px solid #10B98133" }}
+                  style={{ background: "#EC3C5311", color: "#EC3C53", border: "1px solid #EC3C5333" }}
                 >
                   CREATE CANVAS
                 </button>
@@ -591,9 +591,9 @@ function CanvasContent() {
 
         {/* Generated code panel (bottom) */}
         {activeCanvas && (
-          <div className="shrink-0 border-t" style={{ borderColor: "#161B26", background: "#0A0B0F" }}>
-            <div className="flex items-center justify-between px-4 py-1.5 border-b" style={{ borderColor: "#161B26" }}>
-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: "#10B981" }}>
+          <div className="shrink-0 border-t" style={{ borderColor: "#292929", background: "#141414" }}>
+            <div className="flex items-center justify-between px-4 py-1.5 border-b" style={{ borderColor: "#292929" }}>
+              <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#EC3C53" }}>
                 Generated Code
               </span>
               <button
@@ -603,7 +603,7 @@ function CanvasContent() {
                 copy
               </button>
             </div>
-            <pre className="px-4 py-2 text-[10px] font-mono overflow-x-auto max-h-28" style={{ color: "#10B98188" }}>
+            <pre className="px-4 py-2 text-[10px] font-mono overflow-x-auto max-h-28" style={{ color: "#EC3C5388" }}>
               {generatedCode}
             </pre>
           </div>
@@ -618,10 +618,10 @@ function CanvasContent() {
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 240, opacity: 0 }}
             className="w-60 border-l flex flex-col shrink-0"
-            style={{ borderColor: "#161B26", background: "#0A0B0F" }}
+            style={{ borderColor: "#292929", background: "#141414" }}
           >
-            <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "#161B26" }}>
-              <span className="font-mono text-[10px] font-bold uppercase" style={{ color: "#10B981" }}>
+            <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "#292929" }}>
+              <span className=" text-[11px] font-semibold uppercase" style={{ color: "#EC3C53" }}>
                 Properties
               </span>
               <button onClick={() => setSelectedNode(null)} className="text-muted-foreground hover:text-foreground">
@@ -630,7 +630,7 @@ function CanvasContent() {
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
               <div>
-                <label className="font-mono text-[9px] text-muted-foreground uppercase">Label</label>
+                <label className=" text-[11px] text-muted-foreground uppercase">Label</label>
                 <input
                   value={(selectedNode.data.label as string) || ""}
                   onChange={(e) => {
@@ -643,17 +643,17 @@ function CanvasContent() {
                     }
                   }}
                   className="w-full rounded px-2 py-1.5 text-[10px] font-mono mt-1 focus:outline-none"
-                  style={{ background: "#0D1117", border: "1px solid #161B26", color: "#10B981" }}
+                  style={{ background: "#1B1B1B", border: "1px solid #292929", color: "#EC3C53" }}
                 />
               </div>
               <div>
-                <label className="font-mono text-[9px] text-muted-foreground uppercase">Type</label>
-                <p className="font-mono text-[10px] mt-1" style={{ color: NODE_COLORS[selectedNode.data.asset_type as string] || "#10B981" }}>
+                <label className=" text-[11px] text-muted-foreground uppercase">Type</label>
+                <p className="font-mono text-[10px] mt-1" style={{ color: NODE_COLORS[selectedNode.data.asset_type as string] || "#EC3C53" }}>
                   {(selectedNode.data.asset_type as string) || "unknown"}
                 </p>
               </div>
               <div>
-                <label className="font-mono text-[9px] text-muted-foreground uppercase">Notes</label>
+                <label className=" text-[11px] text-muted-foreground uppercase">Notes</label>
                 <textarea
                   value={(selectedNode.data.notes as string) || ""}
                   onChange={(e) => {
@@ -661,7 +661,7 @@ function CanvasContent() {
                     setNodes((nds) => nds.map((n) => n.id === selectedNode.id ? { ...n, data: { ...n.data, notes: val } } : n));
                   }}
                   className="w-full rounded px-2 py-1.5 text-[10px] font-mono mt-1 min-h-[60px] focus:outline-none"
-                  style={{ background: "#0D1117", border: "1px solid #161B26", color: "#10B98188" }}
+                  style={{ background: "#1B1B1B", border: "1px solid #292929", color: "#EC3C5388" }}
                 />
               </div>
               <button
@@ -674,7 +674,7 @@ function CanvasContent() {
                   setSelectedNode(null);
                 }}
                 className="flex items-center gap-1.5 w-full rounded px-2 py-1.5 text-[10px] font-mono"
-                style={{ color: "#FB7185", border: "1px solid #FB718533" }}
+                style={{ color: "#F05151", border: "1px solid #F0515133" }}
               >
                 <Trash2 className="h-3 w-3" /> DELETE
               </button>
@@ -710,7 +710,7 @@ function ImportModal({ onImport, onClose }: { onImport: (scanId: string, assetId
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: "#05060888" }}
+      style={{ background: "#0B0B0B88" }}
       onClick={onClose}
     >
       <motion.div
@@ -718,11 +718,11 @@ function ImportModal({ onImport, onClose }: { onImport: (scanId: string, assetId
         animate={{ scale: 1 }}
         exit={{ scale: 0.95 }}
         className="w-full max-w-md rounded-lg overflow-hidden"
-        style={{ background: "#0A0B0F", border: "1px solid #161B26" }}
+        style={{ background: "#141414", border: "1px solid #292929" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#161B26" }}>
-          <span className="font-mono text-[10px] font-bold uppercase" style={{ color: "#10B981" }}>
+        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#292929" }}>
+          <span className=" text-[11px] font-semibold uppercase" style={{ color: "#EC3C53" }}>
             Import Scan
           </span>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -731,7 +731,7 @@ function ImportModal({ onImport, onClose }: { onImport: (scanId: string, assetId
         </div>
         <div className="max-h-80 overflow-y-auto p-4 space-y-2">
           {loading ? (
-            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" style={{ color: "#10B981" }} /></div>
+            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" style={{ color: "#EC3C53" }} /></div>
           ) : scans.length === 0 ? (
             <p className="font-mono text-[10px] text-muted-foreground text-center py-8">No completed scans available.</p>
           ) : (
@@ -740,9 +740,9 @@ function ImportModal({ onImport, onClose }: { onImport: (scanId: string, assetId
                 key={scan.id}
                 onClick={() => { onImport(scan.id); }}
                 className="flex items-center gap-3 w-full rounded px-3 py-2.5 text-left transition-colors hover:bg-white/5"
-                style={{ border: "1px solid #161B26" }}
+                style={{ border: "1px solid #292929" }}
               >
-                <Globe className="h-3.5 w-3.5 shrink-0" style={{ color: "#10B981" }} />
+                <Globe className="h-3.5 w-3.5 shrink-0" style={{ color: "#EC3C53" }} />
                 <div className="flex-1 min-w-0">
                   <p className="font-mono text-[10px] text-foreground">{scan.domain}</p>
                   <p className="font-mono text-[9px] text-muted-foreground">{scan.scan_type}</p>

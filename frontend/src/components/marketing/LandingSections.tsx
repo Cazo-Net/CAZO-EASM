@@ -67,7 +67,7 @@ const fadeUp = {
 
 export function SectionKicker({ children }: { children: React.ReactNode }) {
   return (
-    <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-phosphor">
+    <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-primary">
       {children}
     </span>
   );
@@ -86,7 +86,7 @@ export function TrustSection() {
           {/* Copy */}
           <motion.div {...fadeUp}>
             <SectionKicker>Trust</SectionKicker>
-            <h2 className="mt-4 font-display text-3xl font-semibold leading-tight text-foreground md:text-4xl">
+            <h2 className="mt-4 text-3xl font-semibold leading-tight text-foreground md:text-4xl">
               Every finding, with receipts.
             </h2>
             <p className="mt-5 max-w-md text-base leading-relaxed text-muted-foreground">
@@ -284,7 +284,7 @@ export function MetricsBarSection() {
                 className="flex flex-col items-center text-center"
               >
                 <Icon className="mb-3 h-5 w-5 text-phosphor/70" />
-                <p className="font-display text-3xl font-semibold text-foreground md:text-4xl">
+                <p className="text-3xl font-semibold text-foreground md:text-4xl">
                   <CountUp to={m.value} suffix={m.suffix} />
                 </p>
                 <p className="mt-1.5 max-w-[10rem] text-xs leading-snug text-muted-foreground">
@@ -338,7 +338,7 @@ export function HowItWorksSection() {
       <div className="mx-auto max-w-6xl px-6">
         <motion.div {...fadeUp} className="max-w-2xl">
           <SectionKicker>How it works</SectionKicker>
-          <h2 className="mt-4 font-display text-3xl font-semibold leading-tight text-foreground md:text-4xl">
+          <h2 className="mt-4 text-3xl font-semibold leading-tight text-foreground md:text-4xl">
             One domain in. Your whole external surface out.
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
@@ -374,7 +374,7 @@ export function HowItWorksSection() {
                     </span>
                   </div>
 
-                  <h3 className="mt-4 font-display text-lg font-semibold text-foreground">
+                  <h3 className="mt-4 text-lg font-semibold text-foreground">
                     {step.title}
                   </h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -420,7 +420,7 @@ export function ShadowAssetsSection() {
                 <span className="text-signal-red">Shadow assets</span>
               </SectionKicker>
             </div>
-            <h2 className="mt-4 font-display text-3xl font-semibold leading-[1.1] text-foreground md:text-5xl">
+            <h2 className="mt-4 text-3xl font-semibold leading-[1.1] text-foreground md:text-5xl">
               What did you
               <br />
               forget you own?
@@ -607,7 +607,7 @@ export function ProductPreviewSection() {
       <div className="mx-auto max-w-6xl px-6">
         <motion.div {...fadeUp} className="max-w-2xl">
           <SectionKicker>The product</SectionKicker>
-          <h2 className="mt-4 font-display text-3xl font-semibold leading-tight text-foreground md:text-4xl">
+          <h2 className="mt-4 text-3xl font-semibold leading-tight text-foreground md:text-4xl">
             Not a report. A place to work.
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground">
@@ -709,7 +709,7 @@ function PreviewDashboard() {
                 <Icon className={`h-4 w-4 ${s.accent}`} />
                 <span className="h-1.5 w-1.5 rounded-full bg-phosphor/50" />
               </div>
-              <p className="mt-3 font-display text-2xl font-semibold text-foreground">
+              <p className="mt-3 text-2xl font-semibold text-foreground">
                 {s.value}
               </p>
               <p className="font-mono text-[11px] text-muted-foreground">
@@ -1004,7 +1004,7 @@ export function HonestReportingSection() {
                 <span className="text-warning">Honest reporting</span>
               </SectionKicker>
             </div>
-            <h2 className="mt-4 font-display text-3xl font-semibold leading-tight text-foreground md:text-4xl">
+            <h2 className="mt-4 text-3xl font-semibold leading-tight text-foreground md:text-4xl">
               A <span className="font-mono text-2xl md:text-3xl">0</span> should
               mean clean — not broken.
             </h2>
@@ -1080,7 +1080,7 @@ export function SocialProofSection() {
       <div className="mx-auto max-w-6xl px-6">
         <motion.div {...fadeUp} className="text-center">
           <SectionKicker>Who&apos;s using CAZO</SectionKicker>
-          <h2 className="mx-auto mt-4 max-w-2xl font-display text-2xl font-semibold leading-tight text-foreground md:text-3xl">
+          <h2 className="mx-auto mt-4 max-w-2xl text-2xl font-semibold leading-tight text-foreground md:text-3xl">
             Built for teams who own their perimeter.
           </h2>
         </motion.div>
@@ -1231,7 +1231,7 @@ export function ComparisonSection() {
       <div className="mx-auto max-w-5xl px-6">
         <motion.div {...fadeUp} className="mx-auto max-w-2xl text-center">
           <SectionKicker>The difference</SectionKicker>
-          <h2 className="mt-4 font-display text-3xl font-semibold leading-tight text-foreground md:text-4xl">
+          <h2 className="mt-4 text-3xl font-semibold leading-tight text-foreground md:text-4xl">
             Most scanners tell you what. CAZO shows you why.
           </h2>
         </motion.div>
@@ -1379,7 +1379,7 @@ export function FaqSection() {
       <div className="mx-auto max-w-3xl px-6">
         <motion.div {...fadeUp} className="text-center">
           <SectionKicker>Questions</SectionKicker>
-          <h2 className="mt-4 font-display text-3xl font-semibold leading-tight text-foreground md:text-4xl">
+          <h2 className="mt-4 text-3xl font-semibold leading-tight text-foreground md:text-4xl">
             Answers before you sign up.
           </h2>
         </motion.div>
@@ -1425,7 +1425,7 @@ export function FinalCtaSection() {
         {...fadeUp}
         className="relative mx-auto max-w-3xl px-6 text-center"
       >
-        <h2 className="font-display text-3xl font-semibold leading-[1.1] text-foreground md:text-5xl">
+        <h2 className="text-3xl font-semibold leading-[1.1] text-foreground md:text-5xl">
           See what you&apos;re exposing.
         </h2>
         <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground">
@@ -1436,21 +1436,20 @@ export function FinalCtaSection() {
         <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             href="/register"
-            className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-phosphor px-6 py-3.5 text-sm font-semibold text-void shadow-glow-md transition hover:shadow-glow-lg hover:-translate-y-0.5"
+            className="group relative inline-flex h-11 items-center gap-2 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground shadow-glow-sm transition-colors hover:bg-primary/90"
           >
-            <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-            <span className="relative">Start free scan</span>
+            <span className="relative">Start a free scan</span>
             <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
           <Link
             href="/login"
-            className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card/40 px-6 py-3.5 text-sm font-medium text-foreground transition hover:border-border"
+            className="inline-flex h-11 items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-6 text-sm font-medium text-foreground transition-colors hover:bg-white/[0.07]"
           >
             Log in
           </Link>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 font-mono text-[11px] text-muted-foreground">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <CreditCard className="h-3.5 w-3.5" /> no credit card
           </span>
@@ -1489,15 +1488,10 @@ export function LandingNav({
     <header
       className={`sticky top-0 z-50 transition-colors duration-300 ${
         scrolled
-          ? "border-b border-border/50 bg-void/80 backdrop-blur-xl"
+          ? "border-b border-white/[0.06] bg-void/85 backdrop-blur-md"
           : "border-b border-transparent"
       }`}
     >
-      {/* scroll progress bar */}
-      <div
-        className="absolute inset-x-0 top-0 h-0.5 origin-left bg-gradient-to-r from-phosphor to-cyan-signal transition-transform duration-150 ease-out"
-        style={{ transform: `scaleX(${progress ?? 0})` }}
-      />
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <CazoLogo />
 
@@ -1522,7 +1516,7 @@ export function LandingNav({
           </Link>
           <Link
             href="/register"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-phosphor px-3.5 py-2 text-sm font-semibold text-void shadow-glow-sm transition hover:shadow-glow-md"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
           >
             Start free scan
           </Link>
@@ -1571,6 +1565,12 @@ export function LandingFooter() {
         <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
           <div>
             <CazoLogo />
+            <p className="mt-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              <span className="text-primary">C</span>yber{" "}
+              <span className="text-primary">A</span>ttack-surface{" "}
+              <span className="text-primary">Z</span>ero-blindspot{" "}
+              <span className="text-primary">O</span>perations
+            </p>
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
               External attack surface management with evidence behind every
               finding.
@@ -1579,7 +1579,7 @@ export function LandingFooter() {
 
           {FOOTER_COLS.map((col) => (
             <div key={col.title}>
-              <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground/70">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-foreground/80">
                 {col.title}
               </p>
               <ul className="mt-4 space-y-2.5">
@@ -1600,7 +1600,7 @@ export function LandingFooter() {
 
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border/40 pt-6 sm:flex-row">
           <p className="font-mono text-[11px] text-muted-foreground/70">
-            © {new Date().getFullYear()} CAZO · cazo.io
+            © {new Date().getFullYear()} CAZO · cazoeasm.io
           </p>
           <p className="font-mono text-[11px] text-muted-foreground/70">
             Scan only assets you own or are authorized to test.

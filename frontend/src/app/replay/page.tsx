@@ -166,7 +166,7 @@ function ReplayContent() {
           icon={<History className="h-5 w-5" />}
         />
         <div className="flex flex-col items-center gap-2 py-24 text-center text-sm text-muted-foreground">
-          <History className="h-6 w-6 text-muted-foreground/40" />
+          <History className="h-6 w-6 text-muted-foreground" />
           No completed scans yet. Run one to see how your surface changed.
         </div>
       </div>
@@ -181,7 +181,7 @@ function ReplayContent() {
         icon={<History className="h-5 w-5" />}
         actions={
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 rounded-lg border border-border/30 bg-card/20 px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-card/40 transition-colors">
+            <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-card transition-colors">
               <Download className="h-3.5 w-3.5" />
               Export
             </button>
@@ -194,7 +194,7 @@ function ReplayContent() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-border/30 bg-card/20 p-4 backdrop-blur-sm"
+          className="rounded-xl border border-border bg-card p-4"
         >
           <Timeline />
           <div className="mt-3">
@@ -207,7 +207,7 @@ function ReplayContent() {
           {/* Left: Main panel */}
           <div className="space-y-6">
             {/* Tab navigation */}
-            <div className="flex gap-1 rounded-xl border border-border/30 bg-card/20 p-1 backdrop-blur-sm">
+            <div className="flex gap-1 rounded-xl border border-border bg-card p-1">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
@@ -228,17 +228,17 @@ function ReplayContent() {
             {/* Tab content */}
             {activeTab === "dashboard" && <HistoricalDashboard />}
             {activeTab === "changes" && (
-              <div className="rounded-2xl border border-border/30 bg-card/20 p-5 backdrop-blur-sm">
+              <div className="rounded-xl border border-border bg-card p-5">
                 <ChangeDetection />
               </div>
             )}
             {activeTab === "exposure" && (
-              <div className="rounded-2xl border border-border/30 bg-card/20 p-5 backdrop-blur-sm">
+              <div className="rounded-xl border border-border bg-card p-5">
                 <ExposureEvolution />
               </div>
             )}
             {activeTab === "events" && (
-              <div className="rounded-2xl border border-border/30 bg-card/20 p-5 backdrop-blur-sm">
+              <div className="rounded-xl border border-border bg-card p-5">
                 <EventMarkers />
               </div>
             )}
@@ -248,7 +248,7 @@ function ReplayContent() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="rounded-2xl border border-border/30 bg-card/20 p-5 backdrop-blur-sm"
+                className="rounded-xl border border-border bg-card p-5"
               >
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold">Current Snapshot</h3>
@@ -274,7 +274,7 @@ function ReplayContent() {
                   <div>
                     <p className="text-muted-foreground">Exposure</p>
                     <p className={cn(
-                      "font-bold mt-0.5",
+                      "font-semibold mt-0.5",
                       state.selectedScan.exposure_score > 60 ? "text-destructive" : "text-success"
                     )}>
                       {state.selectedScan.exposure_score}
@@ -287,10 +287,10 @@ function ReplayContent() {
 
           {/* Right sidebar */}
           <div className="space-y-4">
-            <div className="rounded-2xl border border-border/30 bg-card/20 p-4 backdrop-blur-sm">
+            <div className="rounded-xl border border-border bg-card p-4">
               <Bookmarks />
             </div>
-            <div className="rounded-2xl border border-border/30 bg-card/20 p-4 backdrop-blur-sm">
+            <div className="rounded-xl border border-border bg-card p-4">
               <ReplayFilters />
             </div>
           </div>

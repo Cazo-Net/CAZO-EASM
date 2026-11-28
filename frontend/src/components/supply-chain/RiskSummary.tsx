@@ -14,9 +14,9 @@ const VENDOR_TYPE_RISKS: Record<string, { label: string; risk: "high" | "medium"
 };
 
 const RISK_COLORS = {
-  high: { bar: "bg-red-400", text: "text-red-400", border: "border-red-500/20" },
+  high: { bar: "bg-red-400", text: "text-destructive", border: "border-red-500/20" },
   medium: { bar: "bg-yellow-400", text: "text-yellow-400", border: "border-yellow-500/20" },
-  low: { bar: "bg-green-400", text: "text-green-400", border: "border-green-500/20" },
+  low: { bar: "bg-green-400", text: "text-success", border: "border-green-500/20" },
 };
 
 export function RiskSummary({ vendorTypeCounts }: RiskSummaryProps) {
@@ -36,7 +36,7 @@ export function RiskSummary({ vendorTypeCounts }: RiskSummaryProps) {
   if (entries.length === 0) return null;
 
   return (
-    <div className="mt-6 border border-border/50 rounded-lg p-4 bg-muted/5">
+    <div className="mt-6 border border-border rounded-lg p-4 bg-muted/5">
       <h3 className="text-sm font-medium mb-4">Vendor Concentration Risk</h3>
       <div className="space-y-3">
         {entries.map((entry) => {

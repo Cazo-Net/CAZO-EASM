@@ -137,16 +137,16 @@ export function ErrorIllustration({
 
         <defs>
           <linearGradient id="cloakGrad" x1="120" y1="115" x2="120" y2="250" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#1a1f2e" />
-            <stop offset="100%" stopColor="#0d1117" />
+            <stop offset="0%" stopColor="#222222" />
+            <stop offset="100%" stopColor="#141414" />
           </linearGradient>
           <linearGradient id="hoodGrad" x1="120" y1="40" x2="120" y2="155" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#1e2433" />
-            <stop offset="100%" stopColor="#151a26" />
+            <stop offset="0%" stopColor="#292929" />
+            <stop offset="100%" stopColor="#1B1B1B" />
           </linearGradient>
           <radialGradient id="hoodInner" cx="120" cy="100" r="40" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#0a0e16" />
-            <stop offset="100%" stopColor="#151a26" />
+            <stop offset="0%" stopColor="#0B0B0B" />
+            <stop offset="100%" stopColor="#1B1B1B" />
           </radialGradient>
           <radialGradient id="faceShadow" cx="120" cy="115" r="28" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="#000000" stopOpacity="0.8" />

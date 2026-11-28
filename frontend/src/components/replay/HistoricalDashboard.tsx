@@ -16,7 +16,7 @@ function MetricCard({ label, value, icon: Icon, color, delta }: {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl border border-border/30 bg-card/20 p-4 backdrop-blur-sm"
+      className="rounded-xl border border-border bg-card p-4"
     >
       <div className="flex items-center justify-between mb-2">
         <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", color)}>
@@ -28,7 +28,7 @@ function MetricCard({ label, value, icon: Icon, color, delta }: {
           </span>
         )}
       </div>
-      <p className="text-2xl font-bold tabular-nums">{value}</p>
+      <p className="text-2xl font-semibold tabular-nums">{value}</p>
       <p className="text-[10px] text-muted-foreground mt-1">{label}</p>
     </motion.div>
   );

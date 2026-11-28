@@ -33,7 +33,7 @@ function ResultCard({ r }: { r: SearchResult }) {
   return (
     <Link
       href={`/assets?host=${encodeURIComponent(r.hostname)}`}
-      className="block rounded-xl border border-border/50 bg-card/60 p-4 transition-all duration-200 hover:border-brand/30 hover:bg-card/80 hover:shadow-lg hover:shadow-brand/5"
+      className="block rounded-xl border border-border bg-card p-4 transition-all duration-200 hover:border-brand/30 hover:bg-card hover:shadow-lg hover:shadow-brand/5"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2">
@@ -77,7 +77,7 @@ function ResultCard({ r }: { r: SearchResult }) {
           {r.open_ports.slice(0, 12).map((p, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-1 rounded-md border border-border/40 bg-surface-2/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
+              className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground"
             >
               <span className="text-brand-2">{p.port}</span>
               {p.service ? <span>/{p.service}</span> : null}
@@ -154,7 +154,7 @@ export default function SearchPage() {
           placeholder='port:443 asn:AS13335 org:"Cloudflare" nginx'
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="h-12 pl-11 pr-24 font-mono text-sm bg-surface-2/50 border-border/60 focus:border-brand/40 focus:ring-brand/20"
+          className="h-12 pl-11 pr-24 font-mono text-sm bg-surface-2 border-border focus:border-brand/40 focus:ring-brand/20"
         />
         <Button
           type="submit"
@@ -176,7 +176,7 @@ export default function SearchPage() {
               setQuery(s);
               runSearch(s);
             }}
-            className="rounded-md border border-border/40 bg-surface-2/40 px-2 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:border-brand/40 hover:text-foreground"
+            className="rounded-md border border-border bg-surface-2 px-2 py-0.5 font-mono text-[11px] text-muted-foreground transition-colors hover:border-brand/40 hover:text-foreground"
           >
             {s}
           </button>

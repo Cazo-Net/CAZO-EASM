@@ -58,7 +58,7 @@ function fmtDate(value: string | null) {
 
 function Meter({ name, used, limit }: { name: LimitKey; used: number; limit: number | null }) {
   const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
-  const tone = limit == null ? "bg-phosphor" : pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-400" : "bg-phosphor";
+  const tone = limit == null ? "bg-primary" : pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-400" : "bg-primary";
   return (
     <div>
       <div className="flex items-baseline justify-between text-sm">
@@ -146,7 +146,7 @@ function BillingInner() {
         <PageHeader title="Billing" />
         <p className="text-sm text-muted-foreground">
           Create an organization in{" "}
-          <Link href="/settings/organization" className="text-phosphor underline">Organization settings</Link>{" "}
+          <Link href="/settings/organization" className="text-primary underline">Organization settings</Link>{" "}
           before choosing a plan.
         </p>
       </div>
@@ -187,10 +187,10 @@ function BillingInner() {
         </div>
       )}
       {notice && (
-        <div className="rounded-xl border border-phosphor/40 bg-phosphor/10 p-3 text-sm">{notice}</div>
+        <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm">{notice}</div>
       )}
       {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm">{error}</div>
+        <div className="rounded-xl border border-red-500/40 bg-destructive/10 p-3 text-sm">{error}</div>
       )}
       {o?.last_payment_error && (
         <div className="flex gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
@@ -204,7 +204,7 @@ function BillingInner() {
           <SectionCard title="Current plan" icon={<Star className="h-4 w-4" />} accent="brand">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-display text-2xl font-semibold">{o.plan.name}</p>
+                <p className="text-2xl font-semibold">{o.plan.name}</p>
                 <p className="text-sm text-muted-foreground">
                   {o.plan.per_client ? `${o.clients} client organizations` : o.plan.tagline}
                   {o.extra_domains ? ` · +${o.extra_domains} extra root domains` : ""}
@@ -388,7 +388,7 @@ function BillingInner() {
                             href={inv.pdf_url || inv.hosted_url || "#"}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-phosphor hover:underline"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                           >
                             <FileText className="h-3.5 w-3.5" /> {inv.pdf_url ? "PDF" : "View"}
                           </a>

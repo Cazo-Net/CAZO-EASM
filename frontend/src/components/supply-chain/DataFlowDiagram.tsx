@@ -19,7 +19,7 @@ interface DataFlowDiagramProps {
 const VENDOR_TYPE_BADGE: Record<string, string> = {
   third_party_service: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   saas_platform: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  first_party_infra: "bg-green-500/10 text-green-400 border-green-500/20",
+  first_party_infra: "bg-success/10 text-success border-green-500/20",
   security_tool: "bg-orange-500/10 text-orange-400 border-orange-500/20",
   cloud_provider: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
   devops_tool: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
@@ -65,12 +65,12 @@ export function DataFlowDiagram({ technologies, categoryCounts }: DataFlowDiagra
               {technologies.slice(0, 20).map((tech, i) => {
                 const risk =
                   tech.confidence >= 80
-                    ? { label: "High", color: "text-red-400" }
+                    ? { label: "High", color: "text-destructive" }
                     : tech.confidence >= 50
                     ? { label: "Medium", color: "text-yellow-400" }
-                    : { label: "Low", color: "text-green-400" };
+                    : { label: "Low", color: "text-success" };
                 return (
-                  <tr key={`${tech.name}-${i}`} className="border-b border-border/30">
+                  <tr key={`${tech.name}-${i}`} className="border-b border-border">
                     <td className="py-2 font-medium">{tech.name}</td>
                     <td className="py-2">
                       <Badge

@@ -1,5 +1,6 @@
 "use client";
 
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import * as React from "react";
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -19,7 +20,7 @@ function CollabDemoContent() {
           value={assetId}
           onChange={(e) => setAssetId(e.target.value)}
           placeholder="Enter assetId…"
-          className="w-full rounded-lg border border-border/60 bg-card px-3 py-2 text-sm outline-none focus:border-brand"
+          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-brand"
         />
       </div>
       {assetId ? (
@@ -33,7 +34,7 @@ function CollabDemoContent() {
   );
 }
 
-export default function CollabDemoPage() {
+function CollabDemoShell() {
   return (
     <div className="page-container-md">
       <PageHeader
@@ -45,5 +46,13 @@ export default function CollabDemoPage() {
         <CollabDemoContent />
       </Suspense>
     </div>
+  );
+}
+
+export default function CollabDemoPage() {
+  return (
+    <ProtectedRoute>
+      <CollabDemoShell />
+    </ProtectedRoute>
   );
 }

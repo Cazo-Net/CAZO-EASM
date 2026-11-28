@@ -11,7 +11,7 @@ export default function SupplyChainDocPage() {
   return (
     <DocsLayout>
       <article className="max-w-2xl">
-        <h1 className="font-display text-3xl font-semibold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           Supply Chain Intelligence
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
@@ -105,27 +105,27 @@ export default function SupplyChainDocPage() {
         </h2>
         <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">1.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">1.</span>
             <span>
               Run a scan on your target domain (the tech detection scanner
               runs automatically).
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">2.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">2.</span>
             <span>
               Navigate to <strong className="text-foreground">Supply Chain</strong> in the
               sidebar.
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">3.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">3.</span>
             <span>
               Select a completed scan from the dropdown.
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">4.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">4.</span>
             <span>
               Review the summary stats, concentration risk bars, and filter
               services by vendor type or risk level.
@@ -133,7 +133,7 @@ export default function SupplyChainDocPage() {
           </li>
         </ol>
 
-        <div className="mt-10 rounded-xl border border-border/50 bg-card/40 p-5">
+        <div className="mt-10 rounded-xl border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">
             See also:{" "}
             <Link href="/docs/threat-score" className="text-phosphor hover:underline">

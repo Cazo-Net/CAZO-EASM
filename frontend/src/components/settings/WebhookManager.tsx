@@ -92,9 +92,9 @@ const EVENT_CATEGORIES = [
 
 function getStatusColor(webhook: WebhookItem): string {
   if (!webhook.is_active) return "text-muted-foreground";
-  if (webhook.failure_count >= 5) return "text-red-400";
+  if (webhook.failure_count >= 5) return "text-destructive";
   if (webhook.failure_count >= 1) return "text-yellow-400";
-  return "text-green-400";
+  return "text-success";
 }
 
 function getStatusDot(webhook: WebhookItem): string {
@@ -291,7 +291,7 @@ export function WebhookManager() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#10B981]/10 text-[#10B981]">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Webhook className="h-4 w-4" />
           </div>
           <div>
@@ -309,7 +309,7 @@ export function WebhookManager() {
 
       {/* Webhook form */}
       {showForm && (
-        <div className="border border-border/50 rounded-lg p-4 mb-6 bg-muted/20">
+        <div className="border border-border rounded-lg p-4 mb-6 bg-muted/20">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium">
               {editing ? "Edit Webhook" : "New Webhook"}
@@ -364,7 +364,7 @@ export function WebhookManager() {
               <label className="text-xs text-muted-foreground mb-2 block">
                 Event Types
               </label>
-              <p className="text-xs text-muted-foreground/60 mb-3">
+              <p className="text-xs text-muted-foreground mb-3">
                 Leave empty to subscribe to all events.
               </p>
               <div className="space-y-3">
@@ -383,7 +383,7 @@ export function WebhookManager() {
                           onClick={() => toggleEvent(event)}
                           className={`text-xs px-2 py-1 rounded border transition-colors ${
                             formEvents.includes(event)
-                              ? "border-[#10B981]/40 bg-[#10B981]/10 text-[#10B981]"
+                              ? "border-primary/40 bg-primary/10 text-primary"
                               : "border-border text-muted-foreground hover:text-foreground"
                           }`}
                         >
@@ -424,10 +424,10 @@ export function WebhookManager() {
 
       {/* Webhook list */}
       {webhooks.length === 0 ? (
-        <div className="rounded-lg border border-border/30 bg-muted/10 p-12 text-center">
+        <div className="rounded-lg border border-border bg-muted/10 p-12 text-center">
           <Webhook className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground mb-1">No webhooks configured</p>
-          <p className="text-xs text-muted-foreground/50">
+          <p className="text-xs text-muted-foreground">
             Add a webhook to receive event notifications.
           </p>
         </div>
@@ -436,7 +436,7 @@ export function WebhookManager() {
           {webhooks.map((webhook) => (
             <div
               key={webhook.id}
-              className="border border-border/50 rounded-lg p-4 hover:border-border/80 transition-colors"
+              className="border border-border rounded-lg p-4 hover:border-border transition-colors"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
@@ -490,7 +490,7 @@ export function WebhookManager() {
                       </Badge>
                     </div>
                   )}
-                  <div className="mt-2 text-[10px] text-muted-foreground/60">
+                  <div className="mt-2 text-[10px] text-muted-foreground">
                     {webhook.last_triggered_at
                       ? `Last triggered ${new Date(webhook.last_triggered_at).toLocaleString()}`
                       : "Never triggered"}
@@ -510,7 +510,7 @@ export function WebhookManager() {
                     {toggling === webhook.id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     ) : webhook.is_active ? (
-                      <Zap className="h-3 w-3 text-green-400" />
+                      <Zap className="h-3 w-3 text-success" />
                     ) : (
                       <X className="h-3 w-3 text-muted-foreground" />
                     )}
@@ -541,7 +541,7 @@ export function WebhookManager() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0 hover:text-red-400"
+                    className="h-7 w-7 p-0 hover:text-destructive"
                     onClick={() => handleDelete(webhook.id)}
                     disabled={deleting === webhook.id}
                     title="Delete"
@@ -560,8 +560,8 @@ export function WebhookManager() {
                 <div
                   className={`mt-3 text-xs p-2 rounded border ${
                     testResult.success
-                      ? "border-green-500/20 bg-green-500/5 text-green-400"
-                      : "border-red-500/20 bg-red-500/5 text-red-400"
+                      ? "border-green-500/20 bg-green-500/5 text-success"
+                      : "border-red-500/20 bg-red-500/5 text-destructive"
                   }`}
                 >
                   {testResult.success ? (

@@ -1,30 +1,11 @@
 "use client";
 
+import { CazoMark } from "@/components/CazoMark";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import api, { getErrorMessage } from "@/lib/api";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
-function CazoMark({ className = "h-12 w-12" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id="admin-cazo-gradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#10B981" />
-          <stop offset="1" stopColor="#06B6D4" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M44.5 12.8A22 22 0 1 0 52 32"
-        stroke="url(#admin-cazo-gradient)"
-        strokeWidth="7"
-        strokeLinecap="round"
-      />
-      <circle cx="50" cy="28" r="5" fill="url(#admin-cazo-gradient)" />
-      <circle cx="50" cy="28" r="2" fill="#09090B" />
-    </svg>
-  );
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -54,8 +35,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <CazoMark className="h-14 w-14 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold">CAZO Admin Panel</h1>
-          <p className="text-sm text-zinc-500 mt-1">Standalone administration console</p>
+          <h1 className="text-2xl font-semibold tracking-tight">CAZO <span className="text-zinc-500 font-medium">EASM</span> Admin</h1>
+          <p className="text-sm text-zinc-500 mt-1">Staff sign-in. Access is logged.</p>
         </div>
 
         <form onSubmit={handleLogin} className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 space-y-4">
@@ -72,7 +53,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="admin@cazo.io"
+              placeholder="you@cazoeasm.io" autoComplete="username"
               required
             />
           </div>
@@ -85,12 +66,13 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 pr-10"
-                placeholder="Enter password"
+                placeholder="Enter password" autoComplete="current-password"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -104,7 +86,7 @@ export default function LoginPage() {
             className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Sign In
+            Sign in
           </button>
         </form>
       </div>

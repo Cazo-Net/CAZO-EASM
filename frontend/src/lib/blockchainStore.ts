@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
 
 const API_BASE = "";
@@ -112,12 +113,12 @@ export function useBlockchainStore() {
       const params = `chain=${chain}`;
 
       const [walletRes, txRes, tokensRes, intelRes, sanctionsRes, contractRes] = await Promise.allSettled([
-        fetch(`${base}/wallet/${addr}?${params}`),
-        fetch(`${base}/wallet/${addr}/transactions?${params}&page=1&page_size=10`),
-        fetch(`${base}/wallet/${addr}/tokens?${params}`),
-        fetch(`${base}/wallet/${addr}/intel?${params}`),
-        fetch(`${base}/wallet/${addr}/sanctions?${params}`),
-        fetch(`${base}/contract/${addr}?${params}`),
+        authFetch(`${base}/wallet/${addr}?${params}`),
+        authFetch(`${base}/wallet/${addr}/transactions?${params}&page=1&page_size=10`),
+        authFetch(`${base}/wallet/${addr}/tokens?${params}`),
+        authFetch(`${base}/wallet/${addr}/intel?${params}`),
+        authFetch(`${base}/wallet/${addr}/sanctions?${params}`),
+        authFetch(`${base}/contract/${addr}?${params}`),
       ]);
 
       if (walletRes.status === "fulfilled" && walletRes.value.ok) {
@@ -172,7 +173,7 @@ export function useBlockchainStore() {
       _emit();
 
       try {
-        const res = await fetch(
+        const res = await authFetch(
           `${API_BASE}/api/v1/blockchain/wallet/${encodeURIComponent(_state.address)}/transactions?chain=${_state.chain}&page=${page}&page_size=20`
         );
         if (!res.ok) throw new Error("Failed to load transactions");
@@ -194,7 +195,7 @@ export function useBlockchainStore() {
     if (!query.trim()) return;
 
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `${API_BASE}/api/v1/blockchain/search?q=${encodeURIComponent(query)}`
       );
       if (!res.ok) throw new Error("Search failed");

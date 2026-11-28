@@ -39,11 +39,11 @@ interface Notification {
 }
 
 const typeConfig: Record<string, { icon: any; color: string; bg: string; priority?: string; badge?: string }> = {
-  scan_completed: { icon: Check, color: "text-emerald-400", bg: "bg-emerald-500/10", badge: "Scan" },
-  scan_failed: { icon: X, color: "text-red-400", bg: "bg-red-500/10", priority: "high", badge: "Scan" },
+  scan_completed: { icon: Check, color: "text-success", bg: "bg-success/10", badge: "Scan" },
+  scan_failed: { icon: X, color: "text-destructive", bg: "bg-destructive/10", priority: "high", badge: "Scan" },
   ssl_expiring: { icon: Lock, color: "text-amber-400", bg: "bg-amber-500/10", priority: "normal", badge: "Cert" },
   new_shadow_asset: { icon: Globe, color: "text-blue-400", bg: "bg-blue-500/10", badge: "Asset" },
-  new_finding_critical: { icon: AlertTriangle, color: "text-red-400", bg: "bg-red-500/10", priority: "critical", badge: "Critical" },
+  new_finding_critical: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", priority: "critical", badge: "Critical" },
   new_finding_high: { icon: AlertTriangle, color: "text-orange-400", bg: "bg-orange-500/10", priority: "high", badge: "High" },
   new_finding_medium: { icon: AlertTriangle, color: "text-amber-400", bg: "bg-amber-500/10", priority: "normal", badge: "Medium" },
   new_cve_match: { icon: Shield, color: "text-rose-400", bg: "bg-rose-500/10", priority: "high", badge: "CVE" },
@@ -175,7 +175,7 @@ export function NotificationCenter() {
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
-          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+          <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -196,10 +196,10 @@ export function NotificationCenter() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.96 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-full z-50 mt-2 w-[380px] max-h-[500px] rounded-xl border border-border/50 bg-card shadow-2xl shadow-black/30 overflow-hidden"
+              className="absolute right-0 top-full z-50 mt-2 w-[380px] max-h-[500px] rounded-xl border border-border bg-card shadow-2xl shadow-black/30 overflow-hidden"
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-border/30 px-4 py-3">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold">Notifications</h3>
                   {unreadCount > 0 && (
@@ -262,7 +262,7 @@ export function NotificationCenter() {
                                 {config.badge && (
                                   <span className={cn(
                                     "rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
-                                    config.priority === "critical" ? "bg-red-500/20 text-red-400" :
+                                    config.priority === "critical" ? "bg-red-500/20 text-destructive" :
                                     config.priority === "high" ? "bg-orange-500/20 text-orange-400" :
                                     "bg-muted text-muted-foreground"
                                   )}>
@@ -277,7 +277,7 @@ export function NotificationCenter() {
                             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                               {notification.message}
                             </p>
-                            <p className="text-[10px] text-muted-foreground/60 mt-1">
+                            <p className="text-[10px] text-muted-foreground mt-1">
                               {timeAgo(notification.created_at)}
                             </p>
                           </div>
@@ -299,7 +299,7 @@ export function NotificationCenter() {
 
               {/* Footer */}
               {notifications.length > 0 && (
-                <div className="border-t border-border/30 px-4 py-2">
+                <div className="border-t border-border px-4 py-2">
                   <Button
                     variant="ghost"
                     size="sm"

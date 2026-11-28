@@ -95,7 +95,7 @@ function IntelContent() {
           placeholder="example.com"
           value={localQuery}
           onChange={(e) => setLocalQuery(e.target.value)}
-          className="h-12 pl-11 pr-24 font-mono text-sm bg-surface-2/50 border-border/60 focus:border-brand/40 focus:ring-brand/20"
+          className="h-12 pl-11 pr-24 font-mono text-sm bg-surface-2 border-border focus:border-brand/40 focus:ring-brand/20"
         />
         <Button
           type="submit"
@@ -170,7 +170,7 @@ function IntelContent() {
                 return (
                   <span
                     key={k}
-                    className="inline-flex items-center gap-1 rounded-md border border-border/40 bg-surface-2/40 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
+                    className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
                   >
                     <span className="text-brand">{k}</span>
                     <span className={isError ? "text-destructive" : isWarn ? "text-warning" : "text-success"}>{v}</span>
@@ -182,16 +182,16 @@ function IntelContent() {
             {/* Summary stats */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <SectionCard title="Subdomains" icon={<Globe2 className="h-4 w-4" />}>
-                <p className="text-3xl font-bold tabular-nums font-mono">{data.subdomains.length}</p>
+                <p className="text-3xl font-semibold tabular-nums">{data.subdomains.length}</p>
               </SectionCard>
               <SectionCard title="Open Ports" icon={<Server className="h-4 w-4" />}>
-                <p className="text-3xl font-bold tabular-nums font-mono">{data.ports.length}</p>
+                <p className="text-3xl font-semibold tabular-nums">{data.ports.length}</p>
               </SectionCard>
               <SectionCard title="Certificates" icon={<Lock className="h-4 w-4" />}>
-                <p className="text-3xl font-bold tabular-nums font-mono">{data.certificates.length}</p>
+                <p className="text-3xl font-semibold tabular-nums">{data.certificates.length}</p>
               </SectionCard>
               <SectionCard title="CVEs" icon={<ShieldAlert className="h-4 w-4" />}>
-                <p className="text-3xl font-bold tabular-nums font-mono text-signal-red">
+                <p className="text-3xl font-semibold tabular-nums text-signal-red">
                   {data.vulnerabilities.length}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -227,7 +227,7 @@ function IntelContent() {
                   {data.ports.map((p, i) => (
                     <div key={i} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 md:flex-row md:items-start md:gap-4">
                       <div className="flex shrink-0 items-center gap-2">
-                        <span className="inline-flex items-center justify-center rounded-lg bg-brand-2/10 px-2.5 py-1 font-mono text-base font-bold text-brand-2">
+                        <span className="inline-flex items-center justify-center rounded-lg bg-brand-2/10 px-2.5 py-1 font-mono text-base font-semibold text-brand-2">
                           {p.port}
                         </span>
                         <Badge variant={p.state === "open" ? "success" : "warning"} className="text-xs">
@@ -243,7 +243,7 @@ function IntelContent() {
                           ) : null}
                         </p>
                         {p.banner ? (
-                          <pre className="mt-1.5 max-h-32 overflow-auto rounded-md border border-border/40 bg-surface-2/60 p-2 font-mono text-[11px] text-muted-foreground">
+                          <pre className="mt-1.5 max-h-32 overflow-auto rounded-md border border-border bg-surface-2 p-2 font-mono text-[11px] text-muted-foreground">
                             {p.banner}
                           </pre>
                         ) : null}
@@ -291,7 +291,7 @@ function IntelContent() {
                     {data.technologies.map((t, i) => (
                       <span
                         key={i}
-                        className="rounded-lg border border-border/50 bg-surface-2/50 px-2.5 py-1 text-xs font-medium"
+                        className="rounded-lg border border-border bg-surface-2 px-2.5 py-1 text-xs font-medium"
                       >
                         {t}
                       </span>
@@ -306,7 +306,7 @@ function IntelContent() {
               <SectionCard title="TLS Certificates" icon={<Lock className="h-4 w-4" />}>
                 <div className="space-y-3">
                   {data.certificates.map((c, i) => (
-                    <div key={i} className="rounded-lg border border-border/40 bg-muted/20 p-3">
+                    <div key={i} className="rounded-lg border border-border bg-muted/20 p-3">
                       <div className="flex items-center justify-between">
                         <p className="truncate font-mono text-xs">{c.subject || "—"}</p>
                         {c.source ? (
@@ -357,7 +357,7 @@ function IntelContent() {
                   {data.vulnerabilities.map((v, i) => (
                     <div
                       key={i}
-                      className="flex items-start justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3"
+                      className="flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/20 p-3"
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -399,7 +399,7 @@ function IntelContent() {
                   {data.ip_reputation.map((r, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/20 p-3"
                     >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -481,7 +481,7 @@ function IntelContent() {
               >
                 <div className="flex flex-wrap gap-2">
                   {data.historical_subdomains.slice(0, 50).map((h, i) => (
-                    <span key={i} className="rounded-md border border-border/40 bg-surface-2/40 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    <span key={i} className="rounded-md border border-border bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
                       {h}
                     </span>
                   ))}
@@ -501,7 +501,7 @@ function IntelContent() {
               >
                 <div className="flex flex-wrap gap-2">
                   {data.reverse_ip.map((h, i) => (
-                    <span key={i} className="rounded-md border border-border/40 bg-surface-2/40 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    <span key={i} className="rounded-md border border-border bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
                       {h}
                     </span>
                   ))}
@@ -517,12 +517,12 @@ function IntelContent() {
                 icon={<Gauge className="h-4 w-4" />}
               >
                 <div className="flex items-center gap-6">
-                  <div className={`flex h-20 w-20 items-center justify-center rounded-xl text-2xl font-bold ${
-                    data.risk_score.grade === "A" ? "bg-green-500/10 text-green-400" :
+                  <div className={`flex h-20 w-20 items-center justify-center rounded-xl text-2xl font-semibold ${
+                    data.risk_score.grade === "A" ? "bg-success/10 text-success" :
                     data.risk_score.grade === "B" ? "bg-blue-500/10 text-blue-400" :
                     data.risk_score.grade === "C" ? "bg-yellow-500/10 text-yellow-400" :
                     data.risk_score.grade === "D" ? "bg-orange-500/10 text-orange-400" :
-                    "bg-red-500/10 text-red-400"
+                    "bg-destructive/10 text-destructive"
                   }`}>
                     {data.risk_score.grade}
                   </div>
@@ -597,9 +597,9 @@ function IntelContent() {
                     <span className="text-muted-foreground">DMARC</span>
                     <p className="mt-0.5 font-mono text-foreground">
                       {data.email_security.dmarc_policy ? (
-                        <span className="text-green-400">v=DMARC1; p={data.email_security.dmarc_policy}</span>
+                        <span className="text-success">v=DMARC1; p={data.email_security.dmarc_policy}</span>
                       ) : (
-                        <span className="text-red-400">Not found</span>
+                        <span className="text-destructive">Not found</span>
                       )}
                     </p>
                   </div>
@@ -607,9 +607,9 @@ function IntelContent() {
                     <span className="text-muted-foreground">SPF</span>
                     <p className="mt-0.5 font-mono text-foreground">
                       {data.email_security.spf_record ? (
-                        <span className="text-green-400">Found</span>
+                        <span className="text-success">Found</span>
                       ) : (
-                        <span className="text-red-400">Not found</span>
+                        <span className="text-destructive">Not found</span>
                       )}
                     </p>
                   </div>
@@ -617,7 +617,7 @@ function IntelContent() {
                     <span className="text-muted-foreground">DKIM</span>
                     <p className="mt-0.5 font-mono text-foreground">
                       {data.email_security.dkim_found.length > 0 ? (
-                        <span className="text-green-400">{data.email_security.dkim_found.length} selectors</span>
+                        <span className="text-success">{data.email_security.dkim_found.length} selectors</span>
                       ) : (
                         <span className="text-yellow-400">None found</span>
                       )}
@@ -649,10 +649,10 @@ function IntelContent() {
                 icon={<Eye className="h-4 w-4" />}
               >
                 <div className="flex items-center gap-4 mb-3">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-lg text-lg font-bold ${
-                    data.security_headers.score >= 80 ? "bg-green-500/10 text-green-400" :
+                  <div className={`flex h-12 w-12 items-center justify-center rounded-lg text-lg font-semibold ${
+                    data.security_headers.score >= 80 ? "bg-success/10 text-success" :
                     data.security_headers.score >= 50 ? "bg-yellow-500/10 text-yellow-400" :
-                    "bg-red-500/10 text-red-400"
+                    "bg-destructive/10 text-destructive"
                   }`}>
                     {data.security_headers.score}
                   </div>

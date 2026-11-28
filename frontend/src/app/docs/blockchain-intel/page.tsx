@@ -11,7 +11,7 @@ export default function BlockchainIntelDocPage() {
   return (
     <DocsLayout>
       <article className="max-w-2xl">
-        <h1 className="font-display text-3xl font-semibold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           Blockchain Intelligence
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
@@ -41,7 +41,7 @@ export default function BlockchainIntelDocPage() {
           ].map((c) => (
             <div
               key={c.chain}
-              className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/40 p-3"
+              className="flex items-center gap-2 rounded-lg border border-border bg-card p-3"
             >
               <span className={`h-2.5 w-2.5 rounded-full ${c.color}`} />
               <div>
@@ -102,27 +102,27 @@ export default function BlockchainIntelDocPage() {
         </h2>
         <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">1.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">1.</span>
             <span>
               Navigate to <strong className="text-foreground">Blockchain Intel</strong> in the
               sidebar.
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">2.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">2.</span>
             <span>
               Select the chain from the chip selector (Ethereum, Bitcoin, Solana,
               etc.).
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">3.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">3.</span>
             <span>
               Paste a wallet address and click <strong className="text-foreground">Lookup</strong>.
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">4.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">4.</span>
             <span>
               Review the risk score, entity attribution, transaction history,
               and any sanctions matches.
@@ -140,7 +140,7 @@ export default function BlockchainIntelDocPage() {
           </p>
         </div>
 
-        <div className="mt-10 rounded-xl border border-border/50 bg-card/40 p-5">
+        <div className="mt-10 rounded-xl border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">
             See also:{" "}
             <Link href="/docs/threat-score" className="text-phosphor hover:underline">

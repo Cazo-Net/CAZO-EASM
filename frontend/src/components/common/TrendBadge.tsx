@@ -19,10 +19,10 @@ export function TrendBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium tabular-nums font-mono",
+        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium tabular-nums",
         flat && "bg-muted/50 text-muted-foreground",
-        positive && "bg-phosphor/10 text-phosphor",
-        !flat && !positive && "bg-signal-red/10 text-signal-red",
+        positive && "bg-success/10 text-success",
+        !flat && !positive && "bg-destructive/10 text-destructive",
         className
       )}
     >

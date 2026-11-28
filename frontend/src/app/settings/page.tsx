@@ -339,8 +339,8 @@ function SettingsContent() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Avatar className="h-10 w-10 border border-border/50">
-                <AvatarFallback className="bg-gradient-to-br from-[#10B981] to-[#06B6D4] text-xs font-bold text-black">
+              <Avatar className="h-10 w-10 border border-border">
+                <AvatarFallback className="bg-primary text-xs font-semibold text-black">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -354,7 +354,7 @@ function SettingsContent() {
           </div>
           {user?.organization_id && (
             <Button variant="outline" size="sm" onClick={() => router.push("/settings/organization")}
-              className="text-xs text-muted-foreground border-border/50">
+              className="text-xs text-muted-foreground border-border">
               Go to organization settings
               <ChevronRight className="h-3 w-3 ml-1" />
             </Button>
@@ -370,7 +370,7 @@ function SettingsContent() {
             {navSections.map((section, si) => (
               <div key={si}>
                 {section.label && (
-                  <h3 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  <h3 className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {section.label}
                   </h3>
                 )}
@@ -391,9 +391,9 @@ function SettingsContent() {
                         className={cn(
                           "flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors text-left",
                           isActive
-                            ? "bg-[#10B981]/10 text-[#10B981] font-semibold"
+                            ? "bg-primary/10 text-primary font-semibold"
                             : item.danger
-                              ? "text-red-400/80 hover:text-red-400 hover:bg-red-500/5"
+                              ? "text-destructive/80 hover:text-destructive hover:bg-red-500/5"
                               : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                         )}
                         aria-current={isActive ? "page" : undefined}
@@ -405,7 +405,7 @@ function SettingsContent() {
                   })}
                 </div>
                 {si < navSections.length - 1 && (
-                  <div className="mt-4 border-b border-border/20" />
+                  <div className="mt-4 border-b border-border" />
                 )}
               </div>
             ))}
@@ -413,7 +413,7 @@ function SettingsContent() {
         </nav>
 
         {/* ─── Mobile Tab Selector ─── */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-border/50 bg-card/95 backdrop-blur-sm px-4 py-2">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-card px-4 py-2">
           <select
             value={activeTab}
             onChange={(e) => {
@@ -424,7 +424,7 @@ function SettingsContent() {
                 setActiveTab(e.target.value);
               }
             }}
-            className="flex h-10 w-full rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground"
+            className="flex h-10 w-full rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-foreground"
           >
             {navSections.flatMap(s => s.items).map((tab) => (
               <option key={tab.id} value={tab.id}>{tab.label}</option>
@@ -540,12 +540,12 @@ function SectionHeader({ icon: Icon, title, description, color = "brand" }: {
   icon: any; title: string; description: string; color?: string;
 }) {
   const colorMap: Record<string, string> = {
-    brand: "bg-[#10B981]/10 text-[#10B981]",
+    brand: "bg-primary/10 text-primary",
     cyan: "bg-[#06B6D4]/10 text-[#06B6D4]",
     violet: "bg-[#7A5CFF]/10 text-[#7A5CFF]",
     amber: "bg-amber-400/10 text-amber-400",
-    red: "bg-red-500/10 text-red-400",
-    green: "bg-emerald-500/10 text-emerald-400",
+    red: "bg-destructive/10 text-destructive",
+    green: "bg-success/10 text-success",
     pink: "bg-pink-400/10 text-pink-400",
     info: "bg-sky-400/10 text-sky-400",
   };
@@ -578,9 +578,9 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
         <div className="flex items-start gap-6">
           <div className="shrink-0">
             <div className="relative group">
-              <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-[#10B981] to-[#06B6D4] opacity-20 blur-sm group-hover:opacity-40 transition-opacity" />
-              <Avatar className="relative h-20 w-20 border-2 border-border/50">
-                <AvatarFallback className="bg-gradient-to-br from-[#10B981] to-[#06B6D4] text-xl font-bold text-black">
+              <div className="absolute -inset-1 rounded-full bg-primary opacity-20 blur-sm group-hover:opacity-40 transition-opacity" />
+              <Avatar className="relative h-20 w-20 border-2 border-border">
+                <AvatarFallback className="bg-primary text-xl font-semibold text-black">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -593,7 +593,7 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
               <Input
                 value={user?.full_name || ""}
                 onChange={(e) => setUser({ ...user!, full_name: e.target.value })}
-                className="bg-muted/30 border-border/50 h-9"
+                className="bg-muted/30 border-border h-9"
                 placeholder="Your name"
               />
               <p className="text-[11px] text-muted-foreground">
@@ -603,7 +603,7 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
           </div>
         </div>
 
-        <div className="border-b border-border/20" />
+        <div className="border-b border-border" />
 
         {/* Email */}
         <div className="space-y-2">
@@ -612,21 +612,21 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
             <div className="space-y-2">
               <div className="flex gap-2">
                 <Input value={emailValue} onChange={(e) => setEmailValue(e.target.value)}
-                  className="bg-muted/30 border-border/50 h-9 flex-1" />
+                  className="bg-muted/30 border-border h-9 flex-1" />
                 <Button size="sm" variant="outline" onClick={() => { setEditingEmail(false); setEmailPassword(""); }}
-                  className="h-9 border-border/50">Cancel</Button>
+                  className="h-9 border-border">Cancel</Button>
               </div>
               <Input type="password" value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)}
                 placeholder="Current password (required to change email)" autoComplete="current-password"
-                className="bg-muted/30 border-border/50 h-9" />
+                className="bg-muted/30 border-border h-9" />
               <p className="text-xs text-muted-foreground">You will need to verify the new address.</p>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <Input value={user?.email || ""} disabled
-                className="bg-muted/20 border-border/50 h-9 opacity-60 max-w-[320px]" />
+                className="bg-muted/20 border-border h-9 opacity-60 max-w-[320px]" />
               <button onClick={() => { setEditingEmail(true); setEmailValue(user?.email || ""); }}
-                className="text-xs text-[#10B981] hover:text-[#10B981]/80 transition-colors font-medium">
+                className="text-xs text-primary hover:text-primary/80 transition-colors font-medium">
                 Edit
               </button>
             </div>
@@ -637,13 +637,13 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Role</label>
-            <div className="h-9 flex items-center rounded-md border border-border/50 bg-muted/20 px-3">
+            <div className="h-9 flex items-center rounded-md border border-border bg-muted/20 px-3">
               <Badge variant="secondary" className="capitalize text-xs">{user?.role || "member"}</Badge>
             </div>
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Member since</label>
-            <div className="h-9 flex items-center rounded-md border border-border/50 bg-muted/20 px-3">
+            <div className="h-9 flex items-center rounded-md border border-border bg-muted/20 px-3">
               <span className="text-sm text-muted-foreground">
                 {user?.created_at ? new Date(user.created_at).toLocaleDateString() : "—"}
               </span>
@@ -651,22 +651,22 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
           </div>
         </div>
 
-        <div className="border-b border-border/20" />
+        <div className="border-b border-border" />
 
         {/* Save */}
         <div className="flex items-center gap-3">
           <Button onClick={onSaveProfile} disabled={saving}
-            className="bg-[#10B981] hover:bg-[#10B981]/90 text-black font-medium h-9 px-5">
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-9 px-5">
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
             Save changes
           </Button>
           {saveMessage === "success" && (
-            <span className="flex items-center gap-1.5 text-sm text-emerald-400">
+            <span className="flex items-center gap-1.5 text-sm text-success">
               <Check className="h-4 w-4" /> Saved
             </span>
           )}
           {saveMessage === "error" && (
-            <span className="text-sm text-red-400">Failed to save. Try again.</span>
+            <span className="text-sm text-destructive">Failed to save. Try again.</span>
           )}
         </div>
       </div>
@@ -696,7 +696,7 @@ function SecurityTab(props: any) {
       <div>
         <SectionHeader icon={Shield} title="Password and authentication" description="Manage your password and two-factor authentication." color="green" />
         <div className="space-y-4">
-          <div className="flex items-center justify-between rounded-lg border border-border/30 bg-muted/10 p-4">
+          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/10 p-4">
             <div>
               <p className="text-sm font-medium">Password</p>
               <p className="text-xs text-muted-foreground">
@@ -704,19 +704,19 @@ function SecurityTab(props: any) {
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => setShowPasswordForm(!showPasswordForm)}
-              className="h-8 border-border/50 text-xs">
+              className="h-8 border-border text-xs">
               {showPasswordForm ? "Cancel" : "Change password"}
             </Button>
           </div>
 
           {showPasswordForm && (
-            <div className="space-y-3 rounded-lg border border-border/30 bg-muted/10 p-4 ml-0">
+            <div className="space-y-3 rounded-lg border border-border bg-muted/10 p-4 ml-0">
               <div className="space-y-2">
                 <label className="text-xs font-medium">Current password</label>
                 <div className="relative">
                   <Input type={showCurrentPw ? "text" : "password"} value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="bg-muted/30 border-border/50 h-9 pr-10" placeholder="Enter current password" />
+                    className="bg-muted/30 border-border h-9 pr-10" placeholder="Enter current password" />
                   <button type="button" onClick={() => setShowCurrentPw(!showCurrentPw)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                     {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -728,7 +728,7 @@ function SecurityTab(props: any) {
                 <div className="relative">
                   <Input type={showNewPw ? "text" : "password"} value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="bg-muted/30 border-border/50 h-9 pr-10" placeholder="Enter new password" />
+                    className="bg-muted/30 border-border h-9 pr-10" placeholder="Enter new password" />
                   <button type="button" onClick={() => setShowNewPw(!showNewPw)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                     {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -738,11 +738,11 @@ function SecurityTab(props: any) {
               <div className="space-y-2">
                 <label className="text-xs font-medium">Confirm new password</label>
                 <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="bg-muted/30 border-border/50 h-9" placeholder="Confirm new password" />
+                  className="bg-muted/30 border-border h-9" placeholder="Confirm new password" />
               </div>
-              {passwordError && <p className="text-xs text-red-400">{passwordError}</p>}
+              {passwordError && <p className="text-xs text-destructive">{passwordError}</p>}
               <Button size="sm" onClick={handleChangePassword} disabled={changingPassword}
-                className="bg-[#10B981] hover:bg-[#10B981]/90 text-black h-8 text-xs font-medium">
+                className="bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs font-medium">
                 {changingPassword ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : null}
                 Update password
               </Button>
@@ -751,27 +751,27 @@ function SecurityTab(props: any) {
         </div>
       </div>
 
-      <div className="border-b border-border/20" />
+      <div className="border-b border-border" />
 
       {/* 2FA */}
       <div>
         <SectionHeader icon={ShieldCheck} title="Two-factor authentication" description="Add an extra layer of security to your account." color="cyan" />
-        <div className="rounded-lg border border-border/30 bg-muted/10 p-4">
+        <div className="rounded-lg border border-border bg-muted/10 p-4">
           {user?.totp_enabled ? (
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-emerald-400">2FA is enabled</p>
+                <p className="text-sm font-medium text-success">2FA is enabled</p>
                 <p className="text-xs text-muted-foreground">Your account is protected with TOTP authentication.</p>
               </div>
               <Button variant="outline" size="sm" onClick={async () => {
                 const code = prompt("Enter your TOTP code to disable 2FA:");
                 if (code) { try { await disable2FA(code); setUser({ ...user!, totp_enabled: false }); } catch { alert("Invalid code"); } }
-              }} className="h-8 border-border/50 text-xs">Disable</Button>
+              }} className="h-8 border-border text-xs">Disable</Button>
             </div>
           ) : twoFASetup ? (
             <div className="space-y-3">
               <p className="text-sm font-medium">Scan this QR code with your authenticator app:</p>
-              <div className="rounded-lg bg-card/90 backdrop-blur-sm p-4 inline-block border border-border/30">
+              <div className="rounded-lg bg-card p-4 inline-block border border-border">
                 <QRCodeSVG value={twoFASetup.provisioning_uri} size={180} level="M" includeMargin />
               </div>
               <div className="text-xs text-muted-foreground">
@@ -780,7 +780,7 @@ function SecurityTab(props: any) {
                   Can&apos;t scan? Enter manually
                 </button>
                 {showManual2FA && (
-                  <div className="mt-2 rounded-lg border border-border/30 bg-muted/20 p-3 space-y-1">
+                  <div className="mt-2 rounded-lg border border-border bg-muted/20 p-3 space-y-1">
                     <p>Secret: <span className="font-mono break-all">{twoFASetup.secret}</span></p>
                     <p className="text-[10px] break-all opacity-70">{twoFASetup.provisioning_uri}</p>
                   </div>
@@ -789,11 +789,11 @@ function SecurityTab(props: any) {
               <div className="flex gap-2 max-w-xs">
                 <input value={twoFACode} onChange={(e) => setTwoFACode(e.target.value)}
                   placeholder="Enter 6-digit code" maxLength={6}
-                  className="h-9 flex-1 rounded-lg border border-border/50 bg-muted/30 px-3 text-sm outline-none" />
+                  className="h-9 flex-1 rounded-lg border border-border bg-muted/30 px-3 text-sm outline-none" />
                 <Button size="sm" onClick={async () => {
                   try { await enable2FA(twoFACode); setUser({ ...user!, totp_enabled: true }); setTwoFASetup(null); setTwoFACode(""); setShowManual2FA(false); }
                   catch { alert("Invalid code"); }
-                }} className="bg-[#10B981] hover:bg-[#10B981]/90 text-black h-9 text-xs font-medium">Verify</Button>
+                }} className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 text-xs font-medium">Verify</Button>
               </div>
             </div>
           ) : (
@@ -804,18 +804,18 @@ function SecurityTab(props: any) {
               </div>
               <Button variant="outline" size="sm" onClick={async () => {
                 try { const setup = await setup2FA(); setTwoFASetup(setup); } catch { /* ignore */ }
-              }} className="h-8 border-border/50 text-xs">Enable 2FA</Button>
+              }} className="h-8 border-border text-xs">Enable 2FA</Button>
             </div>
           )}
         </div>
       </div>
 
-      <div className="border-b border-border/20" />
+      <div className="border-b border-border" />
 
       {/* Recovery Codes */}
       <div>
         <SectionHeader icon={Key} title="Recovery codes" description="Backup codes for account access when you can't use 2FA." color="pink" />
-        <div className="rounded-lg border border-border/30 bg-muted/10 p-4 space-y-3">
+        <div className="rounded-lg border border-border bg-muted/10 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               {recoveryCodes.length > 0
@@ -823,7 +823,7 @@ function SecurityTab(props: any) {
                 : "No recovery codes. Generate a set before you enable MFA."}
             </p>
             <Button variant="outline" size="sm" onClick={handleGenerateRecoveryCodes} disabled={generatingCodes}
-              className="h-8 border-border/50 text-xs">
+              className="h-8 border-border text-xs">
               {generatingCodes ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : <Key className="h-3 w-3 mr-1.5" />}
               Generate new codes
             </Button>
@@ -835,25 +835,25 @@ function SecurityTab(props: any) {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {newRecoveryCodes.map((code: string, i: number) => (
-                  <div key={i} className="font-mono text-sm bg-muted/30 px-3 py-2 rounded border border-border/30">{code}</div>
+                  <div key={i} className="font-mono text-sm bg-muted/30 px-3 py-2 rounded border border-border">{code}</div>
                 ))}
               </div>
               <Button variant="outline" size="sm" onClick={() => { setShowRecoveryCodes(false); setNewRecoveryCodes([]); }}
-                className="h-8 border-border/50 text-xs">Done</Button>
+                className="h-8 border-border text-xs">Done</Button>
             </div>
           ) : recoveryCodes.length > 0 && (
             <Button variant="outline" size="sm" onClick={() => setShowRecoveryCodes(true)}
-              className="h-8 border-border/50 text-xs">View codes</Button>
+              className="h-8 border-border text-xs">View codes</Button>
           )}
         </div>
       </div>
 
-      <div className="border-b border-border/20" />
+      <div className="border-b border-border" />
 
       {/* Audit Logs */}
       <div>
         <SectionHeader icon={History} title="Audit logs" description="Track all account activity and changes." color="info" />
-        <div className="rounded-lg border border-border/30 bg-muted/10 p-4">
+        <div className="rounded-lg border border-border bg-muted/10 p-4">
           <AuditLogViewer />
         </div>
       </div>
@@ -871,7 +871,7 @@ function SessionsTab({ sessions, revokingSession, handleRevokeSession, handleSig
       {/* Active Sessions */}
       <div>
         <SectionHeader icon={History} title="Active sessions" description="Manage your login sessions across devices." color="info" />
-        <div className="rounded-lg border border-border/30 overflow-hidden">
+        <div className="rounded-lg border border-border overflow-hidden">
           {sessions.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">No active sessions.</div>
           ) : (
@@ -884,7 +884,7 @@ function SessionsTab({ sessions, revokingSession, handleRevokeSession, handleSig
                       IP: <span className="font-mono">{session.ip_address}</span> &middot; Last active: {new Date(session.last_activity).toLocaleString()}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-400 hover:bg-red-500/10 h-8 text-xs"
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 text-xs"
                     onClick={() => handleRevokeSession(session.id)} disabled={revokingSession === session.id}>
                     {revokingSession === session.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Revoke"}
                   </Button>
@@ -893,8 +893,8 @@ function SessionsTab({ sessions, revokingSession, handleRevokeSession, handleSig
             </div>
           )}
           {sessions.length > 1 && (
-            <div className="border-t border-border/20 px-4 py-2">
-              <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-400 hover:bg-red-500/10 h-8 text-xs"
+            <div className="border-t border-border px-4 py-2">
+              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 text-xs"
                 onClick={handleSignOutAll}>
                 <LogOut className="h-3 w-3 mr-1.5" />
                 Sign out all other sessions
@@ -904,12 +904,12 @@ function SessionsTab({ sessions, revokingSession, handleRevokeSession, handleSig
         </div>
       </div>
 
-      <div className="border-b border-border/20" />
+      <div className="border-b border-border" />
 
       {/* Trusted Devices */}
       <div>
         <SectionHeader icon={Shield} title="Trusted devices" description="Devices that skip 2FA verification." color="amber" />
-        <div className="rounded-lg border border-border/30 overflow-hidden">
+        <div className="rounded-lg border border-border overflow-hidden">
           {trustedDevices.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">No trusted devices.</div>
           ) : (
@@ -922,7 +922,7 @@ function SessionsTab({ sessions, revokingSession, handleRevokeSession, handleSig
                       IP: <span className="font-mono">{device.ip_address}</span> &middot; Trusted: {new Date(device.trusted_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-400 hover:bg-red-500/10 h-8 text-xs"
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 text-xs"
                     onClick={() => handleRevokeDevice(device.id)}>
                     Remove
                   </Button>
@@ -947,8 +947,8 @@ function ApiKeysTab({ apiKeys, createdKey, newKeyName, setNewKeyName, creatingKe
 
       <div className="space-y-4">
         {createdKey && (
-          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
-            <p className="text-xs font-medium text-emerald-400 mb-2">
+          <div className="rounded-lg border border-success/30 bg-success/5 p-4">
+            <p className="text-xs font-medium text-success mb-2">
               Your new API key (copy it now, it won&apos;t be shown again):
             </p>
             <div className="flex items-center gap-2">
@@ -960,19 +960,19 @@ function ApiKeysTab({ apiKeys, createdKey, newKeyName, setNewKeyName, creatingKe
           </div>
         )}
 
-        <div className="rounded-lg border border-border/30 overflow-hidden">
+        <div className="rounded-lg border border-border overflow-hidden">
           {apiKeys.length > 0 ? (
             <div className="divide-y divide-border/20">
               {apiKeys.map((key: any) => (
                 <div key={key.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors">
-                  <Key className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                  <Key className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{key.name || "API Key"}</p>
                     <p className="text-xs text-muted-foreground">
                       Created {key.created_at ? new Date(key.created_at).toLocaleDateString() : "—"}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-400 hover:bg-red-500/10 shrink-0 h-8 text-xs"
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0 h-8 text-xs"
                     onClick={() => handleRevokeApiKey(key.id)} disabled={revokingKey === key.id}>
                     {revokingKey === key.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                   </Button>
@@ -986,9 +986,9 @@ function ApiKeysTab({ apiKeys, createdKey, newKeyName, setNewKeyName, creatingKe
 
         <div className="flex items-center gap-2">
           <Input value={newKeyName} onChange={(e) => setNewKeyName(e.target.value)} placeholder="Key name (optional)"
-            className="bg-muted/30 border-border/50 h-9 max-w-[200px]" />
+            className="bg-muted/30 border-border h-9 max-w-[200px]" />
           <Button variant="outline" size="sm" onClick={handleCreateApiKey} disabled={creatingKey}
-            className="h-9 border-border/50 text-xs">
+            className="h-9 border-border text-xs">
             {creatingKey ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : <Key className="h-3 w-3 mr-1.5" />}
             Create new key
           </Button>
@@ -1062,11 +1062,11 @@ function NotificationsTab({ notifications, setNotifications, savingPrefs, handle
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="rounded-lg border border-border/30 overflow-hidden">
+        <div className="rounded-lg border border-border overflow-hidden">
           {categories.map((cat) => (
             <div key={cat}>
-              <div className="px-4 py-2 bg-muted/30 border-b border-border/20">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">{cat}</p>
+              <div className="px-4 py-2 bg-muted/30 border-b border-border">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{cat}</p>
               </div>
               <div className="divide-y divide-border/20">
                 {notifTypes.filter((t) => t.category === cat).map((item) => {
@@ -1081,7 +1081,7 @@ function NotificationsTab({ notifications, setNotifications, savingPrefs, handle
                             onClick={() => togglePref(item.type, "in_app")}
                             className={cn(
                               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                              pref?.in_app_enabled ? "bg-[#10B981]" : "bg-muted"
+                              pref?.in_app_enabled ? "bg-primary" : "bg-muted"
                             )}
                             role="switch"
                             aria-checked={pref?.in_app_enabled}
@@ -1098,7 +1098,7 @@ function NotificationsTab({ notifications, setNotifications, savingPrefs, handle
                             onClick={() => togglePref(item.type, "email")}
                             className={cn(
                               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                              pref?.email_enabled ? "bg-[#10B981]" : "bg-muted"
+                              pref?.email_enabled ? "bg-primary" : "bg-muted"
                             )}
                             role="switch"
                             aria-checked={pref?.email_enabled}
@@ -1134,12 +1134,12 @@ function DangerTab({ showDeleteConfirm, setShowDeleteConfirm, deleting, handleDe
       <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-red-400">Delete account</p>
-            <p className="text-xs text-red-400/60">Permanently delete your account and all associated data</p>
+            <p className="text-sm font-medium text-destructive">Delete account</p>
+            <p className="text-xs text-destructive/60">Permanently delete your account and all associated data</p>
           </div>
           {!showDeleteConfirm ? (
             <Button variant="destructive" size="sm"
-              className="bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 h-8 text-xs"
+              className="bg-destructive/10 text-destructive hover:bg-red-500/20 border border-red-500/20 h-8 text-xs"
               onClick={() => setShowDeleteConfirm(true)}>
               <Trash2 className="h-3 w-3 mr-1.5" />
               Delete account
@@ -1152,7 +1152,7 @@ function DangerTab({ showDeleteConfirm, setShowDeleteConfirm, deleting, handleDe
                 Yes, delete
               </Button>
               <Button variant="outline" size="sm" onClick={() => setShowDeleteConfirm(false)}
-                className="h-8 border-border/50 text-xs">Cancel</Button>
+                className="h-8 border-border text-xs">Cancel</Button>
             </div>
           )}
         </div>

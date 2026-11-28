@@ -57,7 +57,7 @@ export function SecurityScore({ dashboard, className }: SecurityScoreProps) {
             {getScoreIcon(score)}
           </div>
           <div>
-            <div className={cn("text-3xl font-bold", getScoreColor(score))}>
+            <div className={cn("text-3xl font-semibold", getScoreColor(score))}>
               {score}/100
             </div>
             <p className="text-sm text-muted-foreground">

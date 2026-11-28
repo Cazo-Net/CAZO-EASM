@@ -6,7 +6,6 @@ import { ToastProvider } from "@/components/Toast";
 
 const PUBLIC_ROUTES = [
   "/",
-  "/home",
   "/login",
   "/register",
   "/pricing",
@@ -17,7 +16,8 @@ const PUBLIC_ROUTES = [
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isPublic = PUBLIC_ROUTES.includes(pathname);
+  // Onboarding is a focused setup flow, so it runs without the app sidebar.
+  const isPublic = PUBLIC_ROUTES.includes(pathname) || pathname.startsWith("/onboarding");
 
   return (
     <ToastProvider>

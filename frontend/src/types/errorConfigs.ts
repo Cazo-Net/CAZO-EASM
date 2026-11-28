@@ -12,8 +12,8 @@ export const errorConfigs: Record<string, ErrorPageConfig> = {
       { label: "Go Back", href: undefined, variant: "secondary", icon: undefined },
     ],
     helpfulLinks: [
-      { label: "Documentation", href: "https://docs.CAZO EASM.io" },
-      { label: "API Reference", href: "https://docs.CAZO EASM.io/api" },
+      { label: "Documentation", href: "/docs" },
+      { label: "API Reference", href: "/docs/integrations" },
     ],
   },
   "401": {
@@ -27,8 +27,8 @@ export const errorConfigs: Record<string, ErrorPageConfig> = {
       { label: "Return Home", href: "/", variant: "secondary" },
     ],
     helpfulLinks: [
-      { label: "Documentation", href: "https://docs.CAZO EASM.io" },
-      { label: "Contact Support", href: "mailto:support@CAZO EASM.io" },
+      { label: "Documentation", href: "/docs" },
+      { label: "Contact Support", href: "mailto:support@cazoeasm.io" },
     ],
   },
   "403": {
@@ -43,7 +43,7 @@ export const errorConfigs: Record<string, ErrorPageConfig> = {
       { label: "Go Back", href: undefined, variant: "ghost" },
     ],
     helpfulLinks: [
-      { label: "Contact Support", href: "mailto:support@CAZO EASM.io" },
+      { label: "Contact Support", href: "mailto:support@cazoeasm.io" },
     ],
   },
   "404": {
@@ -72,7 +72,7 @@ export const errorConfigs: Record<string, ErrorPageConfig> = {
     severity: "warning",
     actions: [
       { label: "Dashboard", href: "/dashboard", variant: "primary" },
-      { label: "API Reference", href: "https://docs.CAZO EASM.io/api", variant: "secondary" },
+      { label: "API Reference", href: "/docs/integrations", variant: "secondary" },
     ],
   },
   "408": {
@@ -86,7 +86,7 @@ export const errorConfigs: Record<string, ErrorPageConfig> = {
       { label: "Dashboard", href: "/dashboard", variant: "secondary" },
     ],
     helpfulLinks: [
-      { label: "System Status", href: "https://status.CAZO EASM.io" },
+      { label: "System Status", href: "https://status.cazoeasm.io" },
     ],
   },
   "409": {
@@ -129,7 +129,7 @@ export const errorConfigs: Record<string, ErrorPageConfig> = {
       "The request payload format is not supported. Please ensure you are sending data in the correct format.",
     severity: "warning",
     actions: [
-      { label: "API Reference", href: "https://docs.CAZO EASM.io/api", variant: "primary" },
+      { label: "API Reference", href: "/docs/integrations", variant: "primary" },
       { label: "Dashboard", href: "/dashboard", variant: "secondary" },
     ],
   },
@@ -152,7 +152,7 @@ export const errorConfigs: Record<string, ErrorPageConfig> = {
     severity: "warning",
     actions: [
       { label: "Dashboard", href: "/dashboard", variant: "primary" },
-      { label: "API Reference", href: "https://docs.CAZO EASM.io/api", variant: "secondary" },
+      { label: "API Reference", href: "/docs/integrations", variant: "secondary" },
     ],
     estimatedDowntime: "Please wait 60 seconds",
   },
@@ -165,11 +165,11 @@ export const errorConfigs: Record<string, ErrorPageConfig> = {
     actions: [
       { label: "Retry", href: undefined, variant: "primary" },
       { label: "Dashboard", href: "/dashboard", variant: "secondary" },
-      { label: "Status Page", href: "https://status.CAZO EASM.io", variant: "ghost" },
+      { label: "Status Page", href: "https://status.cazoeasm.io", variant: "ghost" },
     ],
     helpfulLinks: [
-      { label: "System Status", href: "https://status.CAZO EASM.io" },
-      { label: "Contact Support", href: "mailto:support@CAZO EASM.io" },
+      { label: "System Status", href: "https://status.cazoeasm.io" },
+      { label: "Contact Support", href: "mailto:support@cazoeasm.io" },
     ],
   },
   "501": {
@@ -192,10 +192,10 @@ export const errorConfigs: Record<string, ErrorPageConfig> = {
     actions: [
       { label: "Retry", href: undefined, variant: "primary" },
       { label: "Dashboard", href: "/dashboard", variant: "secondary" },
-      { label: "Status Page", href: "https://status.CAZO EASM.io", variant: "ghost" },
+      { label: "Status Page", href: "https://status.cazoeasm.io", variant: "ghost" },
     ],
     helpfulLinks: [
-      { label: "System Status", href: "https://status.CAZO EASM.io" },
+      { label: "System Status", href: "https://status.cazoeasm.io" },
     ],
   },
   "503": {
@@ -206,12 +206,12 @@ export const errorConfigs: Record<string, ErrorPageConfig> = {
     severity: "maintenance",
     actions: [
       { label: "Dashboard", href: "/dashboard", variant: "primary" },
-      { label: "Status Page", href: "https://status.CAZO EASM.io", variant: "secondary" },
+      { label: "Status Page", href: "https://status.cazoeasm.io", variant: "secondary" },
     ],
     estimatedDowntime: "Estimated: 30 minutes",
     progress: 45,
     helpfulLinks: [
-      { label: "System Status", href: "https://status.CAZO EASM.io" },
+      { label: "System Status", href: "https://status.cazoeasm.io" },
     ],
   },
   "504": {
@@ -223,10 +223,10 @@ export const errorConfigs: Record<string, ErrorPageConfig> = {
     actions: [
       { label: "Retry", href: undefined, variant: "primary" },
       { label: "Dashboard", href: "/dashboard", variant: "secondary" },
-      { label: "Status Page", href: "https://status.CAZO EASM.io", variant: "ghost" },
+      { label: "Status Page", href: "https://status.cazoeasm.io", variant: "ghost" },
     ],
     helpfulLinks: [
-      { label: "System Status", href: "https://status.CAZO EASM.io" },
+      { label: "System Status", href: "https://status.cazoeasm.io" },
     ],
   },
 };
@@ -239,8 +239,8 @@ export const statusPageConfigs: Record<string, ErrorPageConfig> = {
       "CAZO EASM is currently undergoing scheduled maintenance to improve platform performance and security. We expect to be back online shortly.",
     severity: "maintenance",
     actions: [
-      { label: "System Status", href: "https://status.CAZO EASM.io", variant: "primary" },
-      { label: "Contact Support", href: "mailto:support@CAZO EASM.io", variant: "secondary" },
+      { label: "System Status", href: "https://status.cazoeasm.io", variant: "primary" },
+      { label: "Contact Support", href: "mailto:support@cazoeasm.io", variant: "secondary" },
     ],
     estimatedDowntime: "Estimated completion: 30 minutes",
     progress: 65,
@@ -253,10 +253,10 @@ export const statusPageConfigs: Record<string, ErrorPageConfig> = {
     severity: "error",
     actions: [
       { label: "Retry", href: undefined, variant: "primary" },
-      { label: "Status Page", href: "https://status.CAZO EASM.io", variant: "secondary" },
+      { label: "Status Page", href: "https://status.cazoeasm.io", variant: "secondary" },
     ],
     helpfulLinks: [
-      { label: "System Status", href: "https://status.CAZO EASM.io" },
+      { label: "System Status", href: "https://status.cazoeasm.io" },
     ],
   },
   apiOffline: {
@@ -267,7 +267,7 @@ export const statusPageConfigs: Record<string, ErrorPageConfig> = {
     severity: "error",
     actions: [
       { label: "Retry", href: undefined, variant: "primary" },
-      { label: "Status Page", href: "https://status.CAZO EASM.io", variant: "secondary" },
+      { label: "Status Page", href: "https://status.cazoeasm.io", variant: "secondary" },
       { label: "Dashboard", href: "/dashboard", variant: "ghost" },
     ],
   },
@@ -279,7 +279,7 @@ export const statusPageConfigs: Record<string, ErrorPageConfig> = {
     severity: "maintenance",
     actions: [
       { label: "Retry", href: undefined, variant: "primary" },
-      { label: "Status Page", href: "https://status.CAZO EASM.io", variant: "secondary" },
+      { label: "Status Page", href: "https://status.cazoeasm.io", variant: "secondary" },
     ],
     estimatedDowntime: "Estimated: Less than 1 minute",
     progress: 80,
@@ -313,7 +313,7 @@ export const statusPageConfigs: Record<string, ErrorPageConfig> = {
       "Your account has been suspended. Please contact support for more information.",
     severity: "error",
     actions: [
-      { label: "Contact Support", href: "mailto:support@CAZO EASM.io", variant: "primary" },
+      { label: "Contact Support", href: "mailto:support@cazoeasm.io", variant: "primary" },
       { label: "Return Home", href: "/", variant: "secondary" },
     ],
   },
@@ -402,8 +402,8 @@ export const statusPageConfigs: Record<string, ErrorPageConfig> = {
     severity: "error",
     actions: [
       { label: "Retry", href: undefined, variant: "primary" },
-      { label: "AI Dashboard", href: "/ai", variant: "secondary" },
-      { label: "Status Page", href: "https://status.CAZO EASM.io", variant: "ghost" },
+      { label: "Dashboard", href: "/dashboard", variant: "secondary" },
+      { label: "Status Page", href: "https://status.cazoeasm.io", variant: "ghost" },
     ],
   },
   noInternet: {
@@ -435,11 +435,11 @@ export const statusPageConfigs: Record<string, ErrorPageConfig> = {
     severity: "info",
     actions: [
       { label: "Run First Scan", href: "/scan/new", variant: "primary" },
-      { label: "View Documentation", href: "https://docs.CAZO EASM.io", variant: "secondary" },
+      { label: "View Documentation", href: "/docs", variant: "secondary" },
     ],
     helpfulLinks: [
-      { label: "Quick Start Guide", href: "https://docs.CAZO EASM.io/quickstart" },
-      { label: "Asset Discovery", href: "https://docs.CAZO EASM.io/features/discovery" },
+      { label: "Quick Start Guide", href: "/docs/quickstart" },
+      { label: "Asset Discovery", href: "/docs/features/discovery" },
     ],
   },
   noReports: {
@@ -461,7 +461,7 @@ export const statusPageConfigs: Record<string, ErrorPageConfig> = {
     severity: "info",
     actions: [
       { label: "Start First Scan", href: "/scan/new", variant: "primary" },
-      { label: "View Documentation", href: "https://docs.CAZO EASM.io", variant: "secondary" },
+      { label: "View Documentation", href: "/docs", variant: "secondary" },
     ],
   },
   noNotifications: {

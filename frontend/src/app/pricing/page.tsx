@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Building2, Loader2 } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, CreditCard, FileSearch, Globe, Loader2, Radar, ShieldCheck } from "lucide-react";
 import { LandingNav, LandingFooter } from "@/components/marketing/LandingSections";
 import { IntervalToggle, PlanCard } from "@/components/billing/PlanGrid";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,7 @@ import {
   METHOD_LABELS,
   type BillingInterval,
   type PlanCatalog,
+  type PlanInfo,
 } from "@/lib/api-billing";
 
 const FAQ = [
@@ -30,6 +31,27 @@ const FAQ = [
   {
     q: "Do you offer a trial?",
     a: "Every new organization can scan one root domain for free. Contact us for a full exposure report before you buy.",
+  },
+];
+
+const INCLUDED = [
+  { icon: Radar, title: "Continuous discovery", body: "Subdomains, ports, certificates and services." },
+  { icon: ShieldCheck, title: "Risk scoring", body: "Findings ranked so the urgent ones come first." },
+  { icon: FileSearch, title: "CVE matching", body: "Detected software checked against known CVEs." },
+  { icon: Globe, title: "Nothing to install", body: "Scans run from the outside, like an attacker." },
+];
+
+const num = (v: number | null, perClient = false) =>
+  v == null ? "Unlimited" : `${v.toLocaleString()}${perClient ? " per client" : ""}`;
+
+const COMPARE_ROWS: { label: string; value: (p: PlanInfo) => string }[] = [
+  { label: "Root domains", value: (p) => num(p.limits.root_domains, p.per_client) },
+  { label: "Hosts monitored", value: (p) => num(p.limits.hosts, p.per_client) },
+  { label: "Scans per month", value: (p) => num(p.limits.scans_per_month, p.per_client) },
+  { label: "User seats", value: (p) => num(p.limits.users) },
+  {
+    label: "Scheduled scans",
+    value: (p) => p.scan_frequency.charAt(0).toUpperCase() + p.scan_frequency.slice(1),
   },
 ];
 
@@ -55,41 +77,48 @@ export default function PricingPage() {
   };
 
   const methods = Array.from(new Set(catalog?.payment_options.flatMap((o) => o.methods) ?? []));
+  const salesHref = `mailto:${process.env.NEXT_PUBLIC_SALES_EMAIL || "sales@cazo.io"}?subject=CAZO%20EASM%20pricing`;
 
   return (
     <div className="h-screen overflow-y-auto bg-void text-foreground">
       <LandingNav scrolled />
 
-      <section className="mx-auto max-w-6xl px-6 pb-10 pt-16 text-center">
-        <span className="font-mono text-[11px] uppercase tracking-[0.25em] text-phosphor">Pricing</span>
-        <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] md:text-5xl">
-          Priced by root domain. No surprise bills.
-        </h1>
-        <p className="mx-auto mt-5 max-w-2xl text-muted-foreground">
-          Every plan includes continuous discovery, risk scoring and CVE matching. Pick the
-          number of domains you need and add more any time.
-        </p>
-        {catalog && (
-          <div className="mt-8 flex justify-center">
-            <IntervalToggle catalog={catalog} value={interval} onChange={setBillingInterval} />
-          </div>
-        )}
-        {catalog?.test_mode && (
-          <p className="mt-4 font-mono text-[11px] text-amber-400">
-            Test mode: no real payments are taken.
+      <section className="relative overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(60%_100%_at_50%_0%,hsl(var(--primary)/0.16),transparent_70%)]"
+        />
+        <div className="relative mx-auto max-w-6xl px-6 pb-10 pt-16 text-center md:pt-20">
+          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Pricing</span>
+          <h1 className="mx-auto mt-4 max-w-3xl text-4xl font-semibold leading-[1.08] tracking-tight md:text-5xl">
+            Priced by root domain. No surprise bills.
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-muted-foreground">
+            Pick the number of domains you need and add more any time. Your first root
+            domain is free to scan, with no card.
           </p>
-        )}
+          {catalog && (
+            <div className="mt-8 flex justify-center">
+              <IntervalToggle catalog={catalog} value={interval} onChange={setBillingInterval} />
+            </div>
+          )}
+          {catalog?.test_mode && (
+            <p className="mt-4 font-mono text-[11px] text-amber-400">
+              Test mode: no real payments are taken.
+            </p>
+          )}
+        </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-6 pb-16">
-        {error && <p className="text-center text-sm text-red-400">{error}</p>}
+        {error && <p className="text-center text-sm text-destructive">{error}</p>}
         {!catalog && !error && (
           <div className="flex justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         )}
         {catalog && (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {catalog.plans.map((plan) => (
               <PlanCard
                 key={plan.id}
@@ -103,8 +132,8 @@ export default function PricingPage() {
                     href={checkoutHref(plan.id)}
                     className={
                       plan.highlight
-                        ? "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-phosphor px-4 py-2.5 text-sm font-semibold text-void shadow-glow-sm transition hover:shadow-glow-md"
-                        : "inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border/60 px-4 py-2.5 text-sm font-medium transition hover:border-phosphor/60"
+                        ? "inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                        : "inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background/40 px-4 py-2.5 text-sm font-medium transition hover:border-primary/60"
                     }
                   >
                     Choose {plan.name} <ArrowRight className="h-4 w-4" />
@@ -115,54 +144,127 @@ export default function PricingPage() {
           </div>
         )}
 
-        {catalog && (
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-border/50 bg-card/40 p-5 text-sm">
-              <p className="font-medium">Extra root domains</p>
+        {/* Free first scan */}
+        <div className="mt-5 flex flex-col items-start justify-between gap-4 rounded-xl border border-dashed border-border p-6 md:flex-row md:items-center">
+          <div>
+            <p className="font-medium">Not ready to pick a plan?</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Create an account and scan one root domain you own for free. Upgrade when you
+              need more.
+            </p>
+          </div>
+          <Link
+            href="/register"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md border border-input bg-card px-4 py-2 text-sm font-medium transition hover:border-primary/60"
+          >
+            Start free scan <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Included in every plan */}
+      <section className="border-y border-border/60 bg-card/40">
+        <div className="mx-auto max-w-6xl px-6 py-14">
+          <h2 className="text-2xl font-semibold tracking-tight">In every plan</h2>
+          <div className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {INCLUDED.map(({ icon: Icon, title, body }) => (
+              <div key={title}>
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-card text-primary">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <p className="mt-4 font-medium">{title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Compare */}
+      {catalog && (
+        <section className="mx-auto max-w-6xl px-6 py-16">
+          <h2 className="text-2xl font-semibold tracking-tight">Compare plans</h2>
+          <div className="mt-6 overflow-x-auto rounded-xl border border-border">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-border bg-card">
+                  <th scope="col" className="px-5 py-4 font-medium text-muted-foreground">
+                    Limits
+                  </th>
+                  {catalog.plans.map((p) => (
+                    <th key={p.id} scope="col" className="px-5 py-4">
+                      <span className={p.highlight ? "font-semibold text-primary" : "font-semibold"}>
+                        {p.name}
+                      </span>
+                      <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                        {formatMoney(p.monthly_price, catalog.currency)} / month
+                        {p.per_client ? " per client" : ""}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARE_ROWS.map((row) => (
+                  <tr key={row.label} className="border-b border-border/60 last:border-0">
+                    <th scope="row" className="px-5 py-3.5 font-normal text-muted-foreground">
+                      {row.label}
+                    </th>
+                    {catalog.plans.map((p) => (
+                      <td key={p.id} className="px-5 py-3.5 tabular-nums">
+                        {row.value(p)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-5 grid gap-5 md:grid-cols-3">
+            <div className="rounded-xl border border-border bg-card p-5 text-sm">
+              <Globe className="h-4 w-4 text-primary" />
+              <p className="mt-3 font-medium">Extra root domains</p>
               <p className="mt-1 text-muted-foreground">
-                {formatMoney(catalog.addons.extra_domain.monthly_price, catalog.currency)} per domain per
-                month on any plan, added at checkout.
+                {formatMoney(catalog.addons.extra_domain.monthly_price, catalog.currency)} per domain
+                per month on any plan, added at checkout.
               </p>
             </div>
-            <div className="rounded-2xl border border-border/50 bg-card/40 p-5 text-sm">
-              <p className="font-medium">Payment methods</p>
+            <div className="rounded-xl border border-border bg-card p-5 text-sm">
+              <CreditCard className="h-4 w-4 text-primary" />
+              <p className="mt-3 font-medium">Payment methods</p>
               <p className="mt-1 text-muted-foreground">
                 {methods.map((m) => METHOD_LABELS[m] ?? m).join(", ")}. Payments are processed
                 securely by Stripe; card details never touch our servers.
               </p>
             </div>
-          </div>
-        )}
-
-        <div className="mt-8 flex flex-col items-start justify-between gap-4 rounded-2xl border border-border/50 bg-card/40 p-6 md:flex-row md:items-center">
-          <div className="flex gap-3">
-            <Building2 className="mt-0.5 h-5 w-5 text-cyan-signal" />
-            <div>
-              <p className="font-medium">Need an annual contract, bank transfer or a local-currency invoice?</p>
-              <p className="text-sm text-muted-foreground">
-                We set up contracts and design-partner pricing directly.
+            <div className="flex flex-col rounded-xl border border-border bg-card p-5 text-sm">
+              <Check className="h-4 w-4 text-primary" />
+              <p className="mt-3 font-medium">Contracts and invoices</p>
+              <p className="mt-1 text-muted-foreground">
+                Annual contracts, bank transfer and local-currency invoices are set up directly.
               </p>
+              <a href={salesHref} className="mt-3 inline-flex items-center gap-1.5 font-medium text-primary hover:underline">
+                Contact sales <ArrowRight className="h-3.5 w-3.5" />
+              </a>
             </div>
           </div>
-          <a
-            href={`mailto:${process.env.NEXT_PUBLIC_SALES_EMAIL || "sales@cazo.io"}?subject=CAZO%20EASM%20pricing`}
-            className="inline-flex items-center gap-2 rounded-xl border border-border/60 px-4 py-2 text-sm font-medium transition hover:border-phosphor/60"
-          >
-            Contact sales
-          </a>
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="mx-auto max-w-3xl px-6 pb-20">
-        <h2 className="font-display text-2xl font-semibold">Questions</h2>
-        <dl className="mt-6 space-y-5">
-          {FAQ.map((f) => (
-            <div key={f.q}>
-              <dt className="font-medium">{f.q}</dt>
-              <dd className="mt-1 text-sm text-muted-foreground">{f.a}</dd>
-            </div>
+        <h2 className="text-2xl font-semibold tracking-tight">Questions</h2>
+        <div className="mt-6 divide-y divide-border rounded-xl border border-border bg-card">
+          {FAQ.map((f, i) => (
+            <details key={f.q} className="group px-5" open={i === 0}>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 font-medium [&::-webkit-details-marker]:hidden">
+                {f.q}
+                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+              </summary>
+              <p className="pb-5 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
+            </details>
           ))}
-        </dl>
+        </div>
       </section>
 
       <LandingFooter />

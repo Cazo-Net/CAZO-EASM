@@ -1,5 +1,6 @@
 "use client";
 
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import * as React from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -10,7 +11,7 @@ import { listAssets360 } from "@/lib/api-asset360";
 import { getErrorMessage } from "@/lib/api";
 import type { Asset360ListItem } from "@/types/asset360";
 
-export default function Asset360IndexPage() {
+function Asset360IndexContent() {
   const [assets, setAssets] = React.useState<Asset360ListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -86,5 +87,13 @@ export default function Asset360IndexPage() {
         )}
       </SectionCard>
     </div>
+  );
+}
+
+export default function Asset360IndexPage() {
+  return (
+    <ProtectedRoute>
+      <Asset360IndexContent />
+    </ProtectedRoute>
   );
 }

@@ -166,7 +166,7 @@ function DNSContent() {
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="relative mb-6">
               <div className="absolute inset-0 rounded-full bg-brand/20 blur-2xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-border/50 bg-card/80">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-xl border border-border bg-card">
                 <Network className="h-10 w-10 text-muted-foreground" />
               </div>
             </div>
@@ -179,7 +179,7 @@ function DNSContent() {
             </p>
             <a
               href="/scan/new"
-              className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-void shadow-glow-sm hover:bg-primary/90 transition-all"
+              className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all"
             >
               <Globe className="h-4 w-4" />
               Start a Scan
@@ -188,7 +188,7 @@ function DNSContent() {
         ) : (
           <>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-              <Card className="border-border/50 bg-card/60 backdrop-blur glass">
+              <Card className="border-border bg-card glass">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Total Records
@@ -196,7 +196,7 @@ function DNSContent() {
                   <Network className="h-4 w-4 text-brand" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold font-mono tabular-nums">
+                  <div className="text-2xl font-semibold tabular-nums">
                     {records.length}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -213,7 +213,7 @@ function DNSContent() {
                 return (
                   <Card
                     key={type}
-                    className="border-border/50 bg-card/60 backdrop-blur glass"
+                    className="border-border bg-card glass"
                   >
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                       <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -227,7 +227,7 @@ function DNSContent() {
                       />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold font-mono tabular-nums">{count}</div>
+                      <div className="text-2xl font-semibold tabular-nums">{count}</div>
                       <p className="text-xs text-muted-foreground mt-1">
                         {records.length > 0
                           ? `${Math.round((count / records.length) * 100)}% of total`
@@ -240,7 +240,7 @@ function DNSContent() {
             </div>
 
             <Tabs value={activeType} onValueChange={(v) => setActiveType(v as RecordTypeFilter)} className="mb-6">
-              <TabsList className="bg-muted/30 border border-border/50 p-1 h-auto flex-wrap gap-1">
+              <TabsList>
                 {RECORD_TYPES.map((type) => (
                   <TabsTrigger
                     key={type}
@@ -269,7 +269,7 @@ function DNSContent() {
                 placeholder="Search by hostname or value..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-11 pl-11 bg-muted/30 border-border/50 focus:border-brand/50 focus:ring-brand/20"
+                className="h-11 pl-11 bg-muted/30 border-border focus:border-brand/50 focus:ring-brand/20"
               />
             </div>
 
@@ -290,7 +290,7 @@ function DNSContent() {
                   exit={{ opacity: 0 }}
                   className="flex flex-col items-center justify-center py-16 text-center"
                 >
-                  <Search className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                  <Search className="h-10 w-10 text-muted-foreground mb-3" />
                   <p className="text-sm text-muted-foreground">
                     No records match your search.
                   </p>
@@ -314,11 +314,11 @@ function DNSContent() {
                         </span>
                       </div>
 
-                      <div className="rounded-xl border border-border/50 bg-card/60 overflow-hidden backdrop-blur">
+                      <div className="rounded-xl border border-border bg-card overflow-hidden">
                         <div className="overflow-x-auto">
                           <Table>
                             <TableHeader>
-                              <TableRow className="border-border/50 hover:bg-transparent">
+                              <TableRow className="border-border hover:bg-transparent">
                                 <TableHead className="text-xs font-semibold text-muted-foreground w-[140px]">
                                   Type
                                 </TableHead>
@@ -341,7 +341,7 @@ function DNSContent() {
                                 return (
                                   <TableRow
                                     key={record.id}
-                                    className="border-border/30 last:border-0 hover:bg-muted/20 transition-colors"
+                                    className="border-border last:border-0 hover:bg-muted/20 transition-colors"
                                   >
                                     <TableCell>
                                       <Badge

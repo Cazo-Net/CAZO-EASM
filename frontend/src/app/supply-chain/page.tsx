@@ -218,25 +218,25 @@ function SupplyChainContent() {
         {!scanLoading && technologies.length > 0 && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
-              <div className="border border-border/50 rounded-lg p-4 bg-muted/5">
+              <div className="border border-border rounded-lg p-4 bg-muted/5">
                 <div className="text-xs text-muted-foreground">Total Services</div>
-                <div className="text-2xl font-bold mt-1">{totalServices}</div>
+                <div className="text-2xl font-semibold mt-1">{totalServices}</div>
               </div>
-              <div className="border border-border/50 rounded-lg p-4 bg-muted/5">
+              <div className="border border-border rounded-lg p-4 bg-muted/5">
                 <div className="text-xs text-muted-foreground">Third-Party</div>
-                <div className="text-2xl font-bold mt-1 text-blue-400">{thirdParty}</div>
+                <div className="text-2xl font-semibold mt-1 text-blue-400">{thirdParty}</div>
               </div>
-              <div className="border border-border/50 rounded-lg p-4 bg-muted/5">
+              <div className="border border-border rounded-lg p-4 bg-muted/5">
                 <div className="text-xs text-muted-foreground">SaaS Platforms</div>
-                <div className="text-2xl font-bold mt-1 text-purple-400">{saasPlatforms}</div>
+                <div className="text-2xl font-semibold mt-1 text-purple-400">{saasPlatforms}</div>
               </div>
-              <div className="border border-border/50 rounded-lg p-4 bg-muted/5">
+              <div className="border border-border rounded-lg p-4 bg-muted/5">
                 <div className="text-xs text-muted-foreground">First-Party</div>
-                <div className="text-2xl font-bold mt-1 text-green-400">{firstParty}</div>
+                <div className="text-2xl font-semibold mt-1 text-success">{firstParty}</div>
               </div>
-              <div className="border border-border/50 rounded-lg p-4 bg-muted/5">
+              <div className="border border-border rounded-lg p-4 bg-muted/5">
                 <div className="text-xs text-muted-foreground">Security Tools</div>
-                <div className="text-2xl font-bold mt-1 text-orange-400">{securityTools}</div>
+                <div className="text-2xl font-semibold mt-1 text-orange-400">{securityTools}</div>
               </div>
             </div>
 

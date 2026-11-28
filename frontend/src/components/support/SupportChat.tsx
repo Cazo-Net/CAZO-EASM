@@ -38,9 +38,9 @@ export function SupportChat() {
     <>
       {/* Chat Panel */}
       {isOpen && (
-        <div className="fixed bottom-20 right-5 z-50 w-[360px] h-[480px] bg-card border border-border/60 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200">
+        <div className="fixed bottom-20 right-5 z-50 w-[360px] h-[480px] bg-card border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-card/95 backdrop-blur shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="relative">
                 <CazoMark className="h-6 w-6" />
@@ -64,7 +64,7 @@ export function SupportChat() {
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <CazoMark className="h-10 w-10 mb-3 opacity-30" />
                 <p className="text-sm text-muted-foreground">How can we help you?</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Send a message and our team will assist you.
                 </p>
               </div>
@@ -87,7 +87,7 @@ export function SupportChat() {
                     "max-w-[80%] rounded-lg px-3 py-2 text-xs leading-relaxed",
                     msg.sender_type === "user"
                       ? "bg-phosphor/15 text-foreground border border-phosphor/20"
-                      : "bg-muted/50 text-foreground border border-border/50"
+                      : "bg-muted/50 text-foreground border border-border"
                   )}
                 >
                   {msg.sender_name && (
@@ -101,7 +101,7 @@ export function SupportChat() {
           </div>
 
           {/* Input */}
-          <div className="px-3 py-2.5 border-t border-border/50 bg-card/95 backdrop-blur shrink-0">
+          <div className="px-3 py-2.5 border-t border-border bg-card shrink-0">
             <div className="flex items-center gap-2">
               <input
                 ref={inputRef}
@@ -110,7 +110,7 @@ export function SupportChat() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type a message..."
-                className="flex-1 bg-muted/30 border border-border/50 rounded-lg px-3 py-2 text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-phosphor/30 focus:border-phosphor/30"
+                className="flex-1 bg-muted/30 border border-border rounded-lg px-3 py-2 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-phosphor/30 focus:border-phosphor/30"
                 disabled={sending}
               />
               <button
@@ -119,7 +119,7 @@ export function SupportChat() {
                 className={cn(
                   "p-2 rounded-lg transition-colors",
                   input.trim() && !sending
-                    ? "bg-phosphor text-void hover:bg-phosphor/90"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "bg-muted/30 text-muted-foreground cursor-not-allowed"
                 )}
               >
@@ -138,10 +138,10 @@ export function SupportChat() {
       <button
         onClick={toggle}
         className={cn(
-          "fixed bottom-5 right-5 z-50 flex items-center justify-center w-14 h-14 rounded-2xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105",
+          "fixed bottom-5 right-5 z-50 flex items-center justify-center w-14 h-14 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105",
           isOpen
-            ? "bg-muted/80 border border-border/60"
-            : "bg-card border border-border/60 hover:border-phosphor/30"
+            ? "bg-muted/80 border border-border"
+            : "bg-card border border-border hover:border-phosphor/30"
         )}
         aria-label={isOpen ? "Close support chat" : "Open support chat"}
       >

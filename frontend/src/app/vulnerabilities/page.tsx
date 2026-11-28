@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { SeverityPill } from "@/components/common/SeverityPill";
 import {
   Bug,
   AlertTriangle,
@@ -94,7 +95,7 @@ function getSeverityConfig(severity: string) {
         color: "text-muted-foreground",
         bg: "bg-muted/50",
         badge: "secondary" as const,
-        border: "border-border/50",
+        border: "border-border",
         glow: "",
       };
   }
@@ -131,6 +132,12 @@ function VulnContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [severityFilter, setSeverityFilter] = useState<string>("all");
+
+  // Deep links such as /vulnerabilities?severity=critical (from the dashboard).
+  useEffect(() => {
+    const sev = new URLSearchParams(window.location.search).get("severity");
+    if (sev && ["critical", "high", "medium", "low"].includes(sev)) setSeverityFilter(sev);
+  }, []);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [scanFilter, setScanFilter] = useState<string>("");
@@ -235,7 +242,7 @@ function VulnContent() {
       <div className="min-h-screen flex items-center justify-center">
         <Card className="glass max-w-md w-full">
           <CardContent className="p-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-destructive/10">
               <AlertTriangle className="h-7 w-7 text-destructive" />
             </div>
             <h2 className="text-lg font-semibold mb-2">Something went wrong</h2>
@@ -257,14 +264,14 @@ function VulnContent() {
     <div className="page-container-lg">
       <div className="py-6 space-y-6">
         <PageHeader
-          title="Vulnerabilities"
-          description="Security vulnerabilities discovered across your attack surface"
+          title="Findings"
+          description="Exposures and vulnerabilities discovered across your attack surface, with the evidence for each."
           icon={<Shield className="h-5 w-5" />}
-          breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Vulnerabilities" }]}
+          breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Findings" }]}
         />
         {loading ? (
           <>
-            <div className="grid grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="h-28 rounded-xl skeleton" />
               ))}
@@ -274,7 +281,7 @@ function VulnContent() {
           </>
         ) : (
           <>
-            <div className="grid grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
               {summaryCards.map((stat, i) => {
                 const Icon = stat.icon;
                 return (
@@ -284,7 +291,7 @@ function VulnContent() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.1 }}
                     className={cn(
-                      "glass rounded-xl p-4 hover-glow border-l-2",
+                      "rounded-xl border border-border bg-card p-4 shadow-elevation-1 border-l-2",
                       stat.border
                     )}
                   >
@@ -293,7 +300,7 @@ function VulnContent() {
                         <p className="text-xs text-muted-foreground">
                           {stat.label}
                         </p>
-                        <p className={cn("text-2xl font-bold mt-0.5 font-mono tabular-nums", stat.color)}>
+                        <p className={cn("text-2xl font-semibold mt-0.5 tabular-nums", stat.color)}>
                           {stat.value}
                         </p>
                       </div>
@@ -312,12 +319,12 @@ function VulnContent() {
               })}
             </div>
 
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={scanFilter}
                   onChange={(e) => setScanFilter(e.target.value)}
-                  className="h-9 px-3 rounded-lg bg-muted/50 border border-border/30 text-sm focus:border-brand/40 focus:outline-none appearance-none cursor-pointer"
+                  className="h-9 px-3 rounded-lg bg-muted/50 border border-border text-sm focus:border-brand/40 focus:outline-none appearance-none cursor-pointer"
                 >
                   <option value="">All scans</option>
                   {scanOptions.map((s) => (
@@ -358,7 +365,7 @@ function VulnContent() {
                   placeholder="Search by name, host, or template..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-9 pl-9 pr-8 rounded-lg bg-muted/50 border-border/30 text-sm focus:border-brand/40 focus:outline-none transition-colors w-64"
+                  className="h-9 pl-9 pr-8 rounded-lg bg-muted/50 border-border text-sm focus:border-brand/40 focus:outline-none transition-colors w-64"
                 />
                 {searchQuery && (
                   <button
@@ -380,14 +387,14 @@ function VulnContent() {
               >
                 <div className="relative mb-6">
                   <div className="absolute inset-0 bg-brand/10 rounded-full blur-xl" />
-                  <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-muted/50 border border-border/30">
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-xl bg-muted/50 border border-border">
                     <Bug className="h-10 w-10 text-muted-foreground" />
                   </div>
                 </div>
                 <h3 className="text-lg font-semibold mb-1">
                   {searchQuery || severityFilter !== "all"
-                    ? "No matching vulnerabilities"
-                    : "No vulnerabilities found"}
+                    ? "No matching findings"
+                    : "No findings yet"}
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-sm">
                   {searchQuery || severityFilter !== "all"
@@ -403,7 +410,7 @@ function VulnContent() {
               >
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-border/30 hover:bg-transparent">
+                    <TableRow className="border-border hover:bg-transparent">
                       <TableHead className="text-xs font-semibold w-8" />
                       <TableHead className="text-xs font-semibold">
                         Name
@@ -436,7 +443,7 @@ function VulnContent() {
                             animate={{ opacity: 1 }}
                             transition={{ delay: i * 0.02 }}
                             className={cn(
-                              "border-border/20 cursor-pointer transition-colors",
+                              "border-border cursor-pointer transition-colors",
                               isExpanded ? "bg-muted/20" : "hover:bg-muted/20"
                             )}
                             onClick={() => toggleRow(vuln.id)}
@@ -474,12 +481,7 @@ function VulnContent() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge
-                                variant={config.badge}
-                                className="capitalize text-[10px] px-2 py-0"
-                              >
-                                {vuln.severity}
-                              </Badge>
+                              <SeverityPill severity={vuln.severity} />
                             </TableCell>
                             <TableCell>
                               <span className="text-sm text-muted-foreground font-mono truncate max-w-[200px] block">
@@ -508,10 +510,10 @@ function VulnContent() {
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: "auto" }}
                               exit={{ opacity: 0, height: 0 }}
-                              className="border-border/20 bg-muted/10"
+                              className="border-border bg-muted/10"
                             >
                               <TableCell colSpan={7} className="p-0">
-                                <div className="p-5 space-y-4 border-t border-border/20">
+                                <div className="p-5 space-y-4 border-t border-border">
                                   {vuln.description && (
                                     <div>
                                       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -591,7 +593,7 @@ function VulnContent() {
                                           Copy
                                         </button>
                                       </div>
-                                      <pre className="text-xs text-foreground/80 bg-background/50 border border-border/30 rounded-lg p-3 overflow-x-auto font-mono">
+                                      <pre className="text-xs text-foreground/80 bg-background/50 border border-border rounded-lg p-3 overflow-x-auto font-mono">
                                         {vuln.curl_command}
                                       </pre>
                                     </div>

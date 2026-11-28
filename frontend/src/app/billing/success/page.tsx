@@ -47,15 +47,15 @@ function SuccessInner() {
       {!status && !error && <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />}
       {error && (
         <>
-          <XCircle className="h-10 w-10 text-red-400" />
-          <h1 className="mt-4 font-display text-2xl font-semibold">Payment not confirmed</h1>
+          <XCircle className="h-10 w-10 text-destructive" />
+          <h1 className="mt-4 text-2xl font-semibold">Payment not confirmed</h1>
           <p className="mt-2 text-sm text-muted-foreground">{error}</p>
         </>
       )}
       {paid && (
         <>
-          <CheckCircle2 className="h-10 w-10 text-phosphor" />
-          <h1 className="mt-4 font-display text-2xl font-semibold">You&apos;re all set</h1>
+          <CheckCircle2 className="h-10 w-10 text-primary" />
+          <h1 className="mt-4 text-2xl font-semibold">You&apos;re all set</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {status?.amount_total != null && status.currency
               ? `${formatMoney(status.amount_total, status.currency)} paid. `
@@ -67,7 +67,7 @@ function SuccessInner() {
       {pending && (
         <>
           <Clock className="h-10 w-10 text-amber-400" />
-          <h1 className="mt-4 font-display text-2xl font-semibold">Payment processing</h1>
+          <h1 className="mt-4 text-2xl font-semibold">Payment processing</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Your bank is still confirming the payment. Your plan switches on as soon as it clears.
           </p>
@@ -75,8 +75,8 @@ function SuccessInner() {
       )}
       {status && !paid && !pending && (
         <>
-          <XCircle className="h-10 w-10 text-red-400" />
-          <h1 className="mt-4 font-display text-2xl font-semibold">Checkout not finished</h1>
+          <XCircle className="h-10 w-10 text-destructive" />
+          <h1 className="mt-4 text-2xl font-semibold">Checkout not finished</h1>
           <p className="mt-2 text-sm text-muted-foreground">Nothing was charged. You can try again.</p>
         </>
       )}

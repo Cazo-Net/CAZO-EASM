@@ -32,7 +32,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `${error.name}: ${error.message}`,
+          message: `${error.name}: ${error.message}`.slice(0, 2000),
         }),
       }).catch(() => {});
     } catch {
@@ -44,7 +44,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[400px] p-8 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 mb-6">
+          <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-destructive/10 mb-6">
             <AlertTriangle className="h-8 w-8 text-destructive" />
           </div>
           <h2 className="text-xl font-semibold mb-2">Something went wrong</h2>

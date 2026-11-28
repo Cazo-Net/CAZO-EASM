@@ -1,5 +1,6 @@
 "use client";
 
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import * as React from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
@@ -10,7 +11,7 @@ import { getExecutiveReport, generateExecutiveReport } from "@/lib/api-reports";
 import { getErrorMessage } from "@/lib/api";
 import type { ExecutiveReport } from "@/types/report";
 
-export default function ExecutiveReportPage() {
+function ExecutiveReportContent() {
   const [report, setReport] = React.useState<ExecutiveReport | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [generating, setGenerating] = React.useState(false);
@@ -50,7 +51,7 @@ export default function ExecutiveReportPage() {
   }
 
   return (
-    <div className="page-container-md">
+    <div className="page-container-md py-6">
       <PageHeader
         title="Executive Reporting"
         description="Organization-wide security posture at a glance."
@@ -59,7 +60,7 @@ export default function ExecutiveReportPage() {
           <button
             onClick={() => handleGenerate("json")}
             disabled={generating}
-            className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand/90 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
             <Download className="h-4 w-4" />
             {generating ? "Generating…" : "Generate Report"}
@@ -86,13 +87,13 @@ export default function ExecutiveReportPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Total Assets" value={report.total_assets} icon={<Server className="h-5 w-5" />} accent="brand" />
             <StatCard label="Scans" value={report.total_scans} hint={`${report.active_scans} active`} icon={<Activity className="h-5 w-5" />} accent="info" />
-            <StatCard label="Critical Vulns" value={report.critical_vulns} icon={<ShieldAlert className="h-5 w-5" />} accent="danger" />
-            <StatCard label="High Vulns" value={report.high_vulns} icon={<ShieldCheck className="h-5 w-5" />} accent="warning" />
+            <StatCard label="Critical findings" value={report.critical_vulns} icon={<ShieldAlert className="h-5 w-5" />} accent="danger" />
+            <StatCard label="High findings" value={report.high_vulns} icon={<ShieldCheck className="h-5 w-5" />} accent="warning" />
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <SectionCard title="Top Exposed Assets" description="By exposure score (desc)">
-              {report.top_exposed_assets.length === 0 ? (
+              {(report.top_exposed_assets ?? []).length === 0 ? (
                 <EmptyState title="No exposure data" description="Run a scan to surface your top exposed assets." />
               ) : (
                 <ul className="divide-y divide-border/50">
@@ -120,5 +121,13 @@ export default function ExecutiveReportPage() {
         <EmptyState title="No report data" description="Unable to load the executive report." />
       )}
     </div>
+  );
+}
+
+export default function ExecutiveReportPage() {
+  return (
+    <ProtectedRoute>
+      <ExecutiveReportContent />
+    </ProtectedRoute>
   );
 }

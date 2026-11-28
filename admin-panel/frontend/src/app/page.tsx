@@ -1,5 +1,6 @@
 "use client";
 
+import { CazoMark } from "@/components/CazoMark";
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api, { getErrorMessage } from "@/lib/api";
@@ -12,26 +13,6 @@ import {
   MessageSquare,
 } from "lucide-react";
 
-function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 64" fill="none" className={className} aria-hidden="true">
-      <defs>
-        <linearGradient id="admin-header-gradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#10B981" />
-          <stop offset="1" stopColor="#06B6D4" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M44.5 12.8A22 22 0 1 0 52 32"
-        stroke="url(#admin-header-gradient)"
-        strokeWidth="7"
-        strokeLinecap="round"
-      />
-      <circle cx="50" cy="28" r="5" fill="url(#admin-header-gradient)" />
-      <circle cx="50" cy="28" r="2" fill="#09090B" />
-    </svg>
-  );
-}
 
 type Tab = "overview" | "users" | "orgs" | "scans" | "vulns" | "assets" | "sessions" | "audit" | "logs" | "notifications" | "apikeys" | "flags" | "database" | "system" | "blockchain" | "support";
 
@@ -420,12 +401,12 @@ export default function AdminPage() {
 
   const severityColor = (s: string) => ({
     critical: "text-red-500 bg-red-500/10", high: "text-orange-500 bg-orange-500/10",
-    medium: "text-yellow-500 bg-yellow-500/10", low: "text-blue-500 bg-blue-500/10",
+    medium: "text-yellow-500 bg-yellow-500/10", low: "text-sky-400 bg-sky-500/10",
     info: "text-zinc-400 bg-zinc-500/10",
   }[s] || "text-zinc-400 bg-zinc-500/10");
 
   const statusColor = (s: string) => ({
-    completed: "bg-green-500", running: "bg-blue-500 animate-pulse",
+    completed: "bg-green-500", running: "bg-sky-500 animate-pulse",
     failed: "bg-red-500", pending: "bg-yellow-500",
     open: "bg-red-500", confirmed: "bg-orange-500", fixed: "bg-green-500",
     active: "bg-green-500", inactive: "bg-zinc-500",
@@ -438,7 +419,7 @@ export default function AdminPage() {
         <div className="flex items-center gap-3">
           <CazoMark className="h-7 w-7" />
           <div>
-            <h1 className="text-xl font-bold">CAZO Admin Panel</h1>
+            <h1 className="text-xl font-semibold tracking-tight">CAZO <span className="text-zinc-500 font-medium">EASM</span> Admin</h1>
             <p className="text-xs text-zinc-500">Standalone control console &mdash; Backend :9000 / Frontend :3001</p>
           </div>
         </div>

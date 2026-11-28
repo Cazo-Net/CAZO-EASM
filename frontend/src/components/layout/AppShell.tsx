@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Mobile overlay */}
         {mobileOpen && (
           <div
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
             onClick={handleCloseMobile}
             aria-hidden="true"
           />

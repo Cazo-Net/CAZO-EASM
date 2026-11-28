@@ -6,12 +6,12 @@ import { cn } from "@/lib/utils";
 export type Tone = "active" | "success" | "warning" | "danger" | "muted" | "info";
 
 const toneMap: Record<Tone, string> = {
-  active: "bg-cyan-signal",
-  success: "bg-phosphor",
-  warning: "bg-amber",
-  danger: "bg-signal-red",
+  active: "bg-primary",
+  success: "bg-success",
+  warning: "bg-warning",
+  danger: "bg-destructive",
   muted: "bg-muted-foreground",
-  info: "bg-cyan-signal",
+  info: "bg-info",
 };
 
 export function StatusDot({

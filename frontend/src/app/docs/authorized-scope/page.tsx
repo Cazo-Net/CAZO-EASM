@@ -11,7 +11,7 @@ export default function AuthorizedScopeDocPage() {
   return (
     <DocsLayout>
       <article className="max-w-2xl">
-        <h1 className="font-display text-3xl font-semibold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           What is Authorized Scope, and why do I need it?
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
@@ -116,7 +116,7 @@ export default function AuthorizedScopeDocPage() {
           <li>&ldquo;Bug bounty: example.com/security&rdquo;</li>
         </ul>
 
-        <div className="mt-10 rounded-xl border border-border/50 bg-card/40 p-5">
+        <div className="mt-10 rounded-xl border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">
             See also:{" "}
             <Link href="/legal/authorized-scanning" className="text-phosphor hover:underline">

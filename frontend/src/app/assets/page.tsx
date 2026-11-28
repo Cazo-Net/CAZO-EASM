@@ -241,7 +241,7 @@ function AssetsContent() {
           icon={<Globe className="h-5 w-5" />}
           breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Assets" }]}
           actions={
-            <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-surface-2/50 p-1">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-2 p-1">
               <button
                 onClick={() => setViewMode("grid")}
                 className={cn(
@@ -309,7 +309,7 @@ function AssetsContent() {
             placeholder="Search assets by hostname, service, or technology..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-11 pl-11 bg-surface-2/50 border-border/60 focus:border-brand/40 focus:ring-brand/20"
+            className="h-11 pl-11 bg-surface-2 border-border focus:border-brand/40 focus:ring-brand/20"
           />
         </div>
 
@@ -341,7 +341,7 @@ function AssetsContent() {
                   "flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-all",
                   activeFilter === filter
                     ? "border-brand/50 bg-brand/10 text-brand shadow-sm"
-                    : "border-border/50 bg-surface-2/50 text-muted-foreground hover:border-border hover:text-foreground"
+                    : "border-border bg-surface-2 text-muted-foreground hover:border-border hover:text-foreground"
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -389,7 +389,7 @@ function AssetsContent() {
             >
               <div className="relative mb-6">
                 <div className="absolute inset-0 rounded-full bg-brand/20 blur-2xl" />
-                <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-border/50 bg-card/80">
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-xl border border-border bg-card">
                   <Globe className="h-10 w-10 text-muted-foreground" />
                 </div>
               </div>
@@ -401,7 +401,7 @@ function AssetsContent() {
               </p>
               <a
                 href="/scan/new"
-                className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-void shadow-elevation-2 transition-all"
+                className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-elevation-2 transition-all"
               >
                 <Globe className="h-4 w-4" />
                 Start a Scan
@@ -420,7 +420,7 @@ function AssetsContent() {
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                 <Globe className="h-4 w-4 text-brand" />
-                <h2 className="text-sm font-semibold font-display text-foreground">
+                <h2 className="text-sm font-semibold text-foreground">
                   Subdomains
                 </h2>
                 <span className="rounded-md bg-brand/10 px-1.5 py-0.5 text-xs font-semibold text-brand">
@@ -434,7 +434,7 @@ function AssetsContent() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
               transition={{ type: "tween" }}
-                          className="group relative rounded-xl border border-border/50 bg-card/60 p-5 transition-all duration-300 hover:border-brand/30 hover:shadow-lg hover:shadow-brand/5 hover:-translate-y-0.5"
+                          className="group relative rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:border-brand/30 hover:shadow-lg hover:shadow-brand/5 hover:-translate-y-0.5"
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -498,7 +498,7 @@ function AssetsContent() {
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <Server className="h-4 w-4 text-brand-2" />
-                    <h2 className="text-sm font-semibold font-display text-foreground">
+                    <h2 className="text-sm font-semibold text-foreground">
                       Open Ports
                     </h2>
                     <span className="rounded-md bg-brand-2/10 px-1.5 py-0.5 text-xs font-semibold text-brand-2">
@@ -512,12 +512,12 @@ function AssetsContent() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
               transition={{ type: "tween" }}
-                        className="group relative rounded-xl border border-border/50 bg-card/60 p-5 transition-all duration-300 hover:border-brand-2/30 hover:shadow-lg hover:shadow-brand-2/5 hover:-translate-y-0.5"
+                        className="group relative rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:border-brand-2/30 hover:shadow-lg hover:shadow-brand-2/5 hover:-translate-y-0.5"
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <FavoriteButton assetType="port" assetId={port.id} />
-                            <span className="inline-flex items-center justify-center rounded-lg bg-brand-2/10 px-2.5 py-1 font-mono text-lg font-bold text-brand-2">
+                            <span className="inline-flex items-center justify-center rounded-lg bg-brand-2/10 px-2.5 py-1 font-mono text-lg font-semibold text-brand-2">
                               {port.port_number}
                             </span>
                           </div>
@@ -563,7 +563,7 @@ function AssetsContent() {
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <Lock className="h-4 w-4 text-success" />
-                    <h2 className="text-sm font-semibold font-display text-foreground">
+                    <h2 className="text-sm font-semibold text-foreground">
                       SSL Certificates
                     </h2>
                     <span className="rounded-md bg-success/10 px-1.5 py-0.5 text-xs font-semibold text-success">
@@ -583,12 +583,12 @@ function AssetsContent() {
                           animate={{ opacity: 1, y: 0 }}
               transition={{ type: "tween" }}
                           className={cn(
-                            "group relative rounded-xl border bg-card/60 p-5 transition-all duration-300 hover:-translate-y-0.5",
+                            "group relative rounded-xl border bg-card p-5 transition-all duration-300 hover:-translate-y-0.5",
                             isExpired
                               ? "border-destructive/30 hover:shadow-lg hover:shadow-destructive/5"
                               : isExpiring
                                 ? "border-warning/30 hover:shadow-lg hover:shadow-warning/5"
-                                : "border-border/50 hover:border-success/30 hover:shadow-lg hover:shadow-success/5"
+                                : "border-border hover:border-success/30 hover:shadow-lg hover:shadow-success/5"
                           )}
                         >
                           <div className="flex items-start justify-between mb-3">
@@ -601,7 +601,7 @@ function AssetsContent() {
                             {cert.grade && (
                               <span
                                 className={cn(
-                                  "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-bold",
+                                  "inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold",
                                   getGradeColor(cert.grade)
                                 )}
                               >
@@ -680,7 +680,7 @@ function AssetsContent() {
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <Cpu className="h-4 w-4 text-accent-2" />
-                    <h2 className="text-sm font-semibold font-display text-foreground">
+                    <h2 className="text-sm font-semibold text-foreground">
                       Technologies
                     </h2>
                     <span className="rounded-md bg-accent-2/10 px-1.5 py-0.5 text-xs font-semibold text-accent-2">
@@ -694,7 +694,7 @@ function AssetsContent() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
               transition={{ type: "tween" }}
-                        className="group relative rounded-xl border border-border/50 bg-card/60 p-5 transition-all duration-300 hover:border-accent-2/30 hover:shadow-lg hover:shadow-accent-2/5 hover:-translate-y-0.5"
+                        className="group relative rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:border-accent-2/30 hover:shadow-lg hover:shadow-accent-2/5 hover:-translate-y-0.5"
                       >
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -744,12 +744,12 @@ function AssetsContent() {
               animate={{ opacity: 1 }}
               transition={{ type: "tween" }}
               exit={{ opacity: 0 }}
-              className="rounded-xl border border-border/50 bg-card/60 overflow-hidden"
+              className="rounded-xl border border-border bg-card overflow-hidden"
             >
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-border/50 bg-muted/30">
+                    <tr className="border-b border-border bg-muted/30">
                       {[
                         { field: "type" as SortField, label: "Type" },
                         { field: "name" as SortField, label: "Name" },
@@ -787,7 +787,7 @@ function AssetsContent() {
                       return (
                         <tr
                           key={`${row.type}-${i}`}
-                          className="border-b border-border/30 last:border-0 hover:bg-muted/20 transition-colors"
+                          className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors"
                         >
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StatCardProps {
@@ -16,13 +16,13 @@ interface StatCardProps {
   onClick?: () => void;
 }
 
-const accentStyles: Record<NonNullable<StatCardProps["accent"]>, { icon: string; border: string }> = {
-  brand: { icon: "text-phosphor", border: "from-phosphor/40 to-cyan-signal/20" },
-  violet: { icon: "text-neon-violet", border: "from-neon-violet/40 to-phosphor/20" },
-  success: { icon: "text-phosphor", border: "from-phosphor/40 to-phosphor/10" },
-  warning: { icon: "text-amber", border: "from-amber/40 to-amber/10" },
-  danger: { icon: "text-signal-red", border: "from-signal-red/40 to-signal-red/10" },
-  info: { icon: "text-cyan-signal", border: "from-cyan-signal/40 to-cyan-signal/10" },
+const accentStyles: Record<NonNullable<StatCardProps["accent"]>, string> = {
+  brand: "text-primary bg-primary/10",
+  violet: "text-accent-2 bg-accent-2/10",
+  success: "text-success bg-success/10",
+  warning: "text-warning bg-warning/10",
+  danger: "text-destructive bg-destructive/10",
+  info: "text-info bg-info/10",
 };
 
 export function StatCard({
@@ -38,46 +38,37 @@ export function StatCard({
 }: StatCardProps) {
   const positive = (delta ?? 0) >= 0;
   const Comp = onClick ? "button" : "div";
-  const styles = accentStyles[accent];
 
   return (
     <Comp
       onClick={onClick}
       className={cn(
-        "group relative w-full overflow-hidden rounded-xl border border-border/50 bg-card/50 p-5 text-left backdrop-blur-sm transition-all duration-250",
-        "hover:border-border/80 hover:bg-card/70",
-        onClick && "hover-glow cursor-pointer",
+        "group relative w-full rounded-xl border border-border bg-card p-5 text-left shadow-elevation-1 transition-colors",
+        onClick && "cursor-pointer hover:border-input hover:bg-surface-2",
         className
       )}
     >
-      {/* Bottom accent line */}
-      <div className={cn("absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r opacity-0 group-hover:opacity-100 transition-opacity duration-300", styles.border)} />
-
-      <div className="flex items-start justify-between">
-        <div className="min-w-0">
-          <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground/70 font-mono">
-            {label}
-          </p>
-          <p className="mt-2.5 text-3xl font-bold tracking-tight tabular-nums font-mono text-foreground count-up">
-            {value}
-          </p>
-        </div>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[13px] font-medium text-muted-foreground">{label}</p>
         {icon && (
-          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-2/80 border border-border/30", styles.icon)}>
+          <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md [&_svg]:h-4 [&_svg]:w-4", accentStyles[accent])}>
             {icon}
           </div>
         )}
       </div>
+      <p className="mt-2 text-[28px] font-semibold leading-none tracking-tight tabular-nums text-foreground">
+        {value}
+      </p>
       {(delta !== undefined || hint) && (
-        <div className="mt-3 flex items-center gap-2 text-xs font-mono">
+        <div className="mt-3 flex items-center gap-2 text-xs">
           {delta !== undefined && (
             <span
               className={cn(
-                "inline-flex items-center gap-1 font-medium",
-                positive ? "text-phosphor" : "text-signal-red"
+                "inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-medium tabular-nums",
+                positive ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
               )}
             >
-              {positive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+              {positive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
               {Math.abs(delta)}
               {deltaSuffix}
             </span>

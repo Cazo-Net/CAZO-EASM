@@ -19,7 +19,7 @@ export function SkeletonText({ lines = 3, className }: { lines?: number; classNa
 
 export function SkeletonStat({ className }: { className?: string }) {
   return (
-    <div className={cn("rounded-2xl border border-border/60 bg-card/60 p-5", className)}>
+    <div className={cn("rounded-xl border border-border bg-card p-5", className)}>
       <SkeletonBlock className="h-3 w-20" />
       <SkeletonBlock className="mt-3 h-8 w-24" />
       <SkeletonBlock className="mt-3 h-3 w-16" />

@@ -17,9 +17,9 @@ export function ErrorActions({
         const base =
           "inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand/50 focus:ring-offset-2 focus:ring-offset-background";
         const variants: Record<string, string> = {
-          primary: "bg-brand text-white hover:bg-brand/90 shadow-lg shadow-brand/20 hover:shadow-brand/30",
+          primary: "bg-brand text-white hover:bg-brand/90 hover:shadow-brand/30",
           secondary:
-            "border border-border/50 bg-card/60 text-foreground hover:bg-card hover:border-border backdrop-blur-sm",
+            "border border-border bg-card text-foreground hover:bg-card hover:border-border",
           ghost: "text-muted-foreground hover:text-foreground hover:bg-muted/30",
         };
         const cls = cn(base, variants[action.variant || "primary"], i === 0 && "order-first");

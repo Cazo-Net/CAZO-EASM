@@ -22,11 +22,11 @@ export function RiskScoreCard({ score, className }: RiskScoreCardProps) {
             Overall Risk Score
           </p>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-5xl font-bold tracking-tight">{score}</span>
+            <span className="text-5xl font-semibold tracking-tight">{score}</span>
             <span className="text-lg text-muted-foreground">/ 100</span>
           </div>
         </div>
-        <div className={`rounded-2xl p-5 ${colorClass}`}>
+        <div className={`rounded-xl p-5 ${colorClass}`}>
           <Icon className="h-10 w-10" />
         </div>
       </div>

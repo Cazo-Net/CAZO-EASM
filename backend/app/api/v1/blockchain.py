@@ -9,7 +9,10 @@ import logging
 import re
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.api.deps import get_current_user
+from app.models.user import User
 
 from app.schemas.blockchain import (
     Chain,
@@ -464,16 +467,35 @@ async def copilot_ask(body: dict[str, Any]):
 
 
 # ── Phase 2: Cases ──────────────────────────────────────────────────────────
+# Cases are kept per organization. The organization and the acting user always
+# come from the signed-in user, never from the request body or query string,
+# so one customer cannot read or change another customer's cases.
+
+
+def _case_org(user: User) -> str:
+    if not user.organization_id:
+        raise HTTPException(status_code=403, detail="Join or create an organization first.")
+    return user.organization_id
+
+
+def _own_case(case_id: str, user: User):
+    from app.services.blockchain.cases.cases import get_case
+    case = get_case(case_id)
+    if not case or case.org_id != _case_org(user):
+        raise HTTPException(status_code=404, detail="Case not found")
+    return case
+
 
 @router.post("/cases")
-async def create_case(body: dict[str, Any]):
+async def create_case(body: dict[str, Any], user: User = Depends(get_current_user)):
     """Create a new investigation case."""
     from app.services.blockchain.cases.cases import create_case
+    org_id = _case_org(user)
     try:
         case = create_case(
-            org_id=body.get("org_id", ""),
+            org_id=org_id,
             title=body.get("title", ""),
-            created_by=body.get("created_by", ""),
+            created_by=user.id,
             description=body.get("description", ""),
             assigned_to=body.get("assigned_to"),
         )
@@ -485,25 +507,33 @@ async def create_case(body: dict[str, Any]):
 
 @router.get("/cases")
 async def list_cases(
-    org_id: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    user: User = Depends(get_current_user),
 ):
-    """List investigation cases."""
+    """List the caller's organization's investigation cases."""
     from app.services.blockchain.cases.cases import list_cases, CaseStatus
-    case_status = CaseStatus(status) if status else None
-    cases = list_cases(org_id=org_id, status=case_status)
+    try:
+        case_status = CaseStatus(status) if status else None
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Unknown case status")
+    cases = list_cases(org_id=_case_org(user), status=case_status)
     return {"cases": [c.model_dump(mode="json") for c in cases]}
 
 
+@router.get("/cases/stats")
+async def case_stats(user: User = Depends(get_current_user)):
+    """Case statistics for the caller's organization."""
+    from app.services.blockchain.cases.cases import case_stats
+    return case_stats(_case_org(user))
+
+
 @router.get("/cases/{case_id}")
-async def get_case(case_id: str):
+async def get_case(case_id: str, user: User = Depends(get_current_user)):
     """Get a case with annotations, members, and audit trail."""
     from app.services.blockchain.cases.cases import (
-        get_case, list_annotations, list_members, get_audit_trail,
+        list_annotations, list_members, get_audit_trail,
     )
-    case = get_case(case_id)
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
+    case = _own_case(case_id, user)
     return {
         "case": case.model_dump(mode="json"),
         "annotations": [a.model_dump(mode="json") for a in list_annotations(case_id)],
@@ -513,13 +543,17 @@ async def get_case(case_id: str):
 
 
 @router.put("/cases/{case_id}")
-async def update_case(case_id: str, body: dict[str, Any]):
+async def update_case(case_id: str, body: dict[str, Any], user: User = Depends(get_current_user)):
     """Update a case."""
     from app.services.blockchain.cases.cases import update_case, CaseStatus
-    case_status = CaseStatus(body["status"]) if body.get("status") else None
+    _own_case(case_id, user)
+    try:
+        case_status = CaseStatus(body["status"]) if body.get("status") else None
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Unknown case status")
     case = update_case(
         case_id=case_id,
-        user_id=body.get("user_id", ""),
+        user_id=user.id,
         title=body.get("title"),
         description=body.get("description"),
         status=case_status,
@@ -531,12 +565,13 @@ async def update_case(case_id: str, body: dict[str, Any]):
 
 
 @router.post("/cases/{case_id}/annotations")
-async def add_annotation(case_id: str, body: dict[str, Any]):
+async def add_annotation(case_id: str, body: dict[str, Any], user: User = Depends(get_current_user)):
     """Add an annotation to a case."""
     from app.services.blockchain.cases.cases import add_annotation
+    _own_case(case_id, user)
     ann = add_annotation(
         case_id=case_id,
-        user_id=body.get("user_id", ""),
+        user_id=user.id,
         content=body.get("content", ""),
         entity_type=body.get("entity_type", "address"),
         entity_id=body.get("entity_id", ""),
@@ -547,26 +582,23 @@ async def add_annotation(case_id: str, body: dict[str, Any]):
 
 
 @router.post("/cases/{case_id}/members")
-async def add_member(case_id: str, body: dict[str, Any]):
+async def add_member(case_id: str, body: dict[str, Any], user: User = Depends(get_current_user)):
     """Add a member to a case."""
     from app.services.blockchain.cases.cases import add_member, CaseMemberRole
-    role = CaseMemberRole(body.get("role", "analyst"))
+    _own_case(case_id, user)
+    try:
+        role = CaseMemberRole(body.get("role", "analyst"))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Unknown member role")
     member = add_member(
         case_id=case_id,
         user_id=body.get("user_id", ""),
         role=role,
-        added_by=body.get("added_by"),
+        added_by=user.id,
     )
     if not member:
         raise HTTPException(status_code=404, detail="Case not found")
     return member.model_dump(mode="json")
-
-
-@router.get("/cases/stats")
-async def case_stats(org_id: str = Query(...)):
-    """Get case statistics."""
-    from app.services.blockchain.cases.cases import case_stats
-    return case_stats(org_id)
 
 
 @router.get("/alerts/stats")

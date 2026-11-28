@@ -44,18 +44,18 @@ export function Bookmarks() {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="space-y-2 rounded-lg border border-border/30 bg-card/10 p-3">
+            <div className="space-y-2 rounded-lg border border-border bg-card p-3">
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Bookmark name..."
-                className="w-full rounded-lg border border-border/30 bg-background px-3 py-1.5 text-xs outline-none focus:border-brand/50"
+                className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs outline-none focus:border-brand/50"
               />
               <input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Notes (optional)..."
-                className="w-full rounded-lg border border-border/30 bg-background px-3 py-1.5 text-xs outline-none focus:border-brand/50"
+                className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs outline-none focus:border-brand/50"
               />
               <div className="flex gap-2">
                 <button
@@ -86,7 +86,7 @@ export function Bookmarks() {
           state.bookmarks.map((b) => (
             <div
               key={b.id}
-              className="flex items-center gap-2 rounded-lg bg-card/10 px-3 py-2 group hover:bg-card/20 transition-colors cursor-pointer"
+              className="flex items-center gap-2 rounded-lg bg-card px-3 py-2 group hover:bg-card transition-colors cursor-pointer"
               onClick={() => setTimestamp(b.timestamp)}
             >
               <Clock className="h-3 w-3 text-accent-2 shrink-0" />

@@ -19,7 +19,7 @@ export function ReplayFilters() {
           <select
             value={state.filters.technology || ""}
             onChange={(e) => setFilters({ technology: e.target.value || null })}
-            className="w-full rounded-lg border border-border/30 bg-card/10 px-3 py-1.5 text-xs outline-none focus:border-brand/50"
+            className="w-full rounded-lg border border-border bg-card px-3 py-1.5 text-xs outline-none focus:border-brand/50"
           >
             <option value="">All Technologies</option>
             <option value="nginx">Nginx</option>
@@ -35,7 +35,7 @@ export function ReplayFilters() {
           <select
             value={state.filters.asset_type || ""}
             onChange={(e) => setFilters({ asset_type: e.target.value || null })}
-            className="w-full rounded-lg border border-border/30 bg-card/10 px-3 py-1.5 text-xs outline-none focus:border-brand/50"
+            className="w-full rounded-lg border border-border bg-card px-3 py-1.5 text-xs outline-none focus:border-brand/50"
           >
             <option value="">All Types</option>
             <option value="subdomain">Subdomains</option>

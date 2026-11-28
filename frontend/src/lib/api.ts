@@ -115,6 +115,17 @@ export function getToken(): string | null {
   return localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
 }
 
+/**
+ * `fetch` with the signed-in user's bearer token attached. Use this instead of
+ * a bare `fetch` for any /api/v1 route: every route except sign-in needs it.
+ */
+export function authFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const token = getToken();
+  const headers = new Headers(init.headers);
+  if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
+  return fetch(input, { ...init, headers });
+}
+
 // Normalize an API error into a human-readable string. FastAPI returns 422
 // validation errors as `detail: [{ type, loc, msg, ... }]` (an array of objects)
 // which must never be rendered directly as a React child.

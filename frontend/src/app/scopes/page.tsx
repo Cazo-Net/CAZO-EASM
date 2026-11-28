@@ -206,7 +206,7 @@ function ScopesContent() {
       />
 
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="md:col-span-2 backdrop-blur-sm bg-card/60">
+        <Card className="md:col-span-2 bg-card">
           <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
             <CardTitle className="text-base">Registered Scopes</CardTitle>
             <div className="relative w-56">
@@ -249,7 +249,7 @@ function ScopesContent() {
                       className="py-3"
                     >
                       <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-surface-2 text-brand">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-brand">
                         <ScopeIcon type={s.scope_type} className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -300,7 +300,7 @@ function ScopesContent() {
                       </Button>
                       </div>
                       {openVerifyId === s.id && s.verification?.method === "dns_txt" && (
-                        <div className="mt-3 ml-12 space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3 text-xs">
+                        <div className="mt-3 ml-12 space-y-2 rounded-lg border border-border bg-muted/30 p-3 text-xs">
                           <p className="text-muted-foreground">
                             Prove you control this domain: add this DNS record at your DNS
                             provider, then press Check now. Changes can take a few minutes to appear.
@@ -359,7 +359,7 @@ function ScopesContent() {
           </CardContent>
         </Card>
 
-        <Card className="backdrop-blur-sm bg-card/60">
+        <Card className=" bg-card">
           <CardHeader>
             <CardTitle className="text-base">Authorization Check</CardTitle>
           </CardHeader>
@@ -442,7 +442,7 @@ function ScopesContent() {
                       "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                       active
                         ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border/60 text-muted-foreground hover:bg-muted/50"
+                        : "border-border text-muted-foreground hover:bg-muted/50"
                     )}
                   >
                     <Icon className="h-4 w-4" /> {meta.label}
@@ -473,7 +473,7 @@ function ScopesContent() {
               />
             </div>
 
-            <div className="rounded-lg border border-phosphor/20 bg-phosphor/5 p-3">
+            <div className="rounded-lg border border-border bg-muted/40 p-3">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"

@@ -46,7 +46,7 @@ export function ExposureEvolution() {
       {/* Recent entries */}
       <div className="space-y-2 max-h-60 overflow-y-auto">
         {history.slice(-10).reverse().map((h, i) => (
-          <div key={h.timestamp} className="rounded-lg border border-border/20 bg-card/10 p-3">
+          <div key={h.timestamp} className="rounded-lg border border-border bg-card p-3">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground">
                 {new Date(h.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -60,7 +60,7 @@ export function ExposureEvolution() {
                   <Minus className="h-3 w-3 text-muted-foreground" />
                 )}
                 <span className={cn(
-                  "text-xs font-bold",
+                  "text-xs font-semibold",
                   h.delta > 0 ? "text-destructive" : h.delta < 0 ? "text-success" : "text-muted-foreground"
                 )}>
                   {h.score}

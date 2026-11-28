@@ -124,7 +124,7 @@ function WhoisContent() {
           icon={<Globe className="h-5 w-5" />}
           breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "WHOIS Records" }]}
           actions={
-            <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-surface-2/50 p-1">
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-2 p-1">
               <button
                 onClick={() => setViewMode("cards")}
                 className={cn(
@@ -205,13 +205,13 @@ function WhoisContent() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              className="glass rounded-xl p-4 hover-glow"
+              className="glass rounded-xl p-4"
             >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                   <p
-                    className={cn("text-2xl font-bold mt-0.5 font-mono tabular-nums", stat.color)}
+                    className={cn("text-2xl font-semibold mt-0.5 tabular-nums", stat.color)}
                   >
                     {stat.value}
                   </p>
@@ -235,7 +235,7 @@ function WhoisContent() {
             placeholder="Search by domain, registrar, registrant name, or organization..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-11 pl-11 bg-muted/30 border-border/50 focus:border-brand/50 focus:ring-brand/20"
+            className="h-11 pl-11 bg-muted/30 border-border focus:border-brand/50 focus:ring-brand/20"
           />
         </div>
 
@@ -262,7 +262,7 @@ function WhoisContent() {
             >
               <div className="relative mb-6">
                 <div className="absolute inset-0 rounded-full bg-brand/20 blur-2xl" />
-                <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-border/50 bg-card/80">
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-xl border border-border bg-card">
                   <Globe className="h-10 w-10 text-muted-foreground" />
                 </div>
               </div>
@@ -279,7 +279,7 @@ function WhoisContent() {
               {!searchQuery && (
                 <a
                   href="/scan/new"
-                  className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-void shadow-glow-sm hover:bg-primary/90 transition-all"
+                  className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all"
                 >
                   <Globe className="h-4 w-4" />
                   Start a Scan
@@ -307,12 +307,12 @@ function WhoisContent() {
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ delay: i * 0.03 }}
                     className={cn(
-                      "group relative rounded-xl border bg-card/60 p-5 transition-all duration-300 hover:-translate-y-0.5",
+                      "group relative rounded-xl border bg-card p-5 transition-all duration-300 hover:-translate-y-0.5",
                       status === "expired"
                         ? "border-destructive/30 hover:shadow-lg hover:shadow-destructive/5"
                         : status === "expiring"
                           ? "border-warning/30 hover:shadow-lg hover:shadow-warning/5"
-                          : "border-border/50 hover:border-brand/30 hover:shadow-lg hover:shadow-brand/5"
+                          : "border-border hover:border-brand/30 hover:shadow-lg hover:shadow-brand/5"
                     )}
                   >
                     <div className="flex items-start justify-between mb-4">
@@ -411,7 +411,7 @@ function WhoisContent() {
                             {record.name_servers.map((ns) => (
                               <span
                                 key={ns}
-                                className="inline-flex items-center rounded-md border border-border/50 bg-muted/30 px-2 py-0.5 text-[10px] font-medium text-muted-foreground font-mono"
+                                className="inline-flex items-center rounded-md border border-border bg-muted/30 px-2 py-0.5 text-[10px] font-medium text-muted-foreground font-mono"
                               >
                                 {ns}
                               </span>
@@ -423,7 +423,7 @@ function WhoisContent() {
                     {(record.registrant_name ||
                       record.registrant_org ||
                       record.registrant_country) && (
-                      <div className="border-t border-border/30 pt-3">
+                      <div className="border-t border-border pt-3">
                         <div className="flex items-center gap-1.5 mb-2">
                           <User className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="text-xs font-medium text-muted-foreground">
@@ -433,7 +433,7 @@ function WhoisContent() {
                         <div className="space-y-1">
                           {record.registrant_name && (
                             <div className="flex items-center gap-2 text-xs">
-                              <User className="h-3 w-3 text-muted-foreground/60 flex-shrink-0" />
+                              <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                               <span className="text-foreground truncate">
                                 {record.registrant_name}
                               </span>
@@ -441,7 +441,7 @@ function WhoisContent() {
                           )}
                           {record.registrant_org && (
                             <div className="flex items-center gap-2 text-xs">
-                              <Building className="h-3 w-3 text-muted-foreground/60 flex-shrink-0" />
+                              <Building className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                               <span className="text-muted-foreground truncate">
                                 {record.registrant_org}
                               </span>
@@ -449,7 +449,7 @@ function WhoisContent() {
                           )}
                           {record.registrant_country && (
                             <div className="flex items-center gap-2 text-xs">
-                              <MapPin className="h-3 w-3 text-muted-foreground/60 flex-shrink-0" />
+                              <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                               <span className="text-muted-foreground">
                                 {record.registrant_country}
                               </span>
@@ -459,7 +459,7 @@ function WhoisContent() {
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/30">
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
                       <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
                         <Calendar className="h-3 w-3" />
                         Scanned:{" "}
@@ -483,7 +483,7 @@ function WhoisContent() {
             >
               <Table>
                 <TableHeader>
-                  <TableRow className="border-border/30 hover:bg-transparent">
+                  <TableRow className="border-border hover:bg-transparent">
                     <TableHead className="text-xs font-semibold">
                       Domain
                     </TableHead>
@@ -519,7 +519,7 @@ function WhoisContent() {
                     return (
                       <TableRow
                         key={record.id}
-                        className="border-border/20 hover:bg-muted/20"
+                        className="border-border hover:bg-muted/20"
                       >
                         <TableCell>
                           <div className="flex items-center gap-2.5">
@@ -576,7 +576,7 @@ function WhoisContent() {
                             {record.name_servers.slice(0, 2).map((ns) => (
                               <span
                                 key={ns}
-                                className="inline-flex items-center rounded border border-border/50 bg-muted/30 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground"
+                                className="inline-flex items-center rounded border border-border bg-muted/30 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground"
                               >
                                 {ns.length > 16 ? ns.slice(0, 16) + "…" : ns}
                               </span>

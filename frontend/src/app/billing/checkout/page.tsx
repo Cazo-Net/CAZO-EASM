@@ -99,7 +99,7 @@ function CheckoutInner() {
   if (!catalog) {
     return (
       <div className="flex justify-center py-24">
-        {error ? <p className="text-sm text-red-400">{error}</p> : <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
+        {error ? <p className="text-sm text-destructive">{error}</p> : <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
       </div>
     );
   }
@@ -131,14 +131,14 @@ function CheckoutInner() {
         </div>
       )}
       {!catalog.checkout_enabled && (
-        <div className="mb-4 rounded-xl border border-border/60 bg-card/40 p-3 text-sm text-muted-foreground">
+        <div className="mb-4 rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
           Online payment is not switched on yet. Contact sales to start a plan.
         </div>
       )}
       {!user?.organization_id && (
-        <div className="mb-4 rounded-xl border border-border/60 bg-card/40 p-3 text-sm">
+        <div className="mb-4 rounded-xl border border-border bg-card p-3 text-sm">
           Create your organization first in{" "}
-          <Link className="text-phosphor underline" href="/settings/organization">Organization settings</Link>.
+          <Link className="text-primary underline" href="/settings/organization">Organization settings</Link>.
         </div>
       )}
 
@@ -152,13 +152,13 @@ function CheckoutInner() {
                   onClick={() => setPlanId(p.id)}
                   className={cn(
                     "rounded-xl border p-4 text-left transition",
-                    p.id === planId ? "border-phosphor/70 bg-phosphor/5" : "border-border/50 hover:border-border"
+                    p.id === planId ? "border-phosphor/70 bg-primary/5" : "border-border hover:border-border"
                   )}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{p.name}</span>
                     {overview?.plan.id === p.id && (
-                      <span className="font-mono text-[10px] uppercase text-cyan-signal">current</span>
+                      <span className=" text-[11px] uppercase text-cyan-signal">current</span>
                     )}
                   </div>
                   <p className="mt-1 font-mono text-xs text-muted-foreground">
@@ -207,7 +207,7 @@ function CheckoutInner() {
                   key={o.id}
                   className={cn(
                     "flex cursor-pointer gap-3 rounded-xl border p-4 transition",
-                    payment === o.id ? "border-phosphor/70 bg-phosphor/5" : "border-border/50 hover:border-border"
+                    payment === o.id ? "border-phosphor/70 bg-primary/5" : "border-border hover:border-border"
                   )}
                 >
                   <input
@@ -251,7 +251,7 @@ function CheckoutInner() {
                     </dd>
                   </div>
                 )}
-                <div className="flex justify-between border-t border-border/40 pt-2 text-base font-semibold">
+                <div className="flex justify-between border-t border-border pt-2 text-base font-semibold">
                   <dt>Total per {months === 12 ? "year" : "quarter"}</dt>
                   <dd className="font-mono">{formatMoney(quote?.total, catalog.currency)}</dd>
                 </div>
@@ -259,7 +259,7 @@ function CheckoutInner() {
                   Taxes, if any, are calculated by Stripe. Promotion codes can be entered on the next page.
                 </p>
                 {quote && (
-                  <div className="mt-3 rounded-lg border border-border/40 p-3 text-xs text-muted-foreground">
+                  <div className="mt-3 rounded-lg border border-border p-3 text-xs text-muted-foreground">
                     Includes {quote.limits.root_domains ?? "unlimited"} root domains,{" "}
                     {quote.limits.hosts?.toLocaleString() ?? "unlimited"} hosts,{" "}
                     {quote.limits.users ?? "unlimited"} users and{" "}
@@ -269,7 +269,7 @@ function CheckoutInner() {
               </dl>
             )}
 
-            {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+            {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
             {!canManage && (
               <p className="mt-4 text-sm text-muted-foreground">
                 Only an organization owner or admin can change the plan.

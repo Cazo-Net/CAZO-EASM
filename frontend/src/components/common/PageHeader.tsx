@@ -31,16 +31,16 @@ export function PageHeader({
     <div className={cn("mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between", className)}>
       <div className="min-w-0">
         {breadcrumbs && breadcrumbs.length > 0 && (
-          <nav className="mb-2 flex items-center gap-1.5 text-[10px] text-muted-foreground/60 font-mono uppercase tracking-widest">
+          <nav aria-label="Breadcrumb" className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
             {breadcrumbs.map((c, i) => (
               <React.Fragment key={`${c.label}-${i}`}>
-                {i > 0 && <ChevronRight className="h-3 w-3 opacity-40" />}
+                {i > 0 && <ChevronRight className="h-3 w-3 opacity-50" aria-hidden="true" />}
                 {c.href ? (
                   <Link href={c.href} className="transition-colors hover:text-foreground">
                     {c.label}
                   </Link>
                 ) : (
-                  <span className="text-foreground/70">{c.label}</span>
+                  <span className="text-foreground/80" aria-current="page">{c.label}</span>
                 )}
               </React.Fragment>
             ))}
@@ -48,19 +48,19 @@ export function PageHeader({
         )}
         <div className="flex items-center gap-3">
           {icon && (
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border/50 bg-surface-2/80 text-phosphor">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-primary [&_svg]:h-[18px] [&_svg]:w-[18px]">
               {icon}
             </div>
           )}
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold tracking-tight font-display">{title}</h1>
+            <h1 className="truncate text-[22px] font-semibold leading-tight tracking-tight">{title}</h1>
             {description && (
-              <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{description}</p>
             )}
           </div>
         </div>
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }

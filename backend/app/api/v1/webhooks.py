@@ -28,6 +28,30 @@ from app.core.permissions import require_permission, Permission
 router = APIRouter()
 
 
+def _validate_webhook_url(url: str) -> str:
+    """Only allow http(s) URLs that point at a public host.
+
+    Webhooks are sent from inside the platform's network, so a URL such as
+    http://127.0.0.1:6379/ or http://169.254.169.254/ would let any org admin
+    reach internal services (SSRF). Delivery checks the host again, because
+    DNS can change after the webhook is saved.
+    """
+    from urllib.parse import urlsplit
+
+    from app.core.target_guard import check_public_target
+
+    url = (url or "").strip()
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise HTTPException(status_code=400, detail="Webhook URL must start with https:// or http:// and include a host.")
+    if parts.username or parts.password:
+        raise HTTPException(status_code=400, detail="Webhook URL must not contain a username or password.")
+    check = check_public_target(parts.hostname)
+    if not check.allowed:
+        raise HTTPException(status_code=400, detail="Webhook URL must point at a public internet address, not a private, local or reserved one.")
+    return url
+
+
 # ── Schemas ─────────────────────────────────────────────────────────────────
 
 class WebhookCreate(BaseModel):
@@ -102,7 +126,7 @@ async def create_webhook(
     webhook = Webhook(
         organization_id=current_user.organization_id,
         created_by=current_user.id,
-        url=str(body.url),
+        url=_validate_webhook_url(str(body.url)),
         description=body.description,
         event_types=body.event_types,
         is_active=body.is_active,
@@ -198,7 +222,7 @@ async def update_webhook(
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         if field == "url" and value is not None:
-            value = str(value)
+            value = _validate_webhook_url(str(value))
         setattr(webhook, field, value)
 
     db.commit()

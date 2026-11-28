@@ -187,15 +187,15 @@ export function CommandPalette({
       open={open}
       onOpenChange={onOpenChange}
       label="Command Palette"
-      className="fixed left-1/2 top-[18%] z-[100] w-[92vw] max-w-xl -translate-x-1/2 overflow-hidden rounded-2xl border border-border/70 bg-card/90 shadow-elevation-3 backdrop-blur-2xl"
+      className="fixed left-1/2 top-[18%] z-[100] w-[92vw] max-w-xl -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-card shadow-elevation-3"
     >
-      <div className="flex items-center gap-3 border-b border-border/60 px-4">
+      <div className="flex items-center gap-3 border-b border-border px-4">
         <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
         <Command.Input
           value={query}
           onValueChange={setQuery}
           placeholder="Search commands, pages, actions…"
-          className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+          className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
         />
         <kbd className="hidden rounded border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:block">
           ESC
@@ -209,7 +209,7 @@ export function CommandPalette({
           <Command.Group
             key={group}
             heading={group}
-            className="px-1 pb-2 pt-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-widest [&_[cmdk-group-heading]]:text-muted-foreground/60"
+            className="px-1 pb-2 pt-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted-foreground"
           >
             {list.map((item) => (
               <Command.Item
@@ -228,7 +228,7 @@ export function CommandPalette({
           </Command.Group>
         ))}
       </Command.List>
-      <div className="flex items-center justify-between border-t border-border/60 px-4 py-2 text-[11px] text-muted-foreground">
+      <div className="flex items-center justify-between border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <Shield className="h-3 w-3 text-brand" /> CAZO EASM Command
         </span>

@@ -11,7 +11,7 @@ import type { ErrorPageConfig } from "@/types/error";
 
 export function ErrorLayout({ config }: { config: ErrorPageConfig }) {
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#09090B]">
+    <div className="relative flex min-h-screen flex-col bg-background">
       <AnimatedBackground />
 
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-12">
@@ -35,7 +35,7 @@ export function ErrorLayout({ config }: { config: ErrorPageConfig }) {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="mt-8"
           >
-            <StatusBadge severity={config.severity} label={`Error ${config.code}`} />
+            <StatusBadge severity={config.severity} label={Number(config.code) >= 400 ? `Error ${config.code}` : "Notice"} />
           </motion.div>
 
           <motion.h1
@@ -51,7 +51,7 @@ export function ErrorLayout({ config }: { config: ErrorPageConfig }) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.5 }}
-            className="mt-4 text-2xl font-bold tracking-tight text-foreground sm:text-3xl"
+            className="mt-4 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
           >
             {config.title}
           </motion.h2>
@@ -70,10 +70,10 @@ export function ErrorLayout({ config }: { config: ErrorPageConfig }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.7 }}
-              className="mt-6 rounded-xl border border-border/30 bg-card/30 px-6 py-4 backdrop-blur-sm"
+              className="mt-6 rounded-xl border border-border bg-card px-6 py-4"
             >
               <p className="text-xs text-muted-foreground">Estimated downtime</p>
-              <p className="mt-1 text-lg font-bold text-foreground">{config.estimatedDowntime}</p>
+              <p className="mt-1 text-lg font-semibold text-foreground">{config.estimatedDowntime}</p>
               {config.progress !== undefined && (
                 <div className="mt-3 h-1.5 w-48 overflow-hidden rounded-full bg-muted/30">
                   <motion.div
@@ -103,7 +103,7 @@ export function ErrorLayout({ config }: { config: ErrorPageConfig }) {
               transition={{ delay: 0.9 }}
               className="mt-10"
             >
-              <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground/50">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Helpful Links
               </p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -111,7 +111,7 @@ export function ErrorLayout({ config }: { config: ErrorPageConfig }) {
                   <a
                     key={link.href}
                     href={link.href}
-                    className="rounded-lg border border-border/30 bg-card/20 px-3 py-1.5 text-xs text-muted-foreground backdrop-blur-sm transition-colors hover:border-border/50 hover:text-foreground"
+                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground"
                   >
                     {link.label}
                   </a>

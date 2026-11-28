@@ -57,7 +57,7 @@ export function EventMarkers() {
               transition={{ delay: i * 0.03 }}
               onClick={() => setTimestamp(ev.timestamp)}
               className={cn(
-                "w-full flex items-start gap-2.5 rounded-lg border p-2.5 text-left transition-colors hover:bg-card/20",
+                "w-full flex items-start gap-2.5 rounded-lg border p-2.5 text-left transition-colors hover:bg-card",
                 severityColors[ev.severity]
               )}
             >
@@ -65,7 +65,7 @@ export function EventMarkers() {
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium">{ev.title}</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{ev.description}</p>
-                <p className="text-[9px] text-muted-foreground/50 mt-1">
+                <p className="text-[9px] text-muted-foreground mt-1">
                   {new Date(ev.timestamp).toLocaleString("en-US", {
                     month: "short",
                     day: "numeric",

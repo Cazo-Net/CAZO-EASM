@@ -11,9 +11,9 @@ import {
 export type AssetStatus = "active" | "dormant" | "decommissioned" | "archived";
 
 const statusConfig: Record<AssetStatus, { label: string; icon: any; color: string; bg: string }> = {
-  active: { label: "Active", icon: Activity, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+  active: { label: "Active", icon: Activity, color: "text-success", bg: "bg-success/10" },
   dormant: { label: "Dormant", icon: Moon, color: "text-amber-400", bg: "bg-amber-500/10" },
-  decommissioned: { label: "Decommissioned", icon: Trash2, color: "text-red-400", bg: "bg-red-500/10" },
+  decommissioned: { label: "Decommissioned", icon: Trash2, color: "text-destructive", bg: "bg-destructive/10" },
   archived: { label: "Archived", icon: Archive, color: "text-muted-foreground", bg: "bg-muted/50" },
 };
 
@@ -61,7 +61,7 @@ export function StatusSelect({
                 "flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-all",
                 value === key
                   ? `${config.bg} ${config.color} border-current/20`
-                  : "border-border/50 text-muted-foreground hover:bg-muted/30"
+                  : "border-border text-muted-foreground hover:bg-muted/30"
               )}
             >
               <Icon className="h-3 w-3" />

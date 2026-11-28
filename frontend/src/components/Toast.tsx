@@ -27,8 +27,8 @@ const ICONS: Record<ToastType, any> = {
 };
 
 const COLORS: Record<ToastType, string> = {
-  success: "border-green-500/50 bg-green-500/10 text-green-400",
-  error: "border-red-500/50 bg-red-500/10 text-red-400",
+  success: "border-green-500/50 bg-success/10 text-success",
+  error: "border-red-500/50 bg-destructive/10 text-destructive",
   warning: "border-yellow-500/50 bg-yellow-500/10 text-yellow-400",
   info: "border-blue-500/50 bg-blue-500/10 text-blue-400",
 };
@@ -62,7 +62,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs shadow-lg backdrop-blur-sm",
+                  "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs shadow-lg",
                   COLORS[t.type]
                 )}
               >

@@ -16,7 +16,7 @@ import {
 import type { Tag as TagType } from "@/types";
 
 const PRESET_COLORS = [
-  "#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#818CF8",
+  "#EC3C53", "#EC3C53", "#F59E0B", "#EF4444", "#818CF8",
   "#EC4899", "#06B6D4", "#84CC16", "#F97316", "#6366F1",
 ];
 
