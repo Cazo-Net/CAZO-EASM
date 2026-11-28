@@ -35,7 +35,7 @@ from app.schemas.blockchain import (
     WalletSummary,
     WalletType,
 )
-from app.services.blockchain.providers.base import ChainProvider
+from app.services.blockchain.providers.base import ChainProvider, DataSourceUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -57,43 +57,17 @@ class EthereumProvider(ChainProvider):
     def _has_key(self) -> bool:
         return bool(self.api_key)
 
-    def _simulated_wallet(self, address: str) -> WalletSummary:
-        h = int(hashlib.sha256(address.lower().encode()).hexdigest(), 16)
-        bal = (h % 5000) * 10 ** 18
-        tx_count = (h % 500) + 1
-        return WalletSummary(
-            address=address,
-            chain=Chain.ETHEREUM,
-            wallet_type=WalletType.EOA,
-            balance=str(bal / 10**18),
-            tx_count=tx_count,
-            first_seen=datetime(2021, 1, 1, tzinfo=timezone.utc),
-            last_active=datetime.now(tz=timezone.utc),
-            risk_score=15,
-            risk_band=RiskBand.LOW,
-        )
-
-    def _simulated_transactions(self, address: str, count: int = 5) -> list[TransactionSummary]:
-        txs = []
-        h = int(hashlib.sha256(address.lower().encode()).hexdigest(), 16)
-        for i in range(min(count, 10)):
-            val = ((h + i * 137) % 1000) * 10 ** 14
-            ts = 1700000000 + i * 3600
-            txs.append(TransactionSummary(
-                hash=f"0x{hashlib.md5(f'{address}{i}'.encode()).hexdigest()}",
-                chain=Chain.ETHEREUM,
-                status=TransactionStatus.SUCCESS,
-                block_number=18000000 + i * 100,
-                timestamp=datetime.fromtimestamp(ts, tz=timezone.utc),
-                from_address=address if i % 2 == 0 else "0x0000000000000000000000000000000000000000",
-                to_address="0x0000000000000000000000000000000000000001" if i % 2 == 0 else address,
-                value=str(val / 10**18),
-                fee=str(val / 10**20),
-            ))
-        return txs
-
     def is_available(self) -> bool:
-        return True
+        return self._has_key
+
+    def _not_configured(self) -> DataSourceUnavailable:
+        return DataSourceUnavailable(
+            self.chain,
+            "not_configured",
+            f"Live {self.chain.value} data needs an Etherscan API key. "
+            "Set ETHERSCAN_API_KEY on the backend (one Etherscan V2 key covers Ethereum and most EVM chains).",
+            setting="ETHERSCAN_API_KEY",
+        )
 
     async def _throttle(self) -> None:
         now = asyncio.get_event_loop().time()
@@ -136,7 +110,7 @@ class EthereumProvider(ChainProvider):
 
     async def get_wallet_summary(self, address: str) -> WalletSummary:
         if not self._has_key:
-            return self._simulated_wallet(address)
+            raise self._not_configured()
 
         balance_resp = await self._get({
             "module": "account",
@@ -170,20 +144,31 @@ class EthereumProvider(ChainProvider):
         if code and code != "0x":
             wallet_type = WalletType.CONTRACT
 
+        # Newest transaction gives "last active"; the oldest one (a second,
+        # ascending query) gives "first seen". Both are real on-chain times.
         first_seen = None
         last_active = None
-        if txs:
-            timestamps = [int(t.get("timeStamp", 0)) for t in txs if t.get("timeStamp")]
-            if timestamps:
-                first_seen = datetime.fromtimestamp(min(timestamps), tz=timezone.utc)
-                last_active = datetime.fromtimestamp(max(timestamps), tz=timezone.utc)
+        if txs and txs[0].get("timeStamp"):
+            last_active = datetime.fromtimestamp(int(txs[0]["timeStamp"]), tz=timezone.utc)
+            oldest_resp = await self._get({
+                "module": "account",
+                "action": "txlist",
+                "address": address,
+                "startblock": "0",
+                "endblock": "99999999",
+                "page": "1",
+                "offset": "1",
+                "sort": "asc",
+            })
+            oldest = oldest_resp.get("result")
+            if isinstance(oldest, list) and oldest and oldest[0].get("timeStamp"):
+                first_seen = datetime.fromtimestamp(int(oldest[0]["timeStamp"]), tz=timezone.utc)
 
         return WalletSummary(
             address=address,
             chain=Chain.ETHEREUM,
             wallet_type=wallet_type,
             balance=balance_eth,
-            tx_count=len(txs) if isinstance(txs, list) else 0,
             first_seen=first_seen,
             last_active=last_active,
         )
@@ -194,7 +179,7 @@ class EthereumProvider(ChainProvider):
         self, address: str, page: int = 1, page_size: int = 20
     ) -> list[TransactionSummary]:
         if not self._has_key:
-            return self._simulated_transactions(address, page_size)
+            raise self._not_configured()
 
         resp = await self._get({
             "module": "account",
@@ -230,7 +215,7 @@ class EthereumProvider(ChainProvider):
     async def get_internal_transactions(self, address: str, tx_hash: str | None = None) -> list[dict[str, Any]]:
         """Fetch internal transactions for an address or a specific tx."""
         if not self._has_key:
-            return []
+            raise self._not_configured()
 
         params: dict[str, Any] = {
             "module": "account",
@@ -251,17 +236,7 @@ class EthereumProvider(ChainProvider):
 
     async def get_transaction(self, tx_hash: str) -> TransactionDetail:
         if not self._has_key:
-            return TransactionDetail(
-                hash=tx_hash,
-                chain=Chain.ETHEREUM,
-                status=TransactionStatus.SUCCESS,
-                block_number=0,
-                timestamp=datetime.now(tz=timezone.utc),
-                from_address="0x0000000000000000000000000000000000000000",
-                to_address="0x0000000000000000000000000000000000000000",
-                value="0",
-                fee="0",
-            )
+            raise self._not_configured()
 
         tx_resp = await self._get({
             "module": "proxy",
@@ -313,7 +288,7 @@ class EthereumProvider(ChainProvider):
 
     async def get_token_balances(self, address: str) -> list[TokenBalance]:
         if not self._has_key:
-            return []
+            raise self._not_configured()
 
         resp = await self._get({
             "module": "account",
@@ -376,12 +351,7 @@ class EthereumProvider(ChainProvider):
 
     async def get_contract_detail(self, address: str) -> ContractDetail | None:
         if not self._has_key:
-            return ContractDetail(
-                address=address,
-                chain=Chain.ETHEREUM,
-                verified=False,
-                contract_type=ContractType.UNKNOWN,
-            )
+            raise self._not_configured()
 
         code_resp = await self._get({
             "module": "proxy",
@@ -449,12 +419,7 @@ class EthereumProvider(ChainProvider):
 
     async def get_risk_score(self, address: str) -> RiskScore:
         if not self._has_key:
-            return RiskScore(
-                address=address,
-                chain=Chain.ETHEREUM,
-                score=15,
-                band=RiskBand.LOW,
-            )
+            raise self._not_configured()
 
         score = 10
         factors: list[RiskFactor] = []
@@ -546,10 +511,7 @@ class EthereumProvider(ChainProvider):
         self, address: str, depth: int = 2, limit: int = 50
     ) -> GraphData:
         if not self._has_key:
-            return GraphData(
-                nodes=[GraphNode(id=address, chain=Chain.ETHEREUM, label="center")],
-                edges=[],
-            )
+            raise self._not_configured()
 
         tx_resp = await self._get({
             "module": "account",

@@ -155,7 +155,9 @@ class WalletSummary(BaseModel):
     balance_usd: float | None = None
     token_count: int = 0
     nft_count: int = 0
-    tx_count: int = 0
+    # None when the data source cannot give an exact lifetime count; the UI
+    # then shows "—" rather than a partial or guessed number.
+    tx_count: int | None = None
     first_seen: datetime | None = None
     last_active: datetime | None = None
     inbound_volume: str = "0"

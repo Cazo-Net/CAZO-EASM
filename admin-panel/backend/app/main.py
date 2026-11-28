@@ -1762,72 +1762,132 @@ async def list_travel_rule_records(
 
 
 # ── Support Chat (Admin) ──────────────────────────────────────────────
+#
+# The customer side lives in the main API (backend/app/api/v1/support.py).
+# Queries here use SQLAlchemy expressions rather than raw SQL so they behave
+# the same on Postgres and SQLite (``is_read = 0`` fails on a Postgres boolean).
+
+SUPPORT_MAX_MESSAGE_LENGTH = 4000
+SUPPORT_STATUSES = ("open", "closed")
+# Same rule as the customer API: plain text, no control or invisible characters.
+import re as _re  # noqa: E402
+_SUPPORT_UNSAFE_CHARS = _re.compile(
+    "[\x00-\x08\x0b-\x1f\x7f-\x9f\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff]"
+)
+
+
+class SupportReply(BaseModel):
+    message: str
+
+
+class SupportStatusUpdate(BaseModel):
+    status: str
+
+
+def _support_tables(db):
+    tables = _table_names(db)
+    if "support_conversations" not in tables or "support_messages" not in tables:
+        return None, None, None, None
+    return (
+        _get_table("support_conversations"),
+        _get_table("support_messages"),
+        _get_table("users") if "users" in tables else None,
+        _get_table("organizations") if "organizations" in tables else None,
+    )
+
+
+def _support_ts(value) -> Optional[str]:
+    """Timestamps are stored as naive UTC; send ISO 8601 with an offset."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return value
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.isoformat()
+
+
+def _support_unread_filter(msg_t):
+    """Customer messages the team has not opened yet (NULL counts as unread)."""
+    return (msg_t.c.sender_type == "user") & (msg_t.c.is_read.isnot(True))
+
+
+def _support_customer(r, users_t, orgs_t, db) -> dict:
+    """Who a conversation is with: an account holder or a website visitor."""
+    info = {"user_name": "Unknown", "user_email": None, "organization": None, "is_guest": False}
+    if r.user_id is None:
+        email = getattr(r, "guest_email", None)
+        info.update(
+            user_name=getattr(r, "guest_name", None) or email or "Website visitor",
+            user_email=email,
+            is_guest=True,
+        )
+        return info
+    if users_t is None:
+        return info
+    u = db.query(users_t).filter(users_t.c.id == r.user_id).first()
+    if not u:
+        return info
+    email = getattr(u, "email", None)
+    info.update(user_name=getattr(u, "full_name", None) or email or "Unknown", user_email=email)
+    org_id = getattr(r, "organization_id", None) or getattr(u, "organization_id", None)
+    if org_id and orgs_t is not None:
+        o = db.query(orgs_t).filter(orgs_t.c.id == org_id).first()
+        if o:
+            info["organization"] = getattr(o, "name", None)
+    return info
+
 
 @app.get("/support/conversations")
 async def admin_list_support_conversations(
     status: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 50,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     db: DBSession = Depends(get_db),
     admin: str = Depends(require_admin),
 ):
-    try:
-        tables = _table_names(db)
-        if "support_conversations" not in tables:
-            return {"conversations": [], "total": 0}
+    conv_t, msg_t, users_t, orgs_t = _support_tables(db)
+    if conv_t is None:
+        return {"conversations": [], "total": 0}
 
-        conv_t = _get_table("support_conversations")
-        msg_t = _get_table("support_messages")
-        users_t = _get_table("users") if "users" in tables else None
+    if status and status not in SUPPORT_STATUSES:
+        raise HTTPException(status_code=400, detail="Status must be 'open' or 'closed'")
+    q = db.query(conv_t)
+    if status:
+        q = q.filter(conv_t.c.status == status)
+    total = q.count()
+    rows = q.order_by(desc(conv_t.c.updated_at)).offset(skip).limit(limit).all()
 
-        q = db.query(conv_t)
-        if status:
-            q = q.filter(conv_t.c.status == status)
-        total = q.count()
-        rows = q.order_by(desc(conv_t.c.updated_at)).offset(skip).limit(limit).all()
+    results = []
+    for r in rows:
+        last_msg_row = (
+            db.query(msg_t)
+            .filter(msg_t.c.conversation_id == r.id)
+            .order_by(desc(msg_t.c.created_at))
+            .first()
+        )
+        unread = (
+            db.query(func.count(msg_t.c.id))
+            .filter(msg_t.c.conversation_id == r.id, _support_unread_filter(msg_t))
+            .scalar()
+        ) or 0
+        results.append({
+            "id": r.id,
+            "user_id": r.user_id,
+            **_support_customer(r, users_t, orgs_t, db),
+            "subject": r.subject,
+            "status": r.status,
+            "created_at": _support_ts(getattr(r, "created_at", None)),
+            "updated_at": _support_ts(getattr(r, "updated_at", None)),
+            "last_message": last_msg_row.message[:100] if last_msg_row else None,
+            "last_sender": last_msg_row.sender_type if last_msg_row else None,
+            "unread_count": unread,
+        })
 
-        results = []
-        for r in rows:
-            # Get user name
-            user_name = "Unknown"
-            if users_t is not None:
-                u = db.query(users_t).filter(users_t.c.id == r.user_id).first()
-                if u:
-                    user_name = getattr(u, "full_name", None) or getattr(u, "email", "Unknown")
-
-            # Get last message
-            last_msg_row = (
-                db.query(msg_t)
-                .filter(msg_t.c.conversation_id == r.id)
-                .order_by(desc(msg_t.c.created_at))
-                .first()
-            )
-            last_msg = last_msg_row.message[:100] if last_msg_row else None
-
-            # Get unread count (user messages that admin hasn't seen)
-            unread_result = db.execute(
-                text("SELECT COUNT(*) FROM support_messages WHERE conversation_id = :cid AND sender_type = 'user' AND is_read = 0"),
-                {"cid": r.id}
-            ).scalar()
-            unread = unread_result or 0
-
-            results.append({
-                "id": r.id,
-                "user_id": r.user_id,
-                "user_name": user_name,
-                "subject": r.subject,
-                "status": r.status,
-                "created_at": str(getattr(r, "created_at", "")),
-                "updated_at": str(getattr(r, "updated_at", "")),
-                "last_message": last_msg,
-                "unread_count": unread,
-            })
-
-        return {"conversations": results, "total": total}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"conversations": results, "total": total}
 
 
 @app.get("/support/conversations/{conversation_id}/messages")
@@ -1836,93 +1896,118 @@ async def admin_get_support_messages(
     db: DBSession = Depends(get_db),
     admin: str = Depends(require_admin),
 ):
-    tables = _table_names(db)
-    if "support_messages" not in tables:
+    conv_t, msg_t, users_t, orgs_t = _support_tables(db)
+    if conv_t is None:
         return {"messages": []}
+    conv = db.query(conv_t).filter(conv_t.c.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
 
-    msg_t = _get_table("support_messages")
-
-    # Mark user messages as read by admin
+    # Opening the conversation marks the customer's messages as seen.
     db.execute(
-        text("UPDATE support_messages SET is_read = 1 WHERE conversation_id = :cid AND sender_type = 'user' AND is_read = 0"),
-        {"cid": conversation_id}
+        msg_t.update()
+        .where(msg_t.c.conversation_id == conversation_id, _support_unread_filter(msg_t))
+        .values(is_read=True)
     )
     db.commit()
 
+    customer = _support_customer(conv, users_t, orgs_t, db)
     rows = (
         db.query(msg_t)
         .filter(msg_t.c.conversation_id == conversation_id)
-        .order_by(msg_t.c.created_at)
+        .order_by(msg_t.c.created_at, msg_t.c.id)
         .all()
     )
     return {
+        "status": conv.status,
         "messages": [
             {
                 "id": m.id,
                 "sender_type": m.sender_type,
                 "sender_id": m.sender_id,
+                "sender_name": (
+                    (getattr(m, "sender_name", None) or "Admin")
+                    if m.sender_type == "admin"
+                    else customer["user_name"]
+                ),
                 "message": m.message,
-                "is_read": m.is_read,
-                "created_at": str(getattr(m, "created_at", "")),
+                "is_read": bool(m.is_read),
+                "created_at": _support_ts(getattr(m, "created_at", None)),
             }
             for m in rows
-        ]
+        ],
     }
 
 
 @app.post("/support/conversations/{conversation_id}/messages")
 async def admin_send_support_message(
     conversation_id: str,
-    body: dict,
+    body: SupportReply,
     db: DBSession = Depends(get_db),
     admin: str = Depends(require_admin),
 ):
-    try:
-        tables = _table_names(db)
-        if "support_messages" not in tables or "support_conversations" not in tables:
-            raise HTTPException(status_code=400, detail="Support tables not found")
+    conv_t, msg_t, _, _ = _support_tables(db)
+    if conv_t is None:
+        raise HTTPException(status_code=400, detail="Support tables not found")
 
-        conv = db.execute(text("SELECT id FROM support_conversations WHERE id = :cid"), {"cid": conversation_id}).first()
-        if not conv:
-            raise HTTPException(status_code=404, detail="Conversation not found")
+    message = _SUPPORT_UNSAFE_CHARS.sub("", (body.message or "").replace("\r\n", "\n").replace("\r", "\n")).strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    if len(message) > SUPPORT_MAX_MESSAGE_LENGTH:
+        raise HTTPException(status_code=400, detail=f"Message is too long (max {SUPPORT_MAX_MESSAGE_LENGTH} characters)")
 
-        msg_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
-        db.execute(text("INSERT INTO support_messages (id, conversation_id, sender_type, sender_id, message, created_at) VALUES (:id, :cid, :st, :sid, :msg, :ts)"), {
-            "id": msg_id, "cid": conversation_id, "st": "admin", "sid": admin, "msg": body.get("message", ""), "ts": now
-        })
-        db.execute(text("UPDATE support_conversations SET updated_at = :ts WHERE id = :cid"), {"ts": now, "cid": conversation_id})
-        db.commit()
+    conv = db.query(conv_t).filter(conv_t.c.id == conversation_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
 
-        return {"id": msg_id, "sender_type": "admin", "message": body.get("message", "")}
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+    msg_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    values = {
+        "id": msg_id,
+        "conversation_id": conversation_id,
+        "sender_type": "admin",
+        # sender_id is 36 characters wide; the admin's address goes in sender_name.
+        "sender_id": "admin",
+        "message": message,
+        "is_read": False,
+        "created_at": now,
+    }
+    if "sender_name" in msg_t.c:
+        values["sender_name"] = admin[:255]
+    db.execute(msg_t.insert().values(**values))
+    db.execute(conv_t.update().where(conv_t.c.id == conversation_id).values(updated_at=now))
+    db.commit()
+
+    return {
+        "id": msg_id,
+        "sender_type": "admin",
+        "sender_name": admin,
+        "message": message,
+        "created_at": _support_ts(now),
+    }
 
 
 @app.put("/support/conversations/{conversation_id}/status")
 async def admin_update_support_status(
     conversation_id: str,
-    body: dict,
+    body: SupportStatusUpdate,
     db: DBSession = Depends(get_db),
     admin: str = Depends(require_admin),
 ):
-    tables = _table_names(db)
-    if "support_conversations" not in tables:
+    conv_t, _, _, _ = _support_tables(db)
+    if conv_t is None:
         raise HTTPException(status_code=400, detail="Support table not found")
+    if body.status not in SUPPORT_STATUSES:
+        raise HTTPException(status_code=400, detail="Status must be 'open' or 'closed'")
 
-    conv_t = _get_table("support_conversations")
-    new_status = body.get("status", "open")
-    db.execute(
-        conv_t.update()
-        .where(conv_t.c.id == conversation_id)
-        .values(status=new_status, updated_at=datetime.now(timezone.utc))
+    # updated_at is left alone so closing does not reorder the inbox.
+    result = db.execute(
+        conv_t.update().where(conv_t.c.id == conversation_id).values(status=body.status)
     )
     db.commit()
-    return {"status": new_status}
+    if not result.rowcount:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"status": body.status}
 
 
 @app.get("/support/unread")
@@ -1930,42 +2015,30 @@ async def admin_support_unread(
     db: DBSession = Depends(get_db),
     admin: str = Depends(require_admin),
 ):
-    tables = _table_names(db)
-    if "support_messages" not in tables:
+    _, msg_t, _, _ = _support_tables(db)
+    if msg_t is None:
         return {"count": 0}
-
-    msg_t = _get_table("support_messages")
-    count = db.execute(
-        text("SELECT COUNT(*) FROM support_messages WHERE sender_type = 'user' AND is_read = 0")
-    ).scalar() or 0
+    count = db.query(func.count(msg_t.c.id)).filter(_support_unread_filter(msg_t)).scalar() or 0
     return {"count": count}
 
 
-@app.delete("/support/conversations/{conversation_id}/messages")
-async def admin_clear_conversation(
+@app.delete("/support/conversations/{conversation_id}")
+async def admin_delete_conversation(
     conversation_id: str,
     db: DBSession = Depends(get_db),
     admin: str = Depends(require_admin),
 ):
-    tables = _table_names(db)
-    if "support_messages" not in tables:
-        raise HTTPException(status_code=400, detail="Support messages table not found")
-
-    msg_t = _get_table("support_messages")
-    conv_t = _get_table("support_conversations")
-
+    """Delete a conversation and its messages (spam, tests)."""
+    conv_t, msg_t, _, _ = _support_tables(db)
+    if conv_t is None:
+        raise HTTPException(status_code=400, detail="Support tables not found")
     conv = db.query(conv_t).filter(conv_t.c.id == conversation_id).first()
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
-
     db.execute(msg_t.delete().where(msg_t.c.conversation_id == conversation_id))
-    db.execute(
-        conv_t.update()
-        .where(conv_t.c.id == conversation_id)
-        .values(updated_at=datetime.now(timezone.utc))
-    )
+    db.execute(conv_t.delete().where(conv_t.c.id == conversation_id))
     db.commit()
-    return {"status": "cleared", "conversation_id": conversation_id}
+    return {"status": "deleted", "conversation_id": conversation_id}
 
 
 # ── Helpers ────────────────────────────────────────────────────────────

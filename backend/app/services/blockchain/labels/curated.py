@@ -6,8 +6,10 @@ Each label includes:
 - confidence: 0-100 score
 - evidence: list of Evidence objects explaining the attribution
 
-Expanded to ~70 entries covering major exchanges, DeFi protocols,
-stablecoins, mixers, and sanctioned entities across ETH, BTC, SOL, POLY, BSC, ARBITRUM, OPTIMISM, BASE.
+Public labels for well-known exchanges, DeFi protocols and stablecoins.
+Sanctions are NOT decided here: they come from the live OFAC SDN list in
+``app.services.blockchain.sanctions``. Entries whose address was malformed
+or whose sanctions/mixer claim could not be backed by that list were removed.
 """
 from __future__ import annotations
 
@@ -124,17 +126,6 @@ _LABELS: list[dict] = [
     },
 
     # ── Bybit ──────────────────────────────────────────────────────
-    {
-        "chain": Chain.ETHEREUM,
-        "address": "0xf89d7b9c864f589bBBF330591a852f71C1b7338",
-        "entity_name": "Bybit",
-        "category": EntityCategory.EXCHANGE,
-        "confidence": 95,
-        "evidence": [
-            Evidence(source="etherscan", type=EvidenceType.EXCHANGE_TAG, confidence=95,
-                     reason="Known Bybit hot wallet"),
-        ],
-    },
 
     # ── Bitfinex (ETH) ─────────────────────────────────────────────
     {
@@ -516,81 +507,8 @@ _LABELS: list[dict] = [
     },
 
     # ══════════════════════════════════════════════════════════════════
-    # SANCTIONS & MIXERS
+    # SANCTIONS: deliberately none here. See sanctions.py (live OFAC list).
     # ══════════════════════════════════════════════════════════════════
-
-    # ── Lazarus Group (sanctioned) ──────────────────────────────────
-    {
-        "chain": Chain.ETHEREUM,
-        "address": "0x098B716B8Aaf21512996dC57EB0615e2383E2f96",
-        "entity_name": "Lazarus Group",
-        "category": EntityCategory.SANCTIONS,
-        "confidence": 95,
-        "evidence": [
-            Evidence(source="ofac", type=EvidenceType.SANCTIONS_LIST, confidence=95,
-                     reason="OFAC sanctioned address associated with Lazarus Group"),
-        ],
-    },
-    # ── Tornado Cash ───────────────────────────────────────────────
-    {
-        "chain": Chain.ETHEREUM,
-        "address": "0x722122dF12D4e14e13Ac3b6895a86E84145b6967",
-        "entity_name": "Tornado Cash 100 ETH Pool",
-        "category": EntityCategory.MIXING_SERVICE,
-        "confidence": 100,
-        "evidence": [
-            Evidence(source="etherscan", type=EvidenceType.VERIFIED_CONTRACT, confidence=100,
-                     reason="OFAC-sanctioned Tornado Cash pool contract"),
-        ],
-    },
-    {
-        "chain": Chain.ETHEREUM,
-        "address": "0xBA214c1c1928a32Bffe790263E38B4Af9bFCD659",
-        "entity_name": "Tornado Cash 10 ETH Pool",
-        "category": EntityCategory.MIXING_SERVICE,
-        "confidence": 100,
-        "evidence": [
-            Evidence(source="etherscan", type=EvidenceType.VERIFIED_CONTRACT, confidence=100,
-                     reason="OFAC-sanctioned Tornado Cash pool contract"),
-        ],
-    },
-    # ── Sinbad Mixer (BTC) ─────────────────────────────────────────
-    {
-        "chain": Chain.BITCOIN,
-        "address": "3FHNBLobJnbCTFTVakh5TXmEneyf5PT61B",
-        "entity_name": "Sinbad Mixer",
-        "category": EntityCategory.MIXING_SERVICE,
-        "confidence": 90,
-        "evidence": [
-            Evidence(source="trellix", type=EvidenceType.PUBLIC_REPORT, confidence=90,
-                     reason="Identified as Sinbad mixer output address by Trellix research"),
-        ],
-    },
-    # ── Wasabi Wallet (BTC) ────────────────────────────────────────
-    {
-        "chain": Chain.BITCOIN,
-        "address": "bc1qa5wkgaew2dkv56kc6hp23ly7fz289204zn2hy4",
-        "entity_name": "Wasabi Wallet Pool",
-        "category": EntityCategory.MIXING_SERVICE,
-        "confidence": 85,
-        "evidence": [
-            Evidence(source="blockstream", type=EvidenceType.BLOCKCHAIN_LABEL, confidence=85,
-                     reason="Known Wasabi Wallet coinjoin pool address"),
-        ],
-    },
-
-    # ── Railgun (privacy protocol) ─────────────────────────────────
-    {
-        "chain": Chain.ETHEREUM,
-        "address": "0xDix4V2tBE3bZ2EoB3M7fE4m7bG8Q2p4y6R1sT9uV0",
-        "entity_name": "Railgun Privacy Pool",
-        "category": EntityCategory.MIXING_SERVICE,
-        "confidence": 80,
-        "evidence": [
-            Evidence(source="etherscan", type=EvidenceType.BLOCKCHAIN_LABEL, confidence=80,
-                     reason="Known Railgun smart contract"),
-        ],
-    },
 
     # ══════════════════════════════════════════════════════════════════
     # PROTOCOLS — SOLANA

@@ -147,14 +147,33 @@ class Settings(BaseSettings):
     # Email
     EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "log")  # log | smtp | resend
     EMAIL_FROM: str = os.getenv("EMAIL_FROM", "noreply@cazo.io")
+    # Support chat: where the team is told about new customer messages
+    # (comma-separated addresses). Empty = no email, messages still reach the
+    # admin panel inbox.
+    SUPPORT_NOTIFY_EMAIL: str = os.getenv("SUPPORT_NOTIFY_EMAIL", "")
     SMTP_HOST: str = os.getenv("SMTP_HOST", "localhost")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
     SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
     RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
 
-    # Blockchain Intelligence
+    # Blockchain Intelligence. Nothing is simulated: a chain whose source is
+    # not configured shows "not connected" in the app.
+    # Etherscan V2 (https://etherscan.io/apis): one key covers Ethereum and
+    # the other EVM chains Etherscan supports. Bitcoin (Blockstream), Solana
+    # (public RPC) and Tron (TronGrid) work without a key.
     ETHERSCAN_API_KEY: str = os.getenv("ETHERSCAN_API_KEY", "")
+    # Optional TronGrid key (https://www.trongrid.io/) for higher rate limits.
+    TRONGRID_API_KEY: str = os.getenv("TRONGRID_API_KEY", "")
+    # Optional Chainalysis free sanctions-screening API key
+    # (https://www.chainalysis.com/free-cryptocurrency-sanctions-screening-tools/).
+    CHAINALYSIS_API_KEY: str = os.getenv("CHAINALYSIS_API_KEY", "")
+    # Where the daily OFAC SDN digital-currency address lists are downloaded from.
+    OFAC_SANCTIONS_LIST_BASE_URL: str = os.getenv("OFAC_SANCTIONS_LIST_BASE_URL", "")
+    # How often watched wallets are re-checked by the worker (minutes).
+    BLOCKCHAIN_WATCH_CHECK_MINUTES: int = int(os.getenv("BLOCKCHAIN_WATCH_CHECK_MINUTES", "60"))
+    # Most wallets one organization may watch (each check uses API quota).
+    BLOCKCHAIN_MAX_WATCHES_PER_ORG: int = int(os.getenv("BLOCKCHAIN_MAX_WATCHES_PER_ORG", "50"))
 
     # Dark web & threat intelligence sources. Each one is optional: a source
     # without its key shows as "not configured" instead of returning results.
