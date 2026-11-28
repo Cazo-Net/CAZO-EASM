@@ -342,7 +342,6 @@ function ReportsContent() {
                 {[
                   { value: "json", label: "JSON", icon: FileJson },
                   { value: "pdf", label: "PDF", icon: FileImage },
-                  { value: "html", label: "HTML", icon: FileCode },
                   { value: "csv", label: "CSV", icon: FileSpreadsheet },
                 ].map((fmt) => {
                   const FIcon = fmt.icon;

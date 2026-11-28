@@ -44,6 +44,9 @@ def _assert_report_access(db: Session, report: Optional[Report], current_user: U
         raise HTTPException(status_code=404, detail="Report not found")
 
 
+SUPPORTED_FORMATS = ("json", "csv", "pdf")
+
+
 @router.post("")
 async def generate_report(
     scan_id: str,
@@ -52,6 +55,11 @@ async def generate_report(
     current_user: User = Depends(require_permission(Permission.GENERATE_REPORT))
 ):
     """Generate a report for a scan."""
+    if format not in SUPPORTED_FORMATS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported format: {format}. Use one of: {', '.join(SUPPORTED_FORMATS)}.",
+        )
     _assert_scan_belongs_to_org(db, scan_id, current_user)
 
     try:
