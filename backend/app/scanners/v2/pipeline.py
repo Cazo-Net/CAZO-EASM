@@ -73,6 +73,43 @@ STAGE_CATEGORIES: Dict[PipelineStage, List[ScannerCategory]] = {
     ],
 }
 
+# Stages in the same wave only read what earlier waves produced, so they run
+# at the same time. DNS intelligence and the port scan both need only the
+# gated asset list; technology, certificate and web-exposure checks need only
+# the port results. Vulnerability assessment reads all of them, and risk and
+# graph come last. Set config ``parallel_stages=False`` to run one at a time.
+STAGE_WAVE: Dict[PipelineStage, int] = {
+    PipelineStage.ASSET_DISCOVERY: 0,
+    PipelineStage.DNS_INTELLIGENCE: 1,
+    PipelineStage.NETWORK_INTELLIGENCE: 1,
+    PipelineStage.TECHNOLOGY_FINGERPRINT: 2,
+    PipelineStage.CERTIFICATE_ANALYSIS: 2,
+    PipelineStage.WEB_EXPOSURE: 2,
+    PipelineStage.VULNERABILITY_ASSESSMENT: 3,
+    PipelineStage.RISK_EVALUATION: 4,
+    PipelineStage.GRAPH_MAPPING: 5,
+}
+
+
+def group_stages(stages: List["PipelineStage"], parallel: bool = True) -> List[List["PipelineStage"]]:
+    """Split the stage order into waves of stages that may run together.
+
+    Only neighbouring stages of the same wave are merged, so a custom order
+    is never reshuffled.
+    """
+    groups: List[List[PipelineStage]] = []
+    for stage in stages:
+        if (
+            parallel and groups
+            and STAGE_WAVE.get(stage) is not None
+            and STAGE_WAVE.get(stage) == STAGE_WAVE.get(groups[-1][-1])
+        ):
+            groups[-1].append(stage)
+        else:
+            groups.append([stage])
+    return groups
+
+
 # Default stage execution order
 DEFAULT_STAGE_ORDER = [
     PipelineStage.ASSET_DISCOVERY,
@@ -221,35 +258,45 @@ class ScanPipeline:
 
         total_stages = len(self.stages)
 
-        for stage_idx, stage in enumerate(self.stages):
+        done = 0
+        for group in group_stages(self.stages, bool(cfg.get("parallel_stages", True))):
             if self._cancelled:
-                logger.info("Pipeline cancelled at stage %s", stage.value)
+                logger.info("Pipeline cancelled before stage %s", group[0].value)
                 break
 
             # Notify progress (callbacks may be sync or async)
             if progress_callback:
-                stage_progress = stage_idx / total_stages
+                names = ", ".join(s.value for s in group)
                 await _maybe_await(progress_callback(
-                    stage.value,
-                    f"Starting stage: {stage.value}",
-                    stage_progress,
-                    {"stage": stage_idx + 1, "total_stages": total_stages},
+                    group[0].value,
+                    f"Starting stage: {names}",
+                    done / total_stages,
+                    {"stage": done + 1, "total_stages": total_stages,
+                     "parallel_stages": [s.value for s in group]},
                 ))
 
-            stage_kwargs = self._stage_kwargs(stage, target, context, cfg, result)
-            stage_result = await self._execute_stage(
-                stage, target, context, cfg, included_scanners, excluded_scanners,
-                stage_kwargs,
-            )
-            result.stages[stage.value] = stage_result
-            result.total_scanners += stage_result.total_scanners
-            result.total_successful += stage_result.successful
-            result.total_failed += stage_result.failed
+            # Every stage in a wave is handed the results of earlier waves only.
+            kwargs_by_stage = {
+                stage: self._stage_kwargs(stage, target, context, cfg, result) for stage in group
+            }
+            stage_results = await asyncio.gather(*[
+                self._execute_stage(
+                    stage, target, context, cfg, included_scanners, excluded_scanners,
+                    kwargs_by_stage[stage],
+                )
+                for stage in group
+            ])
+            for stage, stage_result in zip(group, stage_results):
+                result.stages[stage.value] = stage_result
+                result.total_scanners += stage_result.total_scanners
+                result.total_successful += stage_result.successful
+                result.total_failed += stage_result.failed
 
-            # Post-stage hook: update context with stage results
-            self._update_context(stage, stage_result, context)
-            if stage == PipelineStage.ASSET_DISCOVERY:
-                await self._gate_discovered_assets(target, context)
+                # Post-stage hook: update context with stage results
+                self._update_context(stage, stage_result, context)
+                if stage == PipelineStage.ASSET_DISCOVERY:
+                    await self._gate_discovered_assets(target, context)
+            done += len(group)
 
         result.total_duration_ms = (time.monotonic() - pipeline_start) * 1000
 

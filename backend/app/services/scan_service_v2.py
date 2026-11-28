@@ -68,12 +68,8 @@ class ScanServiceV2:
 
                 options = self._resolve_scan_options(scan)
 
-                async def progress_callback(progress: int, message: str):
-                    try:
-                        scan.progress = progress
-                        db.commit()
-                    except Exception:
-                        db.rollback()
+                from app.services.scan_progress import make_progress_writer
+                progress_callback = make_progress_writer(db, scan)
 
                 from app.scanners.v2_runner import V2ScanRunner
                 runner = V2ScanRunner()

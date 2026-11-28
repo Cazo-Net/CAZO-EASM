@@ -154,3 +154,13 @@ def pytest_sessionfinish(session):
             os.remove(_DB_PATH)
         except OSError:
             pass
+
+
+@pytest.fixture(autouse=True)
+def _clear_dns_answer_cache():
+    """target_guard keeps DNS answers for a few seconds; tests fake DNS per test."""
+    from app.core import target_guard
+
+    target_guard._RESOLVE_CACHE.clear()
+    yield
+    target_guard._RESOLVE_CACHE.clear()

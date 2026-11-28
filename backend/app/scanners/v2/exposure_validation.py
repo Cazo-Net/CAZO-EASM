@@ -252,34 +252,27 @@ class ExposureValidator(EnhancedBaseScanner):
                 if isinstance(r, dict) and r.get("found"):
                     findings.append(r)
 
-        # Security header check on main domain
-        if self._check_headers:
-            findings.extend(await self._check_security_headers(target))
+        # The remaining check groups are independent of each other: run them
+        # together instead of one after another. Results are appended in the
+        # same order as before, so de-duplication keeps the same winner.
+        async def _none() -> list[dict[str, Any]]:
+            return []
 
-        # Information disclosure check
-        disclosure_findings = await self._check_info_disclosure(target)
-        findings.extend(disclosure_findings)
-
-        # CORS misconfiguration (full checks)
-        cors_findings = await self._check_cors_misconfiguration(target, subdomains)
-        findings.extend(cors_findings)
-
-        # Open redirect detection
-        redirect_findings = await self._check_open_redirects(target)
-        findings.extend(redirect_findings)
-
-        # Subdomain takeover / dangling CNAME
-        takeover_findings = await self._check_subdomain_takeover(subdomains[:200])
-        findings.extend(takeover_findings)
-
-        # SSRF surface mapping
-        ssrf_findings = await self._check_ssrf_surface(target)
-        findings.extend(ssrf_findings)
-
-        # SSL/TLS check for HTTPS ports
-        if 443 in open_ports or 8443 in open_ports:
-            ssl_findings = await self._check_ssl_tls(target)
-            findings.extend(ssl_findings)
+        groups = [
+            ("security_headers", self._check_security_headers(target) if self._check_headers else _none()),
+            ("info_disclosure", self._check_info_disclosure(target)),
+            ("cors", self._check_cors_misconfiguration(target, subdomains)),
+            ("open_redirect", self._check_open_redirects(target)),
+            ("subdomain_takeover", self._check_subdomain_takeover(subdomains[:200])),
+            ("ssrf_surface", self._check_ssrf_surface(target)),
+            ("ssl_tls", self._check_ssl_tls(target) if (443 in open_ports or 8443 in open_ports) else _none()),
+        ]
+        group_results = await asyncio.gather(*(c for _, c in groups), return_exceptions=True)
+        for (group_name, _), group_result in zip(groups, group_results):
+            if isinstance(group_result, BaseException):
+                errors.append(f"{group_name}: {group_result}")
+                continue
+            findings.extend(group_result or [])
 
         # Deduplicate findings
         seen: set[str] = set()
@@ -771,29 +764,32 @@ class ExposureValidator(EnhancedBaseScanner):
 
         import dns.resolver
 
-        for sub in subdomains:
+        def _resolve_cname(s: str) -> str | None:
             try:
-                loop = asyncio.get_event_loop()
+                answers = dns.resolver.resolve(s, "CNAME", lifetime=4.0)
+                for rdata in answers:
+                    return str(rdata.target).rstrip(".")
+            except Exception:
+                pass
+            return None
 
-                def _resolve_cname(s: str) -> str | None:
-                    try:
-                        answers = dns.resolver.resolve(s, "CNAME")
-                        for rdata in answers:
-                            return str(rdata.target).rstrip(".")
-                    except Exception:
-                        pass
-                    return None
+        # Look the names up together (bounded), not one after another: with
+        # 200 names and slow authoritative servers the serial loop alone
+        # could take minutes.
+        sem = asyncio.Semaphore(25)
 
-                cname = await loop.run_in_executor(None, _resolve_cname, sub)
-                if not cname:
-                    continue
-
-                for pattern, info in vulnerable_cnames.items():
-                    if cname.endswith(pattern):
-                        # Try to connect to verify it's actually unclaimed
-                        is_unclaimed = await self._verify_unclaimed(sub)
-                        if is_unclaimed:
-                            findings.append({
+        async def _one(sub: str) -> dict[str, Any] | None:
+            async with sem:
+                try:
+                    cname = await asyncio.to_thread(_resolve_cname, sub)
+                    if not cname:
+                        return None
+                    for pattern, info in vulnerable_cnames.items():
+                        if cname.endswith(pattern):
+                            # Try to connect to verify it's actually unclaimed
+                            if not await self._verify_unclaimed(sub):
+                                return None
+                            return {
                                 "found": True,
                                 "category": "subdomain_takeover",
                                 "severity": info["severity"],
@@ -804,11 +800,14 @@ class ExposureValidator(EnhancedBaseScanner):
                                     "service": info["service"],
                                     "unclaimed": True,
                                 },
-                            })
-                        break
+                            }
+                except Exception as e:
+                    logger.debug("Takeover check failed for %s: %s", sub, e)
+                return None
 
-            except Exception as e:
-                logger.debug("Takeover check failed for %s: %s", sub, e)
+        for item in await asyncio.gather(*(_one(sub) for sub in subdomains)):
+            if item:
+                findings.append(item)
 
         return findings
 

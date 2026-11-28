@@ -93,8 +93,32 @@ def is_internal_name(host: str) -> bool:
     return host in _INTERNAL_NAMES or host.endswith(_INTERNAL_SUFFIXES) or "." not in host
 
 
+_RESOLVE_CACHE: dict = {}
+_RESOLVE_TTL = 30.0
+
+
 def resolve_host(host: str, timeout: float = 4.0) -> List[str]:
-    """Return A and AAAA records for ``host`` (empty list if it does not resolve)."""
+    """Return A and AAAA records for ``host`` (empty list if it does not resolve).
+
+    Answers are kept for a few seconds: a scan checks the same names several
+    times (scope gate, port scanner, TLS and HTTP guards), and each lookup can
+    cost up to ``timeout`` per record type for names that do not answer.
+    """
+    import time
+
+    key = (host or "").lower().rstrip(".")
+    now = time.monotonic()
+    cached = _RESOLVE_CACHE.get(key)
+    if cached and now - cached[1] < _RESOLVE_TTL:
+        return list(cached[0])
+    ips = _resolve_host_uncached(key, timeout)
+    if len(_RESOLVE_CACHE) > 20000:
+        _RESOLVE_CACHE.clear()
+    _RESOLVE_CACHE[key] = (tuple(ips), now)
+    return ips
+
+
+def _resolve_host_uncached(host: str, timeout: float) -> List[str]:
     import dns.resolver  # type: ignore[import-untyped]
 
     resolver = dns.resolver.Resolver()

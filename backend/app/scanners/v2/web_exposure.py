@@ -152,6 +152,17 @@ class WebExposureScanner(EnhancedBaseScanner):
             rps=float(cfg.get("http_rps_per_host", 5.0)),
             budget=int(cfg.get("max_requests_per_host", 220)),
         )
+        # A second limit per server address: many names (virtual hosts, CDN
+        # edges) can share one IP, and the per-name limit alone would let them
+        # add up. Before this, 8 names on one IP could reach 8 x 5 = 40
+        # requests/s; the per-IP cap keeps that ceiling even though more
+        # names are now checked at once.
+        self.ip_limiter = HostRateLimiter(
+            concurrency=int(cfg.get("http_concurrency_per_ip", 16)),
+            rps=float(cfg.get("http_rps_per_ip", 40.0)),
+            budget=10 ** 9,
+        )
+        self._ip_of: Dict[str, str] = {}
         self._transport = cfg.get("_transport")       # tests inject httpx.MockTransport
         self._hooks = cfg.get("_event_hooks", GUARDED_HOOKS)
 
@@ -176,7 +187,8 @@ class WebExposureScanner(EnhancedBaseScanner):
     async def _get(self, client: httpx.AsyncClient, url: str, limit: int = MAX_BODY_BYTES) -> Optional[Probe]:
         host = urlsplit(url).hostname or ""
         try:
-            async with self.limiter.slot(host):
+            ip_key = await self._server_key(host)
+            async with self.limiter.slot(host), self.ip_limiter.slot(ip_key):
                 async with client.stream("GET", url) as resp:
                     chunks: List[bytes] = []
                     size = 0
@@ -195,6 +207,22 @@ class WebExposureScanner(EnhancedBaseScanner):
         except (httpx.HTTPError, OSError, asyncio.TimeoutError) as exc:
             logger.debug("GET %s failed: %s", url, exc)
             return None
+
+    async def _server_key(self, host: str) -> str:
+        """The address ``host`` resolves to (the name itself if unknown)."""
+        key = self._ip_of.get(host)
+        if key is None:
+            key = host
+            if self._transport is None:  # tests with a mock transport have no DNS
+                try:
+                    from app.core.target_guard import resolve_host
+                    ips = await asyncio.to_thread(resolve_host, host)
+                    if ips:
+                        key = sorted(ips)[0]
+                except Exception:  # noqa: BLE001 — fall back to per-name limits
+                    pass
+            self._ip_of[host] = key
+        return key
 
     async def _fetch_root(
         self, client: httpx.AsyncClient, base: str, root_domain: str,

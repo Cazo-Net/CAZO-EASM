@@ -190,12 +190,8 @@ class ScanService:
                 # Resolve scan options from profile + stored options
                 options = self._resolve_scan_options(scan)
 
-                async def progress_callback(progress: int, message: str):
-                    try:
-                        scan.progress = progress
-                        db.commit()
-                    except Exception:
-                        db.rollback()
+                from app.services.scan_progress import make_progress_writer
+                progress_callback = make_progress_writer(db, scan)
 
                 # Route to quick or full scan based on scan_type
                 scan_type = scan.scan_type or "full"
