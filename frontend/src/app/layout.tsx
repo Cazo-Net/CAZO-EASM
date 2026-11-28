@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 import { ClientLayout } from "@/components/ClientLayout";
@@ -7,6 +7,7 @@ import { ClientLayout } from "@/components/ClientLayout";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+  display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -14,10 +15,6 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
 });
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-display",
-});
 
 export const metadata: Metadata = {
   title: {
@@ -41,11 +38,11 @@ export const metadata: Metadata = {
   authors: [{ name: "CAZO" }],
   creator: "CAZO",
   publisher: "CAZO",
-  metadataBase: new URL("https://cazo.io"),
+  metadataBase: new URL("https://cazoeasm.io"),
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://cazo.io",
+    url: "https://cazoeasm.io",
     siteName: "CAZO",
     title: "CAZO - External Attack Surface Management",
     description:
@@ -101,7 +98,7 @@ export default function RootLayout({
     operatingSystem: "Web",
     description:
       "External Attack Surface Management. CAZO maps subdomains, open ports, certificates, services and misconfigurations across your external perimeter, with the evidence behind every finding.",
-    url: "https://cazo.io",
+    url: "https://cazoeasm.io",
     offers: {
       "@type": "Offer",
       price: "0",
@@ -110,7 +107,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable}`} style={{ height: "100%" }}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} style={{ height: "100%" }}>
       <head>
         <script
           type="application/ld+json"

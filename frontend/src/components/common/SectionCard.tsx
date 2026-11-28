@@ -11,6 +11,7 @@ interface SectionCardProps {
   children: React.ReactNode;
   className?: string;
   bodyClassName?: string;
+  /** Kept for API compatibility; the new design uses a single neutral card. */
   accent?: "brand" | "violet" | "none";
 }
 
@@ -22,45 +23,31 @@ export function SectionCard({
   children,
   className,
   bodyClassName,
-  accent = "none",
 }: SectionCardProps) {
   return (
-    <div
+    <section
       className={cn(
-        "relative overflow-hidden rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm",
+        "relative overflow-hidden rounded-xl border border-border bg-card shadow-elevation-1",
         className
       )}
     >
-      {accent !== "none" && (
-        <div
-          className={cn(
-            "absolute inset-x-0 top-0 h-[2px]",
-            accent === "brand" ? "gradient-brand" : "gradient-violet"
-          )}
-        />
-      )}
       {(title || actions) && (
-        <div className="flex items-center gap-3 border-b border-border/30 px-5 py-3.5">
+        <header className="flex items-center gap-3 border-b border-border px-5 py-3.5">
           {icon && (
-            <div
-              className={cn(
-                "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-                accent === "violet" ? "bg-neon-violet/10 text-neon-violet" : "bg-phosphor/8 text-phosphor"
-              )}
-            >
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground [&_svg]:h-4 [&_svg]:w-4">
               {icon}
             </div>
           )}
           <div className="min-w-0 flex-1">
-            {title && <h2 className="truncate text-sm font-semibold font-display">{title}</h2>}
+            {title && <h2 className="truncate text-sm font-semibold">{title}</h2>}
             {description && (
-              <p className="truncate text-[11px] text-muted-foreground/60 font-mono">{description}</p>
+              <p className="truncate text-xs text-muted-foreground">{description}</p>
             )}
           </div>
           {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
-        </div>
+        </header>
       )}
       <div className={cn("p-5", bodyClassName)}>{children}</div>
-    </div>
+    </section>
   );
 }

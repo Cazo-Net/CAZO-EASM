@@ -5,31 +5,33 @@ import { cn } from "@/lib/utils";
 
 export type Severity = "critical" | "high" | "medium" | "low" | "info" | "unknown";
 
+/* One severity scale used everywhere (tables, cards, charts). Colours come
+   from the --sev-* tokens in globals.css. */
 const severityMap: Record<Severity, { label: string; cls: string; dotCls: string }> = {
   critical: {
     label: "Critical",
-    cls: "bg-signal-red/12 text-signal-red ring-signal-red/25 shadow-glow-danger-sm",
-    dotCls: "bg-signal-red shadow-[0_0_6px_2px_hsl(var(--sev-critical)/0.4)]",
+    cls: "bg-severity-critical/10 text-severity-critical ring-severity-critical/30",
+    dotCls: "bg-severity-critical",
   },
   high: {
     label: "High",
-    cls: "bg-amber/12 text-amber ring-amber/25",
-    dotCls: "bg-amber",
+    cls: "bg-severity-high/10 text-severity-high ring-severity-high/30",
+    dotCls: "bg-severity-high",
   },
   medium: {
     label: "Medium",
-    cls: "bg-warning/12 text-warning ring-warning/25",
-    dotCls: "bg-warning",
+    cls: "bg-severity-medium/10 text-severity-medium ring-severity-medium/30",
+    dotCls: "bg-severity-medium",
   },
   low: {
     label: "Low",
-    cls: "bg-cyan-signal/10 text-cyan-signal ring-cyan-signal/20",
-    dotCls: "bg-cyan-signal",
+    cls: "bg-severity-low/10 text-severity-low ring-severity-low/30",
+    dotCls: "bg-severity-low",
   },
   info: {
     label: "Info",
-    cls: "bg-muted-foreground/10 text-muted-foreground ring-border",
-    dotCls: "bg-muted-foreground",
+    cls: "bg-severity-info/10 text-severity-info ring-severity-info/25",
+    dotCls: "bg-severity-info",
   },
   unknown: {
     label: "Unknown",
@@ -51,14 +53,12 @@ export function SeverityPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold font-mono ring-1 ring-inset",
+        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
         s.cls,
         className
       )}
     >
-      {showDot && (
-        <span className={cn("h-1.5 w-1.5 rounded-full", s.dotCls)} />
-      )}
+      {showDot && <span className={cn("h-1.5 w-1.5 rounded-full", s.dotCls)} aria-hidden="true" />}
       {s.label}
     </span>
   );

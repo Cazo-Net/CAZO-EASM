@@ -4,149 +4,127 @@
 
 @layer base {
   :root {
-    /* ── Light Mode: Clean, professional, high-contrast ── */
-    --background: 0 0% 100%;            /* #FFFFFF — pure white */
-    --foreground: 222 47% 11%;          /* #0F172A — near-black slate */
-    --card: 0 0% 100%;                  /* #FFFFFF */
-    --card-foreground: 222 47% 11%;
+    /* ── CAZO design tokens ──────────────────────────────────────────
+       Palette: "Ink & Signal". Cool navy-ink neutrals, one confident
+       signal-blue for action and focus, cyan as a quiet secondary, and a
+       conventional severity scale (red → orange → amber → blue → grey).
+       To re-brand, change --brand/--primary/--ring (and the logo gradient
+       in CazoLogo.tsx). Everything else derives from these variables. */
+
+    /* Light mode */
+    --background: 220 33% 98%;          /* #F7F9FC */
+    --foreground: 224 40% 10%;          /* #0F1626 */
+    --card: 0 0% 100%;
+    --card-foreground: 224 40% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 224 40% 10%;
 
-    /* Primary — deep indigo (trust, authority) */
-    --primary: 239 84% 67%;             /* #5B5FEF — vibrant indigo */
-    --primary-foreground: 0 0% 100%;    /* white on primary */
-
-    /* Secondary — soft blue-gray */
-    --secondary: 220 14% 96%;           /* #F1F5F9 */
-    --secondary-foreground: 222 47% 11%;
-
-    /* Muted — subtle gray */
-    --muted: 220 14% 96%;
-    --muted-foreground: 215 16% 47%;    /* #64748B — readable gray */
-
-    /* Accent — light indigo tint */
-    --accent: 239 84% 97%;              /* very light indigo */
-    --accent-foreground: 239 84% 40%;
-
-    /* Destructive — clear red */
-    --destructive: 0 84% 60%;           /* #DC2626 */
+    --primary: 221 83% 53%;             /* #2563EB */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 20% 95%;
+    --secondary-foreground: 224 40% 10%;
+    --muted: 220 20% 95%;
+    --muted-foreground: 220 12% 42%;
+    --accent: 221 70% 96%;
+    --accent-foreground: 221 83% 40%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders — subtle, clean */
-    --border: 220 13% 91%;              /* #E2E8F0 */
-    --input: 220 13% 91%;
-    --ring: 239 84% 67%;                /* indigo focus ring */
-    --radius: 0.625rem;
+    --border: 220 16% 89%;
+    --input: 220 16% 86%;
+    --ring: 221 83% 53%;
+    --radius: 0.5rem;
 
-    /* Brand — indigo primary, cyan secondary */
-    --brand: 239 84% 67%;               /* #5B5FEF */
-    --brand-2: 199 89% 48%;             /* #0EA5E9 — sky blue */
-    --accent-2: 262 83% 58%;            /* #7C3AED — violet */
+    --brand: 221 83% 53%;
+    --brand-2: 192 85% 40%;
+    --accent-2: 256 70% 58%;
     --accent-2-foreground: 0 0% 100%;
 
-    /* Semantic */
-    --success: 142 71% 45%;             /* #16A34A */
+    --success: 152 62% 36%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;              /* #F59E0B */
-    --warning-foreground: 222 47% 11%;
-    --info: 199 89% 48%;                /* #0EA5E9 */
+    --warning: 35 92% 45%;
+    --warning-foreground: 224 40% 10%;
+    --info: 205 85% 45%;
     --info-foreground: 0 0% 100%;
 
-    /* Elevation surfaces */
     --surface-1: 0 0% 100%;
-    --surface-2: 220 14% 97%;
-    --surface-3: 220 14% 94%;
+    --surface-2: 220 25% 97%;
+    --surface-3: 220 20% 94%;
 
-    /* Severity */
-    --sev-critical: 0 84% 60%;
-    --sev-high: 24 95% 53%;             /* #F97316 — orange */
-    --sev-medium: 38 92% 50%;
-    --sev-low: 199 89% 48%;
-    --sev-info: 215 16% 47%;
+    --sev-critical: 0 72% 51%;
+    --sev-high: 22 90% 50%;
+    --sev-medium: 38 92% 45%;
+    --sev-low: 214 80% 52%;
+    --sev-info: 220 10% 50%;
 
-    /* Chart ramp */
-    --chart-1: 239 84% 67%;
-    --chart-2: 199 89% 48%;
-    --chart-3: 262 83% 58%;
-    --chart-4: 142 71% 45%;
-    --chart-5: 38 92% 50%;
-    --chart-6: 24 95% 53%;
-    --chart-7: 0 84% 60%;
+    --chart-1: 221 83% 53%;
+    --chart-2: 192 85% 40%;
+    --chart-3: 256 70% 58%;
+    --chart-4: 152 62% 36%;
+    --chart-5: 38 92% 45%;
+    --chart-6: 22 90% 50%;
+    --chart-7: 0 72% 51%;
 
-    /* Sidebar */
-    --sidebar-width: 256px;
-    --sidebar-collapsed-width: 68px;
+    --font-display: var(--font-inter);
+
+    --sidebar-width: 248px;
+    --sidebar-collapsed-width: 64px;
     --topbar-height: 56px;
   }
 
   .dark {
-    /* ── Dark Mode: Deep command center void ── */
-    --background: 222 47% 4%;           /* #080B12 — ultra-dark */
-    --foreground: 210 40% 96%;          /* #F1F5F9 — soft white */
-    --card: 222 30% 7%;                 /* #0D1117 — GitHub-dark */
-    --card-foreground: 210 40% 96%;
-    --popover: 222 30% 8%;
-    --popover-foreground: 210 40% 96%;
+    /* Dark mode (default) — navy ink, not pure black */
+    --background: 225 35% 6%;           /* #0A0D14 */
+    --foreground: 220 25% 94%;          /* #EDF0F5 */
+    --card: 225 28% 9%;                 /* #11151E */
+    --card-foreground: 220 25% 94%;
+    --popover: 225 28% 10%;
+    --popover-foreground: 220 25% 94%;
 
-    /* Primary — emerald green (CAZO signature, more refined) */
-    --primary: 160 84% 39%;             /* #10B981 — emerald */
-    --primary-foreground: 0 0% 100%;    /* white on green */
-
-    /* Secondary — elevated surface */
-    --secondary: 222 25% 12%;           /* #161B26 */
-    --secondary-foreground: 210 40% 96%;
-
-    /* Muted */
-    --muted: 222 25% 12%;
-    --muted-foreground: 217 15% 55%;    /* #7C8BA5 — WCAG AA */
-
-    /* Accent */
-    --accent: 222 25% 14%;
-    --accent-foreground: 210 40% 96%;
-
-    /* Destructive */
-    --destructive: 350 80% 60%;         /* #FB7185 — rose */
+    --primary: 221 92% 62%;             /* #4A82F5 — signal blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 225 22% 13%;
+    --secondary-foreground: 220 25% 94%;
+    --muted: 225 22% 13%;
+    --muted-foreground: 220 13% 64%;    /* AA on card */
+    --accent: 225 24% 15%;
+    --accent-foreground: 220 25% 94%;
+    --destructive: 0 84% 63%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Borders — barely-there lines */
-    --border: 222 20% 16%;              /* #1E2636 */
-    --input: 222 20% 16%;
-    --ring: 160 84% 39%;                /* emerald focus ring */
+    --border: 225 18% 17%;              /* #232937 */
+    --input: 225 18% 20%;
+    --ring: 221 92% 62%;
 
-    /* Brand — emerald primary, cyan secondary */
-    --brand: 160 84% 39%;               /* #10B981 */
-    --brand-2: 187 94% 43%;             /* #06B6D4 — cyan */
-    --accent-2: 250 89% 67%;            /* #818CF8 — indigo */
+    --brand: 221 92% 62%;
+    --brand-2: 190 85% 52%;             /* cyan */
+    --accent-2: 255 85% 72%;            /* violet */
     --accent-2-foreground: 0 0% 100%;
 
-    /* Semantic */
-    --success: 160 84% 39%;             /* emerald */
+    --success: 152 58% 46%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;              /* amber */
-    --warning-foreground: 222 47% 11%;
-    --info: 187 94% 43%;                /* cyan */
+    --warning: 38 92% 56%;
+    --warning-foreground: 224 40% 10%;
+    --info: 205 88% 60%;
     --info-foreground: 0 0% 100%;
 
-    /* Elevation surfaces — subtle depth layers */
-    --surface-1: 222 30% 7%;
-    --surface-2: 222 25% 10%;
-    --surface-3: 222 22% 13%;
+    --surface-1: 225 28% 9%;
+    --surface-2: 225 24% 11.5%;
+    --surface-3: 225 22% 14.5%;
 
-    /* Severity — clear signal palette */
-    --sev-critical: 350 80% 60%;        /* rose */
-    --sev-high: 24 95% 53%;             /* orange */
-    --sev-medium: 38 92% 50%;           /* amber */
-    --sev-low: 187 94% 43%;             /* cyan */
-    --sev-info: 217 15% 55%;            /* muted blue-gray */
+    --sev-critical: 0 84% 63%;
+    --sev-high: 22 92% 58%;
+    --sev-medium: 42 94% 56%;
+    --sev-low: 212 90% 66%;
+    --sev-info: 220 10% 62%;
 
-    /* Chart ramp */
-    --chart-1: 160 84% 39%;             /* emerald */
-    --chart-2: 187 94% 43%;             /* cyan */
-    --chart-3: 250 89% 67%;             /* indigo */
-    --chart-4: 38 92% 50%;              /* amber */
-    --chart-5: 350 80% 60%;             /* rose */
-    --chart-6: 160 60% 30%;             /* dim emerald */
-    --chart-7: 187 70% 35%;             /* dim cyan */
+    --chart-1: 221 92% 62%;
+    --chart-2: 190 85% 52%;
+    --chart-3: 255 85% 72%;
+    --chart-4: 152 58% 46%;
+    --chart-5: 42 94% 56%;
+    --chart-6: 22 92% 58%;
+    --chart-7: 0 84% 63%;
   }
 }
 
@@ -159,7 +137,7 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings: "rlig" 1, "calt" 1, "cv02" 1, "cv03" 1, "cv04" 1, "cv11" 1;
     height: 100%;
     overflow: hidden;
   }
@@ -215,24 +193,31 @@
 
   .gradient-text {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, hsl(var(--brand)), hsl(var(--brand-2)));
+    background-image: linear-gradient(120deg, hsl(var(--foreground)), hsl(var(--brand)) 70%);
   }
   .gradient-text-violet {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(135deg, hsl(var(--accent-2)), hsl(var(--brand-2)));
   }
+  /* Solid brand fill (was a green→cyan gradient). Kept as a class so the
+     many existing call sites pick up the new look without edits. */
   .gradient-brand {
-    background-image: linear-gradient(135deg, hsl(var(--brand)), hsl(var(--brand-2)));
+    background-color: hsl(var(--primary));
+    background-image: linear-gradient(180deg, hsl(0 0% 100% / 0.08), transparent);
+    color: hsl(var(--primary-foreground));
   }
   .gradient-violet {
     background-image: linear-gradient(135deg, hsl(var(--accent-2)), hsl(var(--brand-2)));
   }
 
   /* Page container widths */
-  .page-container-sm { @apply mx-auto w-full max-w-[980px]; }
-  .page-container-md { @apply mx-auto w-full max-w-[1500px]; }
-  .page-container-lg { @apply mx-auto w-full max-w-[1700px]; }
-  .page-container-xl { @apply mx-auto w-full max-w-[1600px]; }
+  /* Page containers carry the horizontal gutter so content never touches
+     the sidebar or the viewport edge. */
+  .page-container-sm { @apply mx-auto w-full max-w-[980px] px-4 md:px-8; }
+  .page-container-md { @apply mx-auto w-full max-w-[1500px] px-4 md:px-8; }
+  .page-container-lg { @apply mx-auto w-full max-w-[1600px] px-4 md:px-8; }
+  .page-container-xl { @apply mx-auto w-full max-w-[1600px] px-4 md:px-8; }
+  .page-container { @apply mx-auto w-full max-w-[1600px] px-4 md:px-8; }
 }
 
 /* ============================================

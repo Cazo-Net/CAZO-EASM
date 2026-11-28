@@ -401,7 +401,7 @@ function AssetsContent() {
               </p>
               <a
                 href="/scan/new"
-                className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-void shadow-elevation-2 transition-all"
+                className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-elevation-2 transition-all"
               >
                 <Globe className="h-4 w-4" />
                 Start a Scan

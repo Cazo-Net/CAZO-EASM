@@ -4,7 +4,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   Search,
-  ScanSearch,
   Sun,
   Moon,
   Menu,
@@ -37,7 +36,7 @@ const routeTitles: Record<string, string> = {
   "/assets": "Assets",
   "/reports": "Reports",
   "/settings": "Settings",
-  "/vulnerabilities": "Vulnerabilities",
+  "/vulnerabilities": "Findings",
   "/dns": "DNS Records",
   "/whois": "WHOIS Records",
   "/graph": "Attack Graph",
@@ -87,7 +86,7 @@ export function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenPalette }: Top
     <TooltipProvider delayDuration={0}>
       <header
         className={cn(
-          "flex h-14 shrink-0 items-center border-b border-border/50 bg-background/80 backdrop-blur-xl z-40 transition-all duration-300"
+          "flex h-14 shrink-0 items-center border-b border-border bg-background/85 backdrop-blur-md z-40"
         )}
         role="banner"
       >
@@ -101,20 +100,18 @@ export function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenPalette }: Top
             <Menu className="h-5 w-5" />
           </button>
 
-          {/* Page title - hidden on very small screens */}
-          <h1 className="text-base font-semibold hidden sm:block truncate shrink-0">
-            {pageTitle}
-          </h1>
+          {/* Page title shows on mobile only; on larger screens the page header carries it */}
+          <span className="text-sm font-semibold truncate md:hidden">{pageTitle}</span>
 
           {/* Global Search / Command Palette trigger */}
           <button
             onClick={onOpenPalette}
-            className="ml-2 hidden h-8 max-w-sm flex-1 items-center gap-2 rounded-lg border border-border/40 bg-muted/20 px-3 text-sm text-muted-foreground transition-all hover:border-brand/30 hover:bg-muted/30 md:flex group"
+            className="hidden h-9 w-full max-w-md items-center gap-2 rounded-md border border-border bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:border-input hover:bg-muted/70 md:flex group"
             aria-label="Open command palette"
           >
-            <Search className="h-3.5 w-3.5 shrink-0 group-hover:text-brand transition-colors" />
-            <span className="flex-1 text-left text-xs">Search or jump to...</span>
-            <kbd className="flex items-center gap-0.5 rounded border border-border bg-card/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/70">
+            <Search className="h-4 w-4 shrink-0 transition-colors group-hover:text-foreground" />
+            <span className="flex-1 text-left text-[13px]">Search assets, findings, scans…</span>
+            <kbd className="flex items-center gap-0.5 rounded border border-border bg-card px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
               <Command className="h-2.5 w-2.5" />K
             </kbd>
           </button>
@@ -123,23 +120,6 @@ export function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenPalette }: Top
         <div className="flex items-center gap-1 px-3 md:px-4 shrink-0">
           {/* Notifications */}
           <NotificationCenter />
-
-          {/* Quick Scan */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hidden h-8 gap-1.5 text-muted-foreground hover:text-foreground sm:flex"
-                onClick={() => router.push("/scan/new")}
-                aria-label="New scan"
-              >
-                <ScanSearch className="h-3.5 w-3.5" />
-                <span className="text-xs">Scan</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>New Scan</TooltipContent>
-          </Tooltip>
 
           {/* Theme Toggle */}
           <Tooltip>
@@ -161,7 +141,7 @@ export function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenPalette }: Top
           </Tooltip>
 
           {/* Separator */}
-          <div className="h-5 w-px bg-border/50 mx-1 hidden sm:block" />
+          <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
 
           {/* Profile Dropdown */}
           <DropdownMenu>
@@ -170,8 +150,8 @@ export function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenPalette }: Top
                 className="flex items-center gap-2 rounded-lg p-1 transition-colors hover:bg-muted/50"
                 aria-label="User menu"
               >
-                <Avatar className="h-7 w-7 ring-2 ring-border">
-                  <AvatarFallback className="bg-gradient-to-br from-brand/20 to-brand-2/20 text-[10px] font-semibold text-brand">
+                <Avatar className="h-7 w-7 ring-1 ring-border">
+                  <AvatarFallback className="bg-primary/15 text-[10px] font-semibold text-primary">
                     {getInitials()}
                   </AvatarFallback>
                 </Avatar>

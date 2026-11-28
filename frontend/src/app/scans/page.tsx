@@ -163,7 +163,7 @@ function ScansContent() {
           breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Scans" }]}
           actions={
             <Link href="/scan/new">
-              <Button className="gap-2 gradient-brand text-void shadow-elevation-2 px-5">
+              <Button className="gap-2 gradient-brand text-primary-foreground shadow-elevation-2 px-5">
                 <Plus className="h-4 w-4" />
                 New Scan
               </Button>
@@ -283,7 +283,7 @@ function ScansContent() {
             </p>
             {!searchQuery && statusFilter === "all" && (
               <Link href="/scan/new">
-                <Button className="gap-2 gradient-brand text-void">
+                <Button className="gap-2 gradient-brand text-primary-foreground">
                   <Plus className="h-4 w-4" />
                   Start First Scan
                 </Button>

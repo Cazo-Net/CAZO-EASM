@@ -119,7 +119,7 @@ export function SupportChat() {
                 className={cn(
                   "p-2 rounded-lg transition-colors",
                   input.trim() && !sending
-                    ? "bg-phosphor text-void hover:bg-phosphor/90"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
                     : "bg-muted/30 text-muted-foreground cursor-not-allowed"
                 )}
               >

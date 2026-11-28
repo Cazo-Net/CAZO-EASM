@@ -92,15 +92,18 @@ const config: Config = {
           7: "hsl(var(--chart-7))",
         },
         /* Named hex colors for direct use */
-        void: "#080B12",
-        obsidian: "#0D1117",
+        /* Legacy names, now mapped onto the design tokens so every page
+           follows the palette in globals.css. `void`/`obsidian` stay fixed
+           because the marketing site is always dark. */
+        void: "#090C13",
+        obsidian: "#0F131C",
         graphite: "#161B26",
         slate: "#1E2636",
-        phosphor: "#10B981",
-        "cyan-signal": "#06B6D4",
-        "neon-violet": "#818CF8",
-        "signal-red": "#FB7185",
-        amber: "#F59E0B",
+        phosphor: "hsl(var(--brand))",
+        "cyan-signal": "hsl(var(--brand-2))",
+        "neon-violet": "hsl(var(--accent-2))",
+        "signal-red": "hsl(var(--sev-critical))",
+        amber: "hsl(var(--warning))",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
@@ -112,9 +115,9 @@ const config: Config = {
         "elevation-2": "0 4px 16px -4px hsl(240 12% 3% / 0.4)",
         "elevation-3": "0 12px 40px -8px hsl(240 12% 3% / 0.55)",
         /* Phosphor glow shadows — using CSS variable brand */
-        "glow-sm": "0 0 12px -4px hsl(160 84% 39% / 0.15)",
-        "glow-md": "0 0 20px -6px hsl(160 84% 39% / 0.2)",
-        "glow-lg": "0 0 32px -8px hsl(160 84% 39% / 0.25)",
+        "glow-sm": "0 1px 2px 0 hsl(var(--brand) / 0.25), 0 4px 12px -4px hsl(var(--brand) / 0.35)",
+        "glow-md": "0 2px 4px 0 hsl(var(--brand) / 0.2), 0 8px 24px -8px hsl(var(--brand) / 0.4)",
+        "glow-lg": "0 4px 8px 0 hsl(var(--brand) / 0.2), 0 16px 40px -12px hsl(var(--brand) / 0.45)",
         "glow-cyan-sm": "0 0 12px -4px hsl(187 94% 43% / 0.15)",
         "glow-cyan-md": "0 0 20px -6px hsl(187 94% 43% / 0.2)",
         "glow-danger-sm": "0 0 12px -4px hsl(350 80% 60% / 0.15)",
@@ -125,8 +128,8 @@ const config: Config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
-        xl: "18px",
-        "2xl": "22px",
+        xl: "12px",
+        "2xl": "16px",
       },
       keyframes: {
         "accordion-down": {

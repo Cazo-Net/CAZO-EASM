@@ -18,8 +18,8 @@ export function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
     >
       <defs>
         <linearGradient id="cazo-gradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#10B981" />
-          <stop offset="1" stopColor="#06B6D4" />
+          <stop stopColor="#3B82F6" />
+          <stop offset="1" stopColor="#22D3EE" />
         </linearGradient>
       </defs>
       {/* Main "C" shape - open circle */}
