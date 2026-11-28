@@ -55,6 +55,13 @@ const typeConfig: Record<string, { icon: any; color: string; bg: string; priorit
   password_changed: { icon: Lock, color: "text-amber-400", bg: "bg-amber-500/10", priority: "high", badge: "Auth" },
   email_changed: { icon: Shield, color: "text-amber-400", bg: "bg-amber-500/10", priority: "high", badge: "Auth" },
   weekly_digest: { icon: Activity, color: "text-violet-400", bg: "bg-violet-500/10", badge: "Report" },
+  inventory_new_asset: { icon: Globe, color: "text-info", bg: "bg-info/10", priority: "high", badge: "New asset" },
+  inventory_new_service: { icon: Activity, color: "text-warning", bg: "bg-warning/10", priority: "high", badge: "New port" },
+  inventory_new_finding: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", priority: "critical", badge: "Finding" },
+  inventory_cert_expiring: { icon: Lock, color: "text-warning", bg: "bg-warning/10", priority: "high", badge: "Cert" },
+  inventory_cert_changed: { icon: Lock, color: "text-info", bg: "bg-info/10", badge: "Cert" },
+  inventory_asset_missing: { icon: Globe, color: "text-muted-foreground", bg: "bg-muted", badge: "Gone" },
+  inventory_plan_limit: { icon: Shield, color: "text-warning", bg: "bg-warning/10", priority: "high", badge: "Plan" },
 };
 
 const priorityBorder: Record<string, string> = {
@@ -156,7 +163,12 @@ export function NotificationCenter() {
     if (!notification.read) {
       handleMarkRead(notification.id);
     }
-    if (notification.data?.scan_id) {
+    const url = notification.data?.url;
+    if (notification.type?.startsWith("inventory_") && typeof url === "string" && url.startsWith("/")) {
+      // Inventory alerts open the change list they are about (same-site paths only).
+      router.push(url);
+      setOpen(false);
+    } else if (notification.data?.scan_id) {
       router.push(`/scan/${notification.data.scan_id}`);
       setOpen(false);
     }

@@ -97,8 +97,16 @@ export function CommandPalette({
       action: () => router.push("/scan/new"),
     },
     {
+      id: "nav-inventory",
+      label: "Go to Asset inventory",
+      group: "Navigation",
+      icon: Globe,
+      keywords: ["assets", "hosts", "ports", "certificates", "alerts", "changes"],
+      action: () => router.push("/inventory"),
+    },
+    {
       id: "nav-assets",
-      label: "Go to Assets",
+      label: "Go to Assets by scan",
       group: "Navigation",
       icon: Globe,
       action: () => router.push("/assets"),

@@ -238,7 +238,9 @@ class TestEnsureDefaultPreferences:
         assert "ssl_expiring" in types
         assert "new_cve_match" in types
         assert "weekly_digest" in types
-        assert len(prefs) == 12
+        assert "inventory_new_asset" in types
+        # 12 original types plus the 6 inventory change alerts.
+        assert len(prefs) == 18
 
     def test_idempotent(self, db_session):
         from app.services.notification_service import ensure_default_preferences
@@ -250,7 +252,7 @@ class TestEnsureDefaultPreferences:
         count = db_session.query(NotificationPreference).filter(
             NotificationPreference.user_id == user.id,
         ).count()
-        assert count == 12
+        assert count == 18
 
 
 # ===========================================================================

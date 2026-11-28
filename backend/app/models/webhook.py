@@ -131,10 +131,12 @@ WEBHOOK_EVENT_TYPES = {
     "asset.new_port": "New open port detected",
     "asset.new_technology": "New technology detected",
     "asset.shadow_asset": "Shadow asset discovered",
+    "asset.disappeared": "Asset no longer found",
 
     # SSL events
     "ssl.certificate_expiring": "SSL certificate expiring soon",
     "ssl.certificate_expired": "SSL certificate expired",
+    "ssl.certificate_changed": "SSL certificate replaced",
 
     # Supply chain events
     "supply_chain.vendor_detected": "New third-party vendor detected",
