@@ -25,6 +25,9 @@ import {
   ExternalLink,
   KeyRound,
   Radar,
+  Unlink,
+  Copy,
+  Database,
 } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -81,7 +84,13 @@ function sourceLabel(status: string): string {
   return map[status] || status;
 }
 
-function SourcesPanel({ sources }: { sources: OsintSource[] }) {
+function SourcesPanel({
+  sources,
+  subscriptions,
+}: {
+  sources: OsintSource[];
+  subscriptions?: { name: string; why: string; home: string }[];
+}) {
   const missingKeys = sources.filter((s) => s.status === "needs_key");
   return (
     <SectionCard
@@ -113,6 +122,85 @@ function SourcesPanel({ sources }: { sources: OsintSource[] }) {
           {missingKeys.map((s) => `${s.name} (${s.key_env})`).join(", ")}. Nothing is guessed for these sources.
         </p>
       )}
+      {subscriptions && subscriptions.length > 0 && (
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Not included (paid subscription needed):{" "}
+          {subscriptions.map((s, i) => (
+            <span key={s.name}>
+              {i > 0 ? "; " : ""}
+              <a href={s.home} target="_blank" rel="noopener noreferrer" className="hover:underline" title={s.why}>
+                {s.name}
+              </a>
+            </span>
+          ))}
+          .
+        </p>
+      )}
+    </SectionCard>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="text-sm">{children}</div>
+    </div>
+  );
+}
+
+function CompanyCard({ company }: { company: NonNullable<OsintResult["company"]> | null | undefined }) {
+  if (!company) {
+    return (
+      <SectionCard title="Company Profile" icon={<Building className="h-4 w-4" />}>
+        <p className="text-xs text-muted-foreground">
+          No public company record is linked to this domain (Wikidata official website, GLEIF). Nothing is guessed from
+          the name. For official registry data (incorporation, directors, shareholders) see a national company registry.
+        </p>
+      </SectionCard>
+    );
+  }
+  const wd = company.wikidata;
+  const le = company.legal_entity;
+  const owners = Array.from(new Set([...(wd?.owners || []), ...(wd?.parents || [])]));
+  return (
+    <SectionCard
+      title={`Company Profile${company.name ? `: ${company.name}` : ""}`}
+      description={wd?.description || "Who is behind this domain, from public records linked to it"}
+      icon={<Building className="h-4 w-4" />}
+    >
+      <div className="grid gap-3 md:grid-cols-3" data-testid="osint-company">
+        {wd?.founded && <Field label="Founded">{new Date(wd.founded).getFullYear()}</Field>}
+        {le?.created && <Field label="Legal entity created">{le.created}</Field>}
+        {wd && wd.industries.length > 0 && <Field label="What they do">{wd.industries.join(", ")}</Field>}
+        {owners.length > 0 && <Field label="Owned by / parent">{owners.join(", ")}</Field>}
+        {le?.ultimate_parent?.legal_name && (
+          <Field label="Ultimate parent (GLEIF)">
+            {le.ultimate_parent.legal_name} <SourceLink href={le.ultimate_parent.source_url} label="LEI" />
+          </Field>
+        )}
+        {wd && wd.founders.length > 0 && <Field label="Founded by">{wd.founders.join(", ")}</Field>}
+        {wd && (wd.headquarters.length > 0 || wd.countries.length > 0) && (
+          <Field label="Headquarters">{[...wd.headquarters, ...wd.countries].join(", ")}</Field>
+        )}
+        {wd?.employees != null && <Field label="Employees">{wd.employees.toLocaleString()}</Field>}
+        {wd && wd.listings.length > 0 && <Field label="Listed on">{wd.listings.join(", ")}</Field>}
+        {le && (
+          <Field label="Legal entity">
+            {le.legal_name} · {le.jurisdiction}
+            {le.status ? ` · ${le.status.toLowerCase()}` : ""}
+          </Field>
+        )}
+        {company.domain_registrant && <Field label="Domain registrant">{company.domain_registrant}</Field>}
+        {company.domain_registered && (
+          <Field label="Domain registered">{new Date(company.domain_registered).toLocaleDateString()}</Field>
+        )}
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        {wd && <SourceLink href={wd.source_url} label="Wikidata" />}
+        {le && <SourceLink href={le.source_url} label="GLEIF" />}
+      </div>
+      <p className="mt-2 text-[11px] text-muted-foreground">{company.note}</p>
     </SectionCard>
   );
 }
@@ -235,7 +323,11 @@ function IntelContent() {
           />
         ) : (
           <div className="space-y-4">
-            {data.sources && data.sources.length > 0 && <SourcesPanel sources={data.sources} />}
+            {data.sources && data.sources.length > 0 && (
+              <SourcesPanel sources={data.sources} subscriptions={data.subscription_sources} />
+            )}
+
+            {"company" in data && <CompanyCard company={data.company} />}
 
             {/* Summary stats */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -454,6 +546,100 @@ function IntelContent() {
               )}
             </SectionCard>
 
+            {/* Subdomain takeover candidates */}
+            {data.takeover_candidates && data.takeover_candidates.length > 0 && (
+              <SectionCard
+                title="Subdomain Takeover Risk"
+                description="Subdomains whose CNAME points to a name that no longer exists (from public DNS)"
+                icon={<Unlink className="h-4 w-4" />}
+              >
+                <div className="space-y-2">
+                  {data.takeover_candidates.map((t, i) => (
+                    <div key={i} className="rounded-lg border border-border bg-muted/20 p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm font-semibold">{t.hostname}</span>
+                        <Badge variant={sevVariant(t.severity)} className="text-[10px] capitalize">{t.severity}</Badge>
+                        {t.service ? <Badge variant="outline" className="text-[10px]">{t.service}</Badge> : null}
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">{t.detail}</p>
+                      <SourceLink href={t.source_url} label="DNS record" />
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
+
+            {/* Threat reports / blocklists */}
+            {data.threat_reports && data.threat_reports.length > 0 && (
+              <SectionCard
+                title="Blocklists & Threat Reports"
+                description="Reports that name this domain in abuse.ch threat feeds"
+                icon={<AlertTriangle className="h-4 w-4" />}
+              >
+                <div className="space-y-2">
+                  {data.threat_reports.map((r, i) => (
+                    <div key={i} className="rounded-lg border border-border bg-muted/20 p-3">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={sevVariant(r.severity)} className="text-[10px] capitalize">{r.severity}</Badge>
+                        <span className="text-sm">{r.title}</span>
+                      </div>
+                      {r.summary ? <p className="mt-1 text-xs text-muted-foreground">{r.summary}</p> : null}
+                      <SourceLink href={r.source_url} label={r.source} />
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
+
+            {/* Breaches */}
+            {data.breaches && data.breaches.length > 0 && (
+              <SectionCard
+                title="Breach Exposure"
+                description="Known data breaches from Have I Been Pwned"
+                icon={<Database className="h-4 w-4" />}
+              >
+                <div className="space-y-2">
+                  {data.breaches.map((b, i) => (
+                    <div key={i} className="rounded-lg border border-border bg-muted/20 p-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-medium">{b.title}</span>
+                        <Badge variant={sevVariant(b.severity)} className="text-[10px] capitalize">{b.severity}</Badge>
+                      </div>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        {b.data_classes && b.data_classes.length > 0 ? `Exposed: ${b.data_classes.join(", ")}. ` : ""}
+                        {b.pwn_count ? `${b.pwn_count.toLocaleString()} accounts in the breach.` : ""}
+                      </p>
+                      <SourceLink href={b.source_url} label="Have I Been Pwned" />
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
+
+            {/* Look-alike domains */}
+            {data.lookalikes && data.lookalikes.length > 0 && (
+              <SectionCard
+                title="Look-alike Domains"
+                description="Registered domains that resemble this one. Registered does not mean malicious; ones that can receive email are worth a look."
+                icon={<Copy className="h-4 w-4" />}
+              >
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {data.lookalikes.map((l, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/20 px-2 py-1.5">
+                      <div className="min-w-0">
+                        <p className="truncate font-mono text-xs">{l.domain}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {l.technique}
+                          {l.mx_records.length > 0 ? " · receives email" : ""}
+                        </p>
+                      </div>
+                      <SourceLink href={l.source_url} label="certs" />
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
+
             {/* IP Reputation */}
             {data.ip_reputation && data.ip_reputation.length > 0 && (
               <SectionCard
@@ -481,10 +667,20 @@ function IntelContent() {
                             {r.org}
                           </p>
                         )}
+                        {(() => {
+                          const net = data.ip_networks?.find((n) => n.ip === r.ip);
+                          return net ? (
+                            <p className="text-[10px] text-muted-foreground">
+                              Network {net.cidr.join(", ") || net.range} · {net.network_name}
+                              {net.owner ? ` · ${net.owner}` : ""}
+                            </p>
+                          ) : null;
+                        })()}
                         <div className="mt-0.5 flex gap-2">
                           {Object.entries(r.links || {}).map(([k, href]) => (
                             <SourceLink key={k} href={href} label={k} />
                           ))}
+                          <SourceLink href={data.ip_networks?.find((n) => n.ip === r.ip)?.source_url} label="rdap" />
                         </div>
                         {r.hostname && <p className="text-[10px] font-mono text-muted-foreground">{r.hostname}</p>}
                       </div>
@@ -669,7 +865,7 @@ function IntelContent() {
             {data.email_security && (
               <SectionCard
                 title="Email Security"
-                description="DMARC, SPF, DKIM and MX from public DNS"
+                description="SPF, DMARC, DKIM, MX, MTA-STS, TLS-RPT and BIMI from public DNS"
                 icon={<Mail className="h-4 w-4" />}
               >
                 <div className="grid grid-cols-2 gap-3 text-xs">
@@ -707,6 +903,26 @@ function IntelContent() {
                     <span className="text-muted-foreground">MX Records</span>
                     <p className="mt-0.5 font-mono text-foreground">{data.email_security.mx_records.length} records</p>
                   </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground md:grid-cols-3">
+                  {data.email_security.spf_all ? (
+                    <span>
+                      SPF ends in <span className="font-mono text-foreground">{data.email_security.spf_all}</span>
+                      {data.email_security.spf_lookups != null ? ` · ${data.email_security.spf_lookups} lookups` : ""}
+                    </span>
+                  ) : null}
+                  {data.email_security.dmarc_record ? (
+                    <span>
+                      DMARC pct {data.email_security.dmarc_pct ?? "?"}
+                      {data.email_security.dmarc_rua && data.email_security.dmarc_rua.length > 0 ? " · reports on" : " · no reports"}
+                    </span>
+                  ) : null}
+                  <span>MTA-STS: {data.email_security.mta_sts ? "yes" : "no"}</span>
+                  <span>TLS-RPT: {data.email_security.tls_rpt ? "yes" : "no"}</span>
+                  <span>BIMI: {data.email_security.bimi ? "yes" : "no"}</span>
+                  {data.email_security.dkim_found.length > 0 ? (
+                    <span>DKIM selectors: {data.email_security.dkim_found.join(", ")}</span>
+                  ) : null}
                 </div>
                 {data.email_security.mx_records.length > 0 && (
                   <div className="mt-3 space-y-1">

@@ -31,6 +31,18 @@ class EmailSecurityResult:
     smtp_banner: Optional[str] = None
     open_relay: Optional[bool] = None
     emails_found: List[str] = field(default_factory=list)
+    # SPF detail
+    spf_all: Optional[str] = None          # "-all" | "~all" | "?all" | "+all" | None
+    spf_lookups: Optional[int] = None      # DNS-lookup mechanisms in the top-level record (RFC 7208 limit: 10)
+    spf_multiple: bool = False             # more than one v=spf1 record (invalid)
+    # DMARC detail
+    dmarc_subdomain_policy: Optional[str] = None
+    dmarc_pct: Optional[int] = None
+    dmarc_rua: List[str] = field(default_factory=list)
+    # Transport security / branding
+    mta_sts: Optional[str] = None
+    tls_rpt: Optional[str] = None
+    bimi: Optional[str] = None
 
 
 @dataclass
@@ -97,75 +109,98 @@ class RiskScoreResult:
 # --------------------------------------------------------------------------- #
 # Email / DNS Security Intelligence
 # --------------------------------------------------------------------------- #
+DKIM_SELECTORS = [
+    "default", "google", "selector1", "selector2", "k1", "k2", "k3", "s1", "s2",
+    "mandrill", "mailjet", "everlytickey1", "everlytickey2", "dkim", "mail", "smtp",
+    "mxvault", "zoho", "zmail", "pm", "protonmail", "protonmail2", "sendgrid", "smtpapi",
+    "amazonses", "mailgun", "mta", "fm1", "fm2", "fm3", "turbo-smtp", "sig1", "cm",
+]
+
+_SPF_LOOKUP_RE = re.compile(r"(?:^|\s)[+~?-]?(include:|a\b|a:|a/|mx\b|mx:|mx/|ptr\b|ptr:|exists:|redirect=)", re.I)
+
+
+def _txt_records(name: str) -> Optional[List[str]]:
+    """TXT strings for ``name`` with split chunks joined; None when the name does not exist."""
+    import dns.resolver
+
+    try:
+        ans = dns.resolver.resolve(name, "TXT", lifetime=6)
+    except dns.resolver.NXDOMAIN:
+        return None
+    except Exception:
+        return []
+    out = []
+    for rr in ans:
+        chunks = getattr(rr, "strings", None)
+        if chunks:
+            out.append("".join(c.decode("utf-8", "ignore") if isinstance(c, bytes) else str(c) for c in chunks))
+        else:
+            parts = re.findall(r'"((?:[^"\\]|\\.)*)"', rr.to_text())
+            out.append("".join(parts) if parts else rr.to_text())
+    return out
+
+
+def _tag(record: str, tag: str) -> Optional[str]:
+    m = re.search(r"(?:^|;)\s*" + re.escape(tag) + r"\s*=\s*([^;]+)", record, re.I)
+    return m.group(1).strip() if m else None
+
+
 def _collect_email_security(domain: str, status: Dict[str, str]) -> EmailSecurityResult:
-    """Analyze MX, DMARC, SPF and DKIM from public DNS (no connection to the target)."""
+    """MX, SPF, DMARC, DKIM, MTA-STS, TLS-RPT and BIMI from public DNS (no connection to the target)."""
+    import dns.resolver
+
     result = EmailSecurityResult()
 
-    # --- MX Records ---
     try:
-        import dns.resolver
-        for rr in dns.resolver.resolve(domain, "MX", lifetime=15):
-            result.mx_records.append({
-                "host": rr.exchange.to_text().rstrip("."),
-                "priority": str(rr.preference),
-            })
+        for rr in dns.resolver.resolve(domain, "MX", lifetime=8):
+            result.mx_records.append({"host": rr.exchange.to_text().rstrip("."), "priority": str(rr.preference)})
         status["email-mx"] = "ok" if result.mx_records else "no_mx"
-    except Exception as e:
-        status["email-mx"] = f"error: {type(e).__name__}"
-
-    # --- DMARC ---
-    try:
-        import dns.resolver
-        forrr = dns.resolver.resolve(f"_dmarc.{domain}", "TXT", lifetime=15)
-        for rr in forrr:
-            txt = rr.to_text().strip('"')
-            if txt.lower().startswith("v=dmarc1"):
-                result.dmarc_record = txt
-                # Extract policy
-                m = re.search(r";\s*p\s*=\s*(\w+)", txt, re.I)
-                if m:
-                    result.dmarc_policy = m.group(1).lower()
-                break
-        status["email-dmarc"] = "ok" if result.dmarc_record else "not_found"
-    except dns.resolver.NXDOMAIN:
-        result.dmarc_record = None
-        status["email-dmarc"] = "not_found"
-    except Exception as e:
-        status["email-dmarc"] = f"error: {type(e).__name__}"
-
-    # --- SPF ---
-    try:
-        import dns.resolver
-        forrr = dns.resolver.resolve(domain, "TXT", lifetime=15)
-        for rr in forrr:
-            txt = rr.to_text().strip('"')
-            if txt.lower().startswith("v=spf1"):
-                result.spf_record = txt
-                result.spf_valid = "all" in txt.lower()
-                break
-        status["email-spf"] = "ok" if result.spf_record else "not_found"
-    except Exception as e:
-        status["email-spf"] = f"error: {type(e).__name__}"
-
-    # --- DKIM (common selectors) ---
-    dkim_selectors = ["default", "google", "selector1", "selector2", "k1", "mandrill", "everlytickey1", "dkim", "mail"]
-    found = []
-    try:
-        import dns.resolver
-        for sel in dkim_selectors:
-            try:
-                forrr = dns.resolver.resolve(f"{sel}._domainkey.{domain}", "TXT", lifetime=5)
-                for rr in forrr:
-                    txt = rr.to_text()
-                    if "p=" in txt.lower():
-                        found.append(sel)
-                        break
-            except Exception:
-                pass
     except Exception:
-        pass
-    result.dkim_selectors = dkim_selectors
+        status["email-mx"] = "no_mx"
+
+    spf = [t for t in (_txt_records(domain) or []) if t.lower().startswith("v=spf1")]
+    if spf:
+        rec = spf[0]
+        result.spf_record = rec
+        result.spf_multiple = len(spf) > 1
+        m = re.search(r"(?:^|\s)([+~?-]?)all\b", rec, re.I)
+        result.spf_all = ((m.group(1) or "+") + "all") if m else None
+        result.spf_valid = bool(m) and not result.spf_multiple
+        result.spf_lookups = len(_SPF_LOOKUP_RE.findall(rec))
+    status["email-spf"] = "ok" if spf else "not_found"
+
+    dmarc = [t for t in (_txt_records(f"_dmarc.{domain}") or []) if t.lower().startswith("v=dmarc1")]
+    if dmarc:
+        rec = dmarc[0]
+        result.dmarc_record = rec
+        p = _tag(rec, "p")
+        result.dmarc_policy = p.lower() if p else None
+        sp = _tag(rec, "sp")
+        result.dmarc_subdomain_policy = sp.lower() if sp else None
+        pct = _tag(rec, "pct")
+        try:
+            result.dmarc_pct = int(pct) if pct is not None else 100
+        except ValueError:
+            result.dmarc_pct = None
+        rua = _tag(rec, "rua")
+        result.dmarc_rua = [u.strip() for u in rua.split(",")] if rua else []
+    status["email-dmarc"] = "ok" if dmarc else "not_found"
+
+    def _dkim(sel: str) -> Optional[str]:
+        recs = _txt_records(f"{sel}._domainkey.{domain}") or []
+        return sel if any("p=" in r.lower() for r in recs) else None
+
+    import concurrent.futures as cf
+    with cf.ThreadPoolExecutor(max_workers=8) as ex:
+        found = [s for s in ex.map(_dkim, DKIM_SELECTORS) if s]
+    result.dkim_selectors = list(DKIM_SELECTORS)
     result.dkim_found = found
     status["email-dkim"] = f"{len(found)} found" if found else "none_found"
+
+    for attr, name, prefix in (("mta_sts", f"_mta-sts.{domain}", "v=stsv1"),
+                               ("tls_rpt", f"_smtp._tls.{domain}", "v=tlsrptv1"),
+                               ("bimi", f"default._bimi.{domain}", "v=bimi1")):
+        recs = [t for t in (_txt_records(name) or []) if t.lower().replace(" ", "").startswith(prefix)]
+        setattr(result, attr, recs[0] if recs else None)
 
     return result

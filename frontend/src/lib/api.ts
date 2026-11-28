@@ -1219,6 +1219,15 @@ export interface OsintResult {
     dkim_found: string[];
     smtp_banner: string | null;
     emails_found: string[];
+    spf_all?: string | null;
+    spf_lookups?: number | null;
+    spf_multiple?: boolean;
+    dmarc_subdomain_policy?: string | null;
+    dmarc_pct?: number | null;
+    dmarc_rua?: string[];
+    mta_sts?: string | null;
+    tls_rpt?: string | null;
+    bimi?: string | null;
   } | null;
   /** Edge provider recognised from DNS / ASN data (passive). */
   waf_cdn: {
@@ -1243,6 +1252,92 @@ export interface OsintResult {
     ssl_issues: number;
     dns_misconfigs: number;
   } | null;
+  ip_networks?: {
+    ip: string;
+    network_name: string | null;
+    handle: string | null;
+    range: string | null;
+    cidr: string[];
+    country: string | null;
+    owner: string | null;
+    source_url: string;
+  }[];
+  takeover_candidates?: {
+    hostname: string;
+    cname: string;
+    service: string | null;
+    severity: string;
+    detail: string;
+    source_url: string;
+  }[];
+  lookalikes?: {
+    domain: string;
+    technique: string;
+    a_records: string[];
+    mx_records: string[];
+    severity: string;
+    source_url: string | null;
+  }[];
+  breaches?: {
+    name: string;
+    title: string;
+    summary: string;
+    severity: string;
+    kind: "site" | "addresses";
+    breach_date?: string | null;
+    data_classes?: string[] | null;
+    pwn_count?: number | null;
+    affected_count?: number | null;
+    source_url: string | null;
+  }[];
+  threat_reports?: {
+    title: string;
+    summary: string;
+    severity: string;
+    category?: string;
+    observed_at: string | null;
+    source: string;
+    source_url: string | null;
+  }[];
+  /** Who is behind the domain, from records explicitly tied to it (null when none). */
+  company?: {
+    name: string | null;
+    wikidata: {
+      name: string | null;
+      description: string | null;
+      wikidata_id: string;
+      founded: string | null;
+      industries: string[];
+      owners: string[];
+      parents: string[];
+      founders: string[];
+      countries: string[];
+      headquarters: string[];
+      employees: number | null;
+      lei: string | null;
+      listings: string[];
+      also_linked: { name: string | null; wikidata_id: string }[];
+      source_url: string;
+    } | null;
+    legal_entity: {
+      lei: string;
+      legal_name: string | null;
+      jurisdiction: string | null;
+      status: string | null;
+      created: string | null;
+      registered_as: string | null;
+      city: string | null;
+      country: string | null;
+      direct_parent: { legal_name: string | null; lei: string; source_url: string } | null;
+      ultimate_parent: { legal_name: string | null; lei: string; source_url: string } | null;
+      source_url: string;
+    } | null;
+    domain_registrant: string | null;
+    domain_registered: string | null;
+    note: string;
+  } | null;
+  /** Well-known sources that need a paid subscription and are not integrated. */
+  subscription_sources?: { name: string; why: string; home: string }[];
 }
 
 export async function osintLookup(query: string): Promise<OsintResult> {

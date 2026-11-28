@@ -67,7 +67,42 @@ DNS = {
     ("api.acme.com", "A"): ["104.16.1.1"],
     # dev.acme.com no longer resolves; the stale third-party IP must not be enriched.
     ("_dmarc.acme.com", "TXT"): ['"v=DMARC1; p=none; rua=mailto:d@acme.com"'],
+    ("google._domainkey.acme.com", "TXT"): ['"v=DKIM1; k=rsa; p=MIIBIjAN"'],
+    ("_mta-sts.acme.com", "TXT"): ['"v=STSv1; id=20260101"'],
+    # Dangling CNAME to a deleted Azure app -> takeover candidate.
+    ("old.acme.com", "CNAME"): ["acme-legacy.azurewebsites.net."],
+    # Registered look-alike that can receive mail.
+    ("acrne.com", "A"): ["198.51.100.7"],
+    ("acrne.com", "MX"): ["10 mx.acrne.com."],
 }
+RDAP_IP = {
+    "handle": "NET-93-184-215-0-1", "name": "EDGECAST-NETBLK-03", "type": "DIRECT ALLOCATION",
+    "startAddress": "93.184.215.0", "endAddress": "93.184.215.255", "country": "US",
+    "cidr0_cidrs": [{"v4prefix": "93.184.215.0", "length": 24}],
+    "links": [{"rel": "self", "href": "https://rdap.arin.net/registry/ip/93.184.215.0"}],
+    "entities": [{"roles": ["registrant"], "vcardArray": ["vcard", [["fn", {}, "text", "Edgecast Inc."]]]}],
+}
+WIKIDATA = {"results": {"bindings": [
+    {"item": {"value": "http://www.wikidata.org/entity/Q1000001"}, "itemLabel": {"value": "Acme Corporation"},
+     "itemDescription": {"value": "American manufacturing company"},
+     "inception": {"value": "1947-03-01T00:00:00Z"}, "industryLabel": {"value": "manufacturing"},
+     "ownerLabel": {"value": "Acme Holdings"}, "parentLabel": {"value": "Acme Holdings"},
+     "founderLabel": {"value": "Wile E. Coyote"}, "countryLabel": {"value": "United States"},
+     "hqLabel": {"value": "Phoenix"}, "employees": {"value": "5200"}, "lei": {"value": "5493001KJTIIGC8Y1R12"},
+     "exchangeLabel": {"value": "New York Stock Exchange"}, "ticker": {"value": "ACME"}},
+    {"item": {"value": "http://www.wikidata.org/entity/Q1000001"}, "itemLabel": {"value": "Acme Corporation"},
+     "industryLabel": {"value": "retail"}, "ownerLabel": {"value": "Vanguard Group"}},
+    {"item": {"value": "http://www.wikidata.org/entity/Q1000002"}, "itemLabel": {"value": "Acme Anvil (product)"}},
+]}}
+GLEIF = {"data": {"id": "5493001KJTIIGC8Y1R12", "attributes": {"entity": {
+    "legalName": {"name": "ACME CORPORATION"}, "jurisdiction": "US-DE", "legalForm": {"id": "XTIQ"},
+    "status": "ACTIVE", "creationDate": "1947-02-20T00:00:00Z", "registeredAs": "0123456",
+    "legalAddress": {"city": "WILMINGTON", "country": "US"}}}}}
+GLEIF_PARENT = {"data": {"id": "254900ACMEHOLDINGS01", "attributes": {"entity": {"legalName": {"name": "ACME HOLDINGS INC."}}}}}
+HIBP_BREACHES = [{"Name": "AcmeForum", "Title": "Acme Forum", "Domain": "acme.com", "BreachDate": "2019-05-01",
+                  "AddedDate": "2019-06-01T00:00:00Z", "PwnCount": 120000, "Description": "<p>Forum breach.</p>",
+                  "DataClasses": ["Email addresses", "Passwords"], "IsVerified": True,
+                  "IsFabricated": False, "IsSpamList": False}]
 
 
 class _Resp:
@@ -115,6 +150,15 @@ def fake_net(monkeypatch):
             return _Resp(text="<td>old.acme.com</td>")
         if host == "web.archive.org":
             return _Resp(data=[["original"], ["http://legacy.acme.com/login"], ["https://acme.com.evil.net/"]])
+        if host == "query.wikidata.org":
+            assert "<https://acme.com>" in params["query"]
+            return _Resp(data=WIKIDATA)
+        if host == "api.gleif.org":
+            if path.endswith("/direct-parent") or path.endswith("/ultimate-parent"):
+                return _Resp(data=GLEIF_PARENT)
+            return _Resp(data=GLEIF)
+        if host == "rdap.org" and path.startswith("/ip/"):
+            return _Resp(data=RDAP_IP) if path.endswith("93.184.215.10") else _Resp(404, {})
         if host == "rdap.org":
             return _Resp(data=RDAP, url="https://rdap.verisign.com/com/v1/domain/acme.com")
         if host == "internetdb.shodan.io":
@@ -134,6 +178,13 @@ def fake_net(monkeypatch):
             return _Resp(data={"data": {"abuseConfidenceScore": 0, "totalReports": 0, "usageType": "Content Delivery Network"}})
         raise AssertionError(f"unexpected request to {url}")
 
+    def fake_ti_http(method, url, **kw):
+        from app.services.threat_intel import HttpResult
+        calls.append({"url": url, "params": kw.get("params"), "headers": kw.get("headers") or {}})
+        if url.endswith("/breaches") and (kw.get("params") or {}).get("domain") == DOMAIN:
+            return HttpResult(200, HIBP_BREACHES)
+        raise AssertionError(f"unexpected threat-intel request to {url}")
+
     def fake_resolve(name, rtype, lifetime=None, **kw):
         key = (str(name).rstrip(".").lower(), rtype)
         if key not in DNS:
@@ -144,10 +195,13 @@ def fake_net(monkeypatch):
         raise AssertionError(f"passive lookup opened a socket: {a}")
 
     monkeypatch.setattr(osint.requests, "get", fake_get)
+    from app.services import threat_intel
+    monkeypatch.setattr(threat_intel, "http_request", fake_ti_http)
     monkeypatch.setattr(dns.resolver, "resolve", fake_resolve)
     monkeypatch.setattr(socket, "create_connection", no_sockets)
     from app.config import settings
-    for k in ("ABUSEIPDB_API_KEY", "GREYNOISE_API_KEY", "OTX_API_KEY", "IPINFO_TOKEN"):
+    for k in ("ABUSEIPDB_API_KEY", "GREYNOISE_API_KEY", "OTX_API_KEY", "IPINFO_TOKEN", "HIBP_API_KEY",
+              "ABUSECH_AUTH_KEY"):
         monkeypatch.setattr(settings, k, "", raising=False)
     return calls
 
@@ -289,3 +343,82 @@ def test_api_ignores_cache_from_older_engine(client, monkeypatch):
         assert api._get_cached("new.example.org", db)["query"] == "new.example.org"
     finally:
         db.close()
+
+
+def test_email_security_depth(fake_net):
+    es = _lookup()["email_security"]
+    assert es["spf_all"] == "~all" and es["spf_lookups"] == 1 and es["spf_multiple"] is False
+    assert es["dmarc_policy"] == "none" and es["dmarc_rua"] == ["mailto:d@acme.com"] and es["dmarc_pct"] == 100
+    assert es["dkim_found"] == ["google"]
+    assert es["mta_sts"].startswith("v=STSv1") and es["tls_rpt"] is None
+
+
+def test_dangling_cname_is_a_takeover_candidate(fake_net):
+    res = _lookup()
+    t = {c["hostname"]: c for c in res["takeover_candidates"]}
+    assert t["old.acme.com"]["service"] == "Azure App Service" and t["old.acme.com"]["severity"] == "high"
+    assert any("old.acme.com" in f["detail"] for f in res["risk_score"]["findings"])
+
+
+def test_ip_network_owner_from_rdap(fake_net):
+    nets = {n["ip"]: n for n in _lookup()["ip_networks"]}
+    n = nets["93.184.215.10"]
+    assert n["cidr"] == ["93.184.215.0/24"] and n["owner"] == "Edgecast Inc." and n["network_name"] == "EDGECAST-NETBLK-03"
+    assert n["source_url"] == "https://rdap.arin.net/registry/ip/93.184.215.0"
+
+
+def test_breaches_lookalikes_and_key_gated_threat_sources(fake_net):
+    res = _lookup()
+    b = res["breaches"][0]
+    assert b["name"] == "AcmeForum" and b["kind"] == "site" and b["pwn_count"] == 120000
+    assert b["source_url"].startswith("https://haveibeenpwned.com/")
+    lk = {x["domain"]: x for x in res["lookalikes"]}
+    assert lk["acrne.com"]["mx_records"] and lk["acrne.com"]["technique"] == "homoglyph"
+    src = {s["id"]: s for s in res["sources"]}
+    for sid in ("hibp-domain", "urlhaus", "threatfox"):
+        assert src[sid]["status"] == "needs_key", sid
+    assert not any("abuse.ch" in c["url"] for c in fake_net)
+    assert res["threat_reports"] == []
+    assert {s["name"] for s in res["subscription_sources"]} >= {"Spamhaus DBL / ZEN"}
+
+
+def test_api_hides_the_orgs_own_domains_from_lookalikes(monkeypatch):
+    from types import SimpleNamespace
+    from app.api.v1 import osint as api
+    from app.services import threat_intel
+
+    monkeypatch.setattr(threat_intel, "_own_domains", lambda db, org: ["acme.net"])
+    res = {"lookalikes": [{"domain": "acme.net"}, {"domain": "acrne.com"}]}
+    out = api._for_org(None, SimpleNamespace(organization_id="o1"), res)
+    assert [x["domain"] for x in out["lookalikes"]] == ["acrne.com"]
+    assert len(res["lookalikes"]) == 2, "cached dict is not mutated"
+
+
+def test_company_profile_from_wikidata_and_gleif(fake_net):
+    c = _lookup()["company"]
+    wd, legal = c["wikidata"], c["legal_entity"]
+    assert c["name"] == "ACME CORPORATION"
+    assert wd["founded"] == "1947-03-01" and wd["industries"] == ["manufacturing", "retail"]
+    assert wd["owners"] == ["Acme Holdings", "Vanguard Group"] and wd["founders"] == ["Wile E. Coyote"]
+    assert wd["employees"] == 5200 and wd["listings"] == ["New York Stock Exchange: ACME"]
+    assert wd["source_url"] == "https://www.wikidata.org/wiki/Q1000001"
+    assert wd["also_linked"] == [{"name": "Acme Anvil (product)", "wikidata_id": "Q1000002"}]
+    assert legal["jurisdiction"] == "US-DE" and legal["created"] == "1947-02-20"
+    assert legal["ultimate_parent"]["legal_name"] == "ACME HOLDINGS INC."
+    assert legal["source_url"].endswith("5493001KJTIIGC8Y1R12")
+    assert c["domain_registered"].startswith("1991")
+
+
+def test_no_company_record_means_no_guess(fake_net, monkeypatch):
+    real = osint.requests.get
+
+    def no_wd(url, *a, **kw):
+        if "wikidata" in url:
+            return _Resp(data={"results": {"bindings": []}})
+        return real(url, *a, **kw)
+    monkeypatch.setattr(osint.requests, "get", no_wd)
+    res = _lookup()
+    assert res["company"] is None
+    src = {s["id"]: s for s in res["sources"]}
+    assert src["wikidata"]["status"] == "no_results" and src["gleif"]["status"] == "no_targets"
+    assert not any("gleif" in c["url"] for c in fake_net)

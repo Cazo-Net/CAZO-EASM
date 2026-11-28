@@ -87,7 +87,7 @@ async def osint_lookup(
     cached = _get_cached(domain, db)
     if cached is not None:
         cached["from_cache"] = True
-        return cached
+        return _for_org(db, current_user, cached)
 
     try:
         result = await run_in_threadpool(osint.lookup_domain, domain)
@@ -114,7 +114,20 @@ async def osint_lookup(
         log.info("Skipping cache for %s — no meaningful data found", domain)
 
     result_dict["from_cache"] = False
-    return result_dict
+    return _for_org(db, current_user, result_dict)
+
+
+def _for_org(db: Session, user: User, result: dict) -> dict:
+    """Cached results are shared between organizations; hide the caller's own
+    domains from the look-alike list (they are theirs, not impostors)."""
+    if not result.get("lookalikes") or not user.organization_id:
+        return result
+    try:
+        from app.services.threat_intel import _own_domains
+        own = set(_own_domains(db, user.organization_id))
+    except Exception:  # pragma: no cover - defensive
+        return result
+    return {**result, "lookalikes": [lk for lk in result["lookalikes"] if lk.get("domain") not in own]}
 
 
 @router.post("/import")

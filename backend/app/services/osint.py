@@ -16,8 +16,15 @@ Sources (see ``SOURCE_CATALOG``):
                      from the versions it observed) + Shodan CVEDB for CVSS,
                      EPSS and CISA KEV status
 * Registration    -> RDAP (registrar, dates, DNSSEC, abuse contact)
-* Hosting / rep.  -> ipinfo, GreyNoise Community, AbuseIPDB (key), HackerTarget
-                     reverse IP
+* Hosting / rep.  -> ipinfo, RDAP for IP networks, GreyNoise Community,
+                     AbuseIPDB (key), HackerTarget reverse IP
+* Takeover risk   -> dangling CNAMEs (public DNS)
+* Look-alikes     -> typo/homoglyph/TLD variants that resolve (public DNS)
+* Company profile -> Wikidata (founded, industry, owners, parent, HQ, size)
+                     matched by the official website, and GLEIF (legal entity
+                     and parent companies) via the company's LEI
+* Breaches        -> Have I Been Pwned (site breaches free; domain search needs key)
+* Blocklists      -> URLhaus, ThreatFox (abuse.ch key)
 
 A source that needs a key and has none reports ``needs_key``; it never
 returns invented results.
@@ -43,7 +50,7 @@ log = logging.getLogger("osint")
 
 # Bump when the result shape or meaning changes so cached results from an
 # older engine are not served.
-ENGINE_VERSION = 2
+ENGINE_VERSION = 3
 
 _USER_AGENT = {
     "User-Agent": "CAZO-EASM-OSINT/2.0 (+https://cazoeasm.io)",
@@ -146,6 +153,59 @@ SOURCE_CATALOG: Dict[str, Dict[str, Any]] = {
     "reverse-ip": {"name": "HackerTarget reverse IP", "category": "co-hosted domains",
                    "home": "https://hackertarget.com/reverse-ip-lookup/",
                    "link": "https://hackertarget.com/reverse-ip-lookup/"},
+    "rdap-ip": {"name": "RDAP (IP network owner)", "category": "netblocks, hosting",
+                "home": "https://about.rdap.org/", "link": "https://rdap.org/"},
+    "takeover": {"name": "Dangling CNAME check (public DNS)", "category": "subdomain takeover risk",
+                 "home": "https://github.com/EdOverflow/can-i-take-over-xyz",
+                 "link": "https://github.com/EdOverflow/can-i-take-over-xyz"},
+    "lookalikes": {"name": "Look-alike domains (public DNS)", "category": "typosquatting, phishing",
+                   "home": "https://dnstwister.report/", "link": "https://dnstwister.report/search?ed={domain}"},
+    "wikidata": {"name": "Wikidata (company profile)", "category": "founded, industry, owners",
+                 "home": "https://www.wikidata.org/",
+                 "link": "https://www.wikidata.org/w/index.php?search=haswbstatement%3AP856%3Dhttps%3A%2F%2F{domain}"},
+    "gleif": {"name": "GLEIF (legal entity, LEI)", "category": "legal entity, parent companies",
+              "home": "https://search.gleif.org/", "link": "https://search.gleif.org/"},
+    "hibp": {"name": "Have I Been Pwned: breached sites", "category": "breaches of this domain's site",
+             "home": "https://haveibeenpwned.com/PwnedWebsites", "link": "https://haveibeenpwned.com/PwnedWebsites"},
+    "hibp-domain": {"name": "Have I Been Pwned: domain search", "category": "breached email addresses",
+                    "home": "https://haveibeenpwned.com/DomainSearch",
+                    "link": "https://haveibeenpwned.com/DomainSearch",
+                    "key_env": "HIBP_API_KEY", "key_required": True},
+    "urlhaus": {"name": "abuse.ch URLhaus", "category": "malware URLs, blocklists",
+                "home": "https://urlhaus.abuse.ch/", "link": "https://urlhaus.abuse.ch/host/{domain}/",
+                "key_env": "ABUSECH_AUTH_KEY", "key_required": True},
+    "threatfox": {"name": "abuse.ch ThreatFox", "category": "threat indicators",
+                  "home": "https://threatfox.abuse.ch/", "link": "https://threatfox.abuse.ch/browse/",
+                  "key_env": "ABUSECH_AUTH_KEY", "key_required": True},
+}
+
+# Shown so customers know what exists but is not integrated (paid / licensed).
+SUBSCRIPTION_SOURCES = [
+    {"name": "Spamhaus DBL / ZEN", "why": "Domain and IP blocklists; commercial use needs a Spamhaus DQS subscription.",
+     "home": "https://www.spamhaus.com/data-access/"},
+    {"name": "Google Web Risk", "why": "Unsafe-site lists for commercial products (Safe Browsing is non-commercial only); paid Google Cloud API.",
+     "home": "https://cloud.google.com/web-risk"},
+    {"name": "OpenCorporates / national company registries (e.g. SSM Malaysia)",
+     "why": "Official incorporation dates, directors and shareholders; commercial API access is paid.",
+     "home": "https://opencorporates.com/"},
+    {"name": "SecurityTrails / DomainTools", "why": "Historical DNS and WHOIS history; paid API.",
+     "home": "https://securitytrails.com/"},
+]
+
+# CNAME targets whose service can be claimed by someone else when the
+# resource is gone (target does not resolve). Source: can-i-take-over-xyz.
+_TAKEOVER_SERVICES = {
+    "azurewebsites.net": "Azure App Service", "cloudapp.net": "Azure Cloud Services",
+    "cloudapp.azure.com": "Azure VM", "trafficmanager.net": "Azure Traffic Manager",
+    "blob.core.windows.net": "Azure Blob Storage", "azure-api.net": "Azure API Management",
+    "azureedge.net": "Azure CDN", "azurecontainer.io": "Azure Container Instances",
+    "s3.amazonaws.com": "AWS S3", "s3-website": "AWS S3 website", "elasticbeanstalk.com": "AWS Elastic Beanstalk",
+    "herokuapp.com": "Heroku", "herokudns.com": "Heroku", "github.io": "GitHub Pages",
+    "ghost.io": "Ghost", "myshopify.com": "Shopify", "surge.sh": "Surge", "bitbucket.io": "Bitbucket",
+    "pantheonsite.io": "Pantheon", "unbouncepages.com": "Unbounce", "readthedocs.io": "Read the Docs",
+    "helpscoutdocs.com": "Help Scout", "zendesk.com": "Zendesk", "wordpress.com": "WordPress.com",
+    "netlify.app": "Netlify", "netlify.com": "Netlify", "fly.dev": "Fly.io", "ngrok.io": "ngrok",
+    "webflow.io": "Webflow", "strikinglydns.com": "Strikingly", "launchrock.com": "LaunchRock",
 }
 
 def _source_link(source_id: str, domain: str) -> Optional[str]:
@@ -161,6 +221,8 @@ def build_sources(domain: str, status: Dict[str, str]) -> List[Dict[str, Any]]:
     for sid, meta in SOURCE_CATALOG.items():
         key_env = meta.get("key_env")
         has_key = bool(key_env and _key(key_env))
+        if key_env and meta.get("key_required") and not has_key and sid not in status:
+            status[sid] = "needs_key"
         out.append({
             "id": sid,
             "name": meta["name"],
@@ -253,6 +315,13 @@ class IntelResult:
     web_fingerprint: Optional[object] = None
     reverse_dns_range: List[str] = field(default_factory=list)
     risk_score: Optional[object] = None
+    # Deeper passive intelligence
+    ip_networks: List[Dict[str, Any]] = field(default_factory=list)
+    takeover_candidates: List[Dict[str, Any]] = field(default_factory=list)
+    lookalikes: List[Dict[str, Any]] = field(default_factory=list)
+    breaches: List[Dict[str, Any]] = field(default_factory=list)
+    threat_reports: List[Dict[str, Any]] = field(default_factory=list)
+    company: Optional[Dict[str, Any]] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -799,6 +868,296 @@ def _collect_reverse_ip(ips: List[str], domain: str, cdn_ips: set,
     return out[:_MAX_COHOSTED]
 
 
+def _dns_exists(name: str) -> Optional[bool]:
+    """True if the name exists, False on NXDOMAIN, None when DNS could not tell."""
+    try:
+        import dns.resolver  # type: ignore
+        dns.resolver.resolve(name, "A", lifetime=4)
+        return True
+    except Exception as e:  # noqa: BLE001
+        import dns.resolver  # type: ignore
+        if isinstance(e, dns.resolver.NXDOMAIN):
+            return False
+        if isinstance(e, dns.resolver.NoAnswer):
+            return True
+        return None
+
+
+def _collect_takeover(subs: List[SubdomainResult], status: Dict[str, str]) -> List[Dict[str, Any]]:
+    """Subdomains whose CNAME points at a name that no longer exists."""
+    cands = [s for s in subs if s.cname and not s.ips]
+    out: List[Dict[str, Any]] = []
+
+    def check(sub: SubdomainResult):
+        exists = _dns_exists(sub.cname)
+        if exists is not False:
+            return None
+        service = next((name for suffix, name in _TAKEOVER_SERVICES.items() if suffix in sub.cname), None)
+        return {
+            "hostname": sub.hostname, "cname": sub.cname, "service": service,
+            "severity": "high" if service else "medium",
+            "detail": (f"{sub.hostname} points to {sub.cname}, which does not exist. "
+                       + (f"If the {service} resource was deleted, someone else may be able to claim it "
+                          "and serve content on your subdomain." if service else
+                          "Dangling DNS record: remove it or restore the target.")),
+            "source": "takeover",
+            "source_url": f"https://dns.google/query?name={quote(sub.hostname)}&rr_type=CNAME",
+        }
+
+    with cf.ThreadPoolExecutor(max_workers=8) as ex:
+        out = [r for r in ex.map(check, cands) if r]
+    status["takeover"] = f"{len(out)} found" if out else ("ok" if cands else "no_targets")
+    return out
+
+
+def _collect_ip_networks(ips: List[str], status: Dict[str, str]) -> List[Dict[str, Any]]:
+    """Owner of the network block for each IP, from the regional registry's RDAP."""
+    out: List[Dict[str, Any]] = []
+
+    def one(ip: str):
+        try:
+            r = _http_get(f"https://rdap.org/ip/{ip}", timeout=15, headers={"Accept": "application/rdap+json"})
+            if r.status_code != 200:
+                return ip, None, _http_status(r.status_code)
+            d = r.json()
+            cidrs = [f"{c.get('v4prefix') or c.get('v6prefix')}/{c.get('length')}"
+                     for c in d.get("cidr0_cidrs", []) or [] if c.get("length") is not None]
+            org = None
+            for ent in _rdap_entities(d.get("entities") or []):
+                roles = [v.lower() for v in ent.get("roles", []) or []]
+                if "registrant" in roles or "administrative" in roles:
+                    org = _vcard_field(ent, "fn") or ent.get("handle")
+                    if org:
+                        break
+            self_link = next((ln.get("href") for ln in d.get("links", []) or []
+                              if ln.get("rel") == "self" and ln.get("href")), None)
+            return ip, {
+                "ip": ip, "network_name": d.get("name"), "handle": d.get("handle"),
+                "range": f"{d.get('startAddress')} - {d.get('endAddress')}" if d.get("startAddress") else None,
+                "cidr": cidrs, "country": d.get("country"), "owner": org, "type": d.get("type"),
+                "source": "rdap-ip", "source_url": self_link or f"https://rdap.org/ip/{ip}",
+            }, None
+        except Exception as e:  # noqa: BLE001
+            return ip, None, f"error: {type(e).__name__}"
+
+    errs = []
+    with cf.ThreadPoolExecutor(max_workers=4) as ex:
+        for _ip, data, err in ex.map(one, ips):
+            if data:
+                out.append(data)
+            elif err:
+                errs.append(err)
+    status["rdap-ip"] = "ok" if out else (errs[-1] if errs else "no_targets")
+    return out
+
+
+_WIKIDATA_SPARQL = "https://query.wikidata.org/sparql"
+_GLEIF_API = "https://api.gleif.org/api/v1"
+
+
+def _wikidata_company(domain: str, status: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    """The Wikidata item whose *official website* (P856) is this domain."""
+    sites = " ".join(f"<{scheme}://{host}{slash}>" for scheme in ("https", "http")
+                     for host in (domain, f"www.{domain}") for slash in ("", "/"))
+    query = f"""
+SELECT ?item ?itemLabel ?itemDescription ?inception ?industryLabel ?ownerLabel ?parentLabel
+       ?founderLabel ?countryLabel ?hqLabel ?employees ?lei ?exchangeLabel ?ticker WHERE {{
+  VALUES ?site {{ {sites} }}
+  ?item wdt:P856 ?site .
+  OPTIONAL {{ ?item wdt:P571 ?inception }}
+  OPTIONAL {{ ?item wdt:P452 ?industry }}
+  OPTIONAL {{ ?item wdt:P127 ?owner }}
+  OPTIONAL {{ ?item wdt:P749 ?parent }}
+  OPTIONAL {{ ?item wdt:P112 ?founder }}
+  OPTIONAL {{ ?item wdt:P17 ?country }}
+  OPTIONAL {{ ?item wdt:P159 ?hq }}
+  OPTIONAL {{ ?item wdt:P1128 ?employees }}
+  OPTIONAL {{ ?item wdt:P1278 ?lei }}
+  OPTIONAL {{ ?item p:P414 ?listing . ?listing ps:P414 ?exchange . OPTIONAL {{ ?listing pq:P249 ?ticker }} }}
+  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+}} LIMIT 200"""
+    try:
+        r = _http_get(_WIKIDATA_SPARQL, params={"query": query, "format": "json"}, timeout=25,
+                      headers={"Accept": "application/sparql-results+json"})
+        if r.status_code != 200:
+            status["wikidata"] = _http_status(r.status_code)
+            return None
+        rows = (r.json().get("results") or {}).get("bindings") or []
+    except Exception as e:  # noqa: BLE001
+        status["wikidata"] = f"error: {type(e).__name__}"
+        return None
+    items: Dict[str, Dict[str, Any]] = {}
+
+    def val(row, k):
+        v = row.get(k, {}).get("value")
+        return v.strip() if isinstance(v, str) and v.strip() else None
+
+    for row in rows:
+        qid = (val(row, "item") or "").rsplit("/", 1)[-1]
+        if not qid:
+            continue
+        it = items.setdefault(qid, {
+            "name": val(row, "itemLabel"), "description": val(row, "itemDescription"),
+            "wikidata_id": qid, "founded": None, "industries": [], "owners": [], "parents": [],
+            "founders": [], "countries": [], "headquarters": [], "employees": None, "lei": None,
+            "listings": [],
+        })
+        inc = val(row, "inception")
+        if inc and (not it["founded"] or inc < it["founded"]):
+            it["founded"] = inc
+        for key, field_ in (("industryLabel", "industries"), ("ownerLabel", "owners"), ("parentLabel", "parents"),
+                            ("founderLabel", "founders"), ("countryLabel", "countries"), ("hqLabel", "headquarters")):
+            v = val(row, key)
+            if v and not re.fullmatch(r"Q\d+", v) and v not in it[field_]:
+                it[field_].append(v)
+        emp = val(row, "employees")
+        if emp:
+            try:
+                n = int(float(emp))
+                it["employees"] = max(it["employees"] or 0, n)
+            except ValueError:
+                pass
+        if val(row, "lei"):
+            it["lei"] = val(row, "lei")
+        ex = val(row, "exchangeLabel")
+        if ex:
+            listing = f"{ex}: {val(row, 'ticker')}" if val(row, "ticker") else ex
+            if listing not in it["listings"]:
+                it["listings"].append(listing)
+    if not items:
+        status["wikidata"] = "no_results"
+        return None
+    # Prefer the most complete record (a company over, say, a product with the same website).
+    ranked = sorted(items.values(), key=lambda i: -sum(bool(i[k]) for k in (
+        "founded", "industries", "owners", "parents", "founders", "countries", "headquarters", "lei")))
+    best = ranked[0]
+    if best["founded"]:
+        best["founded"] = best["founded"][:10]
+    best["also_linked"] = [{"name": i["name"], "wikidata_id": i["wikidata_id"]} for i in ranked[1:5]]
+    best["source_url"] = f"https://www.wikidata.org/wiki/{best['wikidata_id']}"
+    status["wikidata"] = "ok"
+    return best
+
+
+def _gleif_entity(lei: str, status: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    """Legal entity and its parent companies from GLEIF's free LEI API."""
+    def name_of(rec: dict) -> Optional[str]:
+        return (((rec.get("attributes") or {}).get("entity") or {}).get("legalName") or {}).get("name")
+
+    try:
+        r = _http_get(f"{_GLEIF_API}/lei-records/{quote(lei)}", timeout=15,
+                      headers={"Accept": "application/vnd.api+json"})
+        if r.status_code != 200:
+            status["gleif"] = "no_results" if r.status_code == 404 else _http_status(r.status_code)
+            return None
+        rec = r.json().get("data") or {}
+        attrs = rec.get("attributes") or {}
+        ent = attrs.get("entity") or {}
+        addr = ent.get("legalAddress") or {}
+        out: Dict[str, Any] = {
+            "lei": lei,
+            "legal_name": name_of(rec),
+            "jurisdiction": ent.get("jurisdiction"),
+            "legal_form": ((ent.get("legalForm") or {}).get("id")),
+            "status": ent.get("status"),
+            "created": (ent.get("creationDate") or "")[:10] or None,
+            "registered_as": ent.get("registeredAs"),
+            "city": addr.get("city"), "country": addr.get("country"),
+            "direct_parent": None, "ultimate_parent": None,
+            "source_url": f"https://search.gleif.org/#/record/{lei}",
+        }
+        for rel in ("direct-parent", "ultimate-parent"):
+            try:
+                pr = _http_get(f"{_GLEIF_API}/lei-records/{quote(lei)}/{rel}", timeout=15,
+                               headers={"Accept": "application/vnd.api+json"})
+                if pr.status_code == 200:
+                    pdata = pr.json().get("data") or {}
+                    out[rel.replace("-", "_")] = {"legal_name": name_of(pdata), "lei": pdata.get("id"),
+                                                  "source_url": f"https://search.gleif.org/#/record/{pdata.get('id')}"}
+            except Exception:  # noqa: BLE001
+                pass
+        status["gleif"] = "ok"
+        return out
+    except Exception as e:  # noqa: BLE001
+        status["gleif"] = f"error: {type(e).__name__}"
+        return None
+
+
+def _collect_company(wd: Optional[Dict[str, Any]], whois: Optional[Dict[str, Any]],
+                     status: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    """Who is behind the domain: only records explicitly tied to it, never a name guess."""
+    legal = None
+    if wd and wd.get("lei"):
+        legal = _gleif_entity(wd["lei"], status)
+    else:
+        status["gleif"] = "no_targets"
+    registrant = (whois or {}).get("registrant_org")
+    if registrant and re.search(r"redacted|privacy|proxy|withheld|not disclosed", registrant, re.I):
+        registrant = None
+    if not wd and not legal and not registrant:
+        return None
+    return {
+        "name": (legal or {}).get("legal_name") or (wd or {}).get("name") or registrant,
+        "wikidata": wd,
+        "legal_entity": legal,
+        "domain_registrant": registrant,
+        "domain_registered": (whois or {}).get("registration_date"),
+        "note": "Linked through the company's official website on Wikidata and its LEI in GLEIF. "
+                "The domain registration date is when the domain was registered, not when the company was founded.",
+    }
+
+
+def _ti_status(st: str) -> str:
+    return "needs_key" if st == "not_configured" else st
+
+
+def _collect_threat_intel(domain: str, status: Dict[str, str]):
+    """Breaches, blocklists and look-alikes via the shared threat-intel source functions."""
+    from app.services import threat_intel as ti
+
+    breaches: List[Dict[str, Any]] = []
+    reports: List[Dict[str, Any]] = []
+    lookalikes: List[Dict[str, Any]] = []
+
+    def run(fn, *args):
+        try:
+            return fn(*args)
+        except Exception as e:  # noqa: BLE001
+            return [], f"error: {type(e).__name__}"
+
+    with cf.ThreadPoolExecutor(max_workers=5) as ex:
+        jobs = {
+            "hibp": ex.submit(run, ti.check_hibp_site_breaches, domain),
+            "hibp-domain": ex.submit(run, ti.check_hibp_domain_search, domain),
+            "urlhaus": ex.submit(run, ti.check_urlhaus, domain),
+            "threatfox": ex.submit(run, ti.check_threatfox, domain),
+            "lookalikes": ex.submit(run, ti.check_lookalikes, domain),
+        }
+        results = {k: f.result() for k, f in jobs.items()}
+
+    for sid, (findings, st) in results.items():
+        status[sid] = ("ok" if findings else "no_results") if st == "ok" else _ti_status(st)
+        for f in findings:
+            item = {"title": f.title, "summary": f.summary, "severity": f.severity,
+                    "observed_at": f.observed_at, "source": sid, "source_url": f.reference_url}
+            if sid in ("hibp", "hibp-domain"):
+                item.update({"name": f.key, "kind": "site" if sid == "hibp" else "addresses",
+                             "data_classes": f.data.get("data_classes") or f.data.get("DataClasses"),
+                             "pwn_count": f.data.get("accounts_in_breach"),
+                             "breach_date": f.data.get("breach_date"),
+                             "affected_count": f.data.get("affected_count")})
+                breaches.append(item)
+            elif sid == "lookalikes":
+                d = f.data or {}
+                lookalikes.append({"domain": d.get("lookalike"), "technique": d.get("technique"),
+                                   "a_records": d.get("a_records", []), "mx_records": d.get("mx_records", []),
+                                   "severity": f.severity, "source": sid, "source_url": f.reference_url})
+            else:
+                item["category"] = f.category
+                reports.append(item)
+    return breaches, reports, lookalikes
+
+
 # --------------------------------------------------------------------------- #
 # Passive risk assessment: only facts with a source behind them count.
 # --------------------------------------------------------------------------- #
@@ -850,7 +1209,7 @@ def compute_passive_risk(result: IntelResult):
         spf = getattr(es, "spf_record", None)
         if not spf:
             add(5, "medium", "No SPF record.", "Public DNS", _source_link("dns", result.query))
-        elif re.search(r"[+]?all\b", spf) and not re.search(r"[-~?]all\b", spf):
+        elif getattr(es, "spf_all", None) == "+all":
             add(10, "high", "SPF ends in +all, which authorises every server on the internet to send as this domain.",
                 "Public DNS", _source_link("dns", result.query))
 
@@ -887,6 +1246,39 @@ def compute_passive_risk(result: IntelResult):
         if rep.get("classification") == "malicious":
             add(10, "high", f"GreyNoise classifies {rep['ip']} as malicious.", "GreyNoise",
                 rep.get("links", {}).get("greynoise"))
+
+    for t in result.takeover_candidates:
+        add(15 if t.get("service") else 5, t["severity"], t["detail"], "Public DNS", t.get("source_url"))
+    for rep in result.threat_reports:
+        sev = rep.get("severity") or "high"
+        add(20 if sev in ("critical", "high") else 8, sev, rep["title"],
+            SOURCE_CATALOG.get(rep["source"], {}).get("name", rep["source"]), rep.get("source_url"))
+    site_breaches = [b for b in result.breaches if b.get("kind") == "site"]
+    addr_breaches = [b for b in result.breaches if b.get("kind") == "addresses"]
+    if site_breaches:
+        add(8, "medium", f"This domain's site appears in {len(site_breaches)} known breach(es): "
+            + ", ".join(b["name"] for b in site_breaches[:3]), "Have I Been Pwned", site_breaches[0].get("source_url"))
+    if addr_breaches:
+        total = sum(b.get("affected_count") or 0 for b in addr_breaches)
+        add(8, "medium", f"{total} email address(es) at this domain appear in {len(addr_breaches)} breach(es).",
+            "Have I Been Pwned", addr_breaches[0].get("source_url"))
+    mx_lookalikes = [lk for lk in result.lookalikes if lk.get("mx_records")]
+    if mx_lookalikes:
+        add(min(10, 3 * len(mx_lookalikes)), "medium",
+            f"{len(mx_lookalikes)} registered look-alike domain(s) can receive email (possible phishing): "
+            + ", ".join(lk["domain"] for lk in mx_lookalikes[:3]), "Public DNS", mx_lookalikes[0].get("source_url"))
+    if es is not None:
+        if getattr(es, "spf_multiple", False):
+            add(5, "medium", "More than one SPF record: receivers treat SPF as broken.", "Public DNS",
+                _source_link("dns", result.query))
+        lookups = getattr(es, "spf_lookups", None) or 0
+        if lookups > 10:
+            add(4, "medium", f"SPF needs {lookups} DNS lookups at the top level (limit is 10), so it may fail.",
+                "Public DNS", _source_link("dns", result.query))
+        pct = getattr(es, "dmarc_pct", None)
+        if getattr(es, "dmarc_record", None) and pct is not None and pct < 100 and es.dmarc_policy in ("quarantine", "reject"):
+            add(2, "low", f"DMARC enforcement applies to only {pct}% of failing mail (pct={pct}).",
+                "Public DNS", _source_link("dns", f"_dmarc.{result.query}"))
 
     risk.score = min(score, 100)
     risk.findings = findings
@@ -935,6 +1327,8 @@ def lookup_domain(raw_query: str) -> IntelResult:
             "dns": ex.submit(_resolve_dns, domain),
             "rdap": ex.submit(_collect_whois, domain, status),
             "email": ex.submit(_collect_email_security, domain, status),
+            "ti": ex.submit(_collect_threat_intel, domain, status),
+            "wikidata": ex.submit(_wikidata_company, domain, status),
         }
 
         def get(name, default):
@@ -953,8 +1347,11 @@ def lookup_domain(raw_query: str) -> IntelResult:
         result.dns_records = get("dns", {})
         result.whois = get("rdap", None)
         result.email_security = get("email", None)
+        result.breaches, result.threat_reports, result.lookalikes = get("ti", ([], [], []))
+        wd = get("wikidata", None)
 
     status["dns"] = "ok" if result.dns_records else "no_results"
+    result.company = _collect_company(wd, result.whois, status)
 
     # ---- Phase 2: merge subdomains, resolve via public DNS ------------------
     found: Dict[str, SubdomainResult] = {}
@@ -988,6 +1385,7 @@ def lookup_domain(raw_query: str) -> IntelResult:
         s.ips = []
     with cf.ThreadPoolExecutor(max_workers=15) as ex:
         list(ex.map(_resolve_host, to_resolve))
+    result.takeover_candidates = _collect_takeover(to_resolve, status)
     result.subdomains = subs
 
     result.certificates = _certs_from_ct(domain, crtsh_rows, spotter_rows)
@@ -1000,9 +1398,10 @@ def lookup_domain(raw_query: str) -> IntelResult:
                 ips.append(ip)
     ips_v4 = [ip for ip in ips if ":" not in ip]
 
-    with cf.ThreadPoolExecutor(max_workers=2) as ex:
+    with cf.ThreadPoolExecutor(max_workers=3) as ex:
         f_idb = ex.submit(_collect_internetdb, ips_v4[:_MAX_IPS], status)
         f_rep = ex.submit(_collect_ip_reputation, ips_v4[:_MAX_REP_IPS], status)
+        f_net = ex.submit(_collect_ip_networks, ips[:_MAX_REP_IPS], status)
         try:
             idb = f_idb.result(timeout=left())
         except Exception:
@@ -1011,6 +1410,10 @@ def lookup_domain(raw_query: str) -> IntelResult:
             result.ip_reputation = f_rep.result(timeout=left()) or []
         except Exception:
             result.ip_reputation = []
+        try:
+            result.ip_networks = f_net.result(timeout=left()) or []
+        except Exception:
+            result.ip_networks = []
 
     host_by_ip: Dict[str, List[str]] = {}
     for s in subs:
@@ -1138,6 +1541,13 @@ def intel_to_dict(result: IntelResult) -> dict:
         "web_fingerprint": _dc_to_dict(result.web_fingerprint) if result.web_fingerprint else None,
         "reverse_dns_range": result.reverse_dns_range,
         "risk_score": _dc_to_dict(result.risk_score) if result.risk_score else None,
+        "ip_networks": result.ip_networks,
+        "takeover_candidates": result.takeover_candidates,
+        "lookalikes": result.lookalikes,
+        "breaches": result.breaches,
+        "threat_reports": result.threat_reports,
+        "company": result.company,
+        "subscription_sources": SUBSCRIPTION_SOURCES,
     }
 
 
@@ -1162,6 +1572,9 @@ def intel_from_dict(data: dict) -> IntelResult:
     intel.historical_subdomains = list(data.get("historical_subdomains", []) or [])
     intel.reverse_ip = list(data.get("reverse_ip", []) or [])
     intel.cohosted_domains = list(data.get("cohosted_domains", []) or [])
+    for name in ("ip_networks", "takeover_candidates", "lookalikes", "breaches", "threat_reports"):
+        setattr(intel, name, list(data.get(name, []) or []))
+    intel.company = data.get("company")
     return intel
 
 
