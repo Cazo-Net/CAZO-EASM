@@ -108,6 +108,10 @@ async def create_scope(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Invalid {payload.scope_type} value: '{payload.value}'.",
         )
+    # A domain or wildcard scope adds a root domain to the plan (HTTP 402 if full).
+    if payload.scope_type in ("domain", "wildcard"):
+        from app.billing.entitlements import check_root_domain_allowed
+        check_root_domain_allowed(db, org_id, payload.value.strip(), allow_paused=True)
     scope = AuthorizedScope(
         organization_id=org_id,
         scope_type=payload.scope_type,

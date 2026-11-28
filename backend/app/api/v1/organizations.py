@@ -93,7 +93,8 @@ async def create_organization(
     org = Organization(
         name=org_data.name,
         slug=slug,
-        plan=org_data.plan,
+        # The plan is set by billing, never by the client.
+        plan="free",
         settings=org_data.settings or {}
     )
     db.add(org)
@@ -148,6 +149,8 @@ async def update_organization(
         raise HTTPException(status_code=404, detail="Organization not found")
 
     update_data = org_data.model_dump(exclude_unset=True)
+    # The plan follows billing (checkout, webhooks, staff); members cannot set it.
+    update_data.pop("plan", None)
     for field, value in update_data.items():
         setattr(org, field, value)
 

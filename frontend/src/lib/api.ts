@@ -155,6 +155,10 @@ export function getErrorMessage(err: unknown, fallback = "Something went wrong")
   if (detail && typeof detail === "object" && typeof detail.msg === "string") {
     return detail.msg;
   }
+  // Structured errors such as the HTTP 402 plan-limit shape carry `message`.
+  if (detail && typeof detail === "object" && typeof detail.message === "string") {
+    return detail.message;
+  }
   if (typeof (err as any)?.message === "string") return (err as any).message;
   return fallback;
 }

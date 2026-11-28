@@ -8,6 +8,9 @@ import api, { getErrorMessage } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DocTooltip } from "@/components/common/DocTooltip";
+import { PlanLimitNotice } from "@/components/billing/PlanLimitNotice";
+import { PlanUsageStrip } from "@/components/billing/PlanUsageStrip";
+import { planLimitFromError, type PlanLimitDetail } from "@/lib/api-billing";
 
 type Profile = "quick" | "full" | "custom";
 
@@ -28,6 +31,7 @@ export function ScanForm() {
   const [domain, setDomain] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [limit, setLimit] = useState<PlanLimitDetail | null>(null);
   const [profile, setProfile] = useState<Profile>("full");
   const [showFilters, setShowFilters] = useState(false);
 
@@ -52,6 +56,7 @@ export function ScanForm() {
 
     setLoading(true);
     setError("");
+    setLimit(null);
 
     try {
       const scanOptions =
@@ -71,7 +76,9 @@ export function ScanForm() {
       });
       router.push(`/scan/${response.data.id}`);
     } catch (err: any) {
-      setError(getErrorMessage(err, "Failed to create scan"));
+      const planLimit = planLimitFromError(err);
+      if (planLimit) setLimit(planLimit);
+      else setError(getErrorMessage(err, "Failed to create scan"));
     } finally {
       setLoading(false);
     }
@@ -228,6 +235,8 @@ export function ScanForm() {
             Scan
           </Button>
         </form>
+        <PlanUsageStrip metrics={["root_domains", "scans_per_month"]} className="mt-3 justify-center" />
+        {limit && <PlanLimitNotice detail={limit} className="mt-4 text-left" />}
         <AnimatePresence>
           {error && (
             <motion.p

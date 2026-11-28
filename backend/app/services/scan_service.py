@@ -103,6 +103,11 @@ class ScanService:
         organization's verified scopes. Raises :class:`ScopeDenied` otherwise;
         the API turns that into HTTP 403 with verification instructions.
         """
+        # Plan allowance for the root domain first, so a refused domain does
+        # not leave an auto-registered scope behind (HTTP 402 if over).
+        from app.billing.entitlements import check_root_domain_allowed
+        check_root_domain_allowed(self.db, organization_id, domain)
+
         # DNS lookups block, so keep them off the event loop.
         auth = await asyncio.to_thread(
             authorize_scan_target, self.db, organization_id, domain, actor_id=user_id,
