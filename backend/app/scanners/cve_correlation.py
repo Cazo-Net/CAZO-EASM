@@ -256,37 +256,29 @@ class CVECorrelationScanner(BaseScanner):
     def __init__(self, config: dict = None):
         super().__init__(config)
         self.db = CVEDatabase()
+        # Room for the first-time NVD import of new products (90 s budget).
+        self.timeout = max(float(self.timeout or 0), 150.0)
 
     def validate_target(self, target: str) -> bool:
         return bool(target)
 
     async def scan(self, target: str, scan_results: Optional[Dict[str, Any]] = None, **kwargs) -> Dict[str, Any]:
-        if self.db.count() == 0:
-            # No local snapshot yet -> honest status, not a silent zero.
-            return {
-                "success": True,
-                "target": target,
-                "vulnerabilities": [],
-                "count": 0,
-                "scanner": "cve-correlation",
-                "status": "no_cve_snapshot",
-            }
+        """Correlate every versioned component (web fingerprints and service
+        banners) with NVD, fetching a product's CVEs the first time it is seen.
+        See ``app/scanners/cve_engine.py``."""
+        from app.scanners.cve_engine import correlate_scan
 
-        tech_by_host = (scan_results or {}).get("technologies", {}) or {}
-        all_tech: List[Dict[str, Any]] = []
-        for host, techs in tech_by_host.items():
-            for t in techs or []:
-                t = dict(t)
-                t["host"] = host
-                all_tech.append(t)
-
-        findings = correlate(all_tech, self.db)
+        sr = scan_results or {}
+        findings, status = await correlate_scan(
+            sr.get("technologies") or {}, sr.get("ports") or {},
+            fetch_missing=bool(self.config.get("fetch_missing", True)),
+        )
         return {
             "success": True,
             "target": target,
             "vulnerabilities": findings,
             "count": len(findings),
             "scanner": "cve-correlation",
-            "status": "ok" if findings else "no_results",
+            "status": status,
             "note": "All CVE matches are version-correlated and UNVERIFIED (no live exploit confirmation).",
         }

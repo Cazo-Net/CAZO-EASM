@@ -135,7 +135,10 @@ class V2ScanRunner:
             "whois": whois_data,
             "risk_score": risk,
             "graph": graph,
-            "scanner_status": self._build_scanner_status(pipeline),
+            "scanner_status": {
+                **self._build_scanner_status(pipeline),
+                **({"exploit-intel": assets["exploit_intel_status"]} if assets.get("exploit_intel_status") else {}),
+            },
             "errors": pipeline.get("errors", []) if isinstance(pipeline, dict) else [],
             "pipeline_summary": pipeline.get("summary", {}) if isinstance(pipeline, dict) else {},
             "started_at": pipeline.get("started_at"),

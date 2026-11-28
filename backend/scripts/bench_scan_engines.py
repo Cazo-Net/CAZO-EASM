@@ -270,7 +270,7 @@ def install_stage_timer():
     ScanPipeline._execute_stage = timed
 
 
-async def run(engine: str) -> dict:
+async def run(engine: str, dump: str = "") -> dict:
     progress = []
 
     async def cb(pct, msg):
@@ -286,6 +286,9 @@ async def run(engine: str) -> dict:
         res = await V2ScanRunner().run_full_scan(DOMAIN, progress_callback=cb, options={})
     elapsed = time.monotonic() - start
 
+    if dump:
+        with open(dump, "w") as fh:
+            json.dump(res.get("vulnerabilities") or [], fh, indent=1, default=str)
     ports = res.get("ports") or {}
     open_ports = sum(len(v or []) for v in ports.values())
     vulns = res.get("vulnerabilities") or []
@@ -309,6 +312,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--engine", choices=["v1", "v2"], required=True)
     ap.add_argument("--json", action="store_true", help="print JSON only")
+    ap.add_argument("--dump-findings", help="write the scan's findings to this JSON file")
     args = ap.parse_args()
 
     import logging
@@ -318,7 +322,7 @@ def main():
     install_http()
     install_sources()
     install_stage_timer()
-    out = asyncio.run(run(args.engine))
+    out = asyncio.run(run(args.engine, args.dump_findings or ""))
     print(json.dumps(out, indent=None if args.json else 2, default=str))
 
 

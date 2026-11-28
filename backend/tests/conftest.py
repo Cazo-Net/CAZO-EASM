@@ -14,6 +14,8 @@ os.environ.setdefault("RUN_EMBEDDED_WORKER", "false")
 # Plan limits are exercised by tests/test_billing.py, which switches them on;
 # other tests run unlimited so they don't depend on the Trial allowance.
 os.environ.setdefault("BILLING_ENFORCE_LIMITS", "false")
+# No live NVD downloads from tests; CVE tests use their own temporary store.
+os.environ.setdefault("CVE_NVD_FETCH", "false")
 
 import pytest
 from fastapi.testclient import TestClient
