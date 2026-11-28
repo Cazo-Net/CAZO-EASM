@@ -33,6 +33,7 @@ from app.models.passkey import Passkey
 from app.models.comment import AssetComment
 from app.models.platform_log import PlatformLog
 from app.models.support import SupportConversation, SupportMessage
+from app.models.admin_chat import AdminChatMessage, AdminChatRead
 from app.models.periodic_task import PeriodicTaskState
 from app.models.v2_scanner import MonitorSchedule, ScanHistory, AssetLifecycle, NotificationTrigger
 from app.models.threat_intel import ThreatIntelMonitor, ThreatIntelFinding
@@ -56,6 +57,7 @@ __all__ = [
     "FeatureFlag", "Role", "Passkey", "AssetComment",
     "PlatformLog",
     "SupportConversation", "SupportMessage",
+    "AdminChatMessage", "AdminChatRead",
     "PeriodicTaskState",
     "MonitorSchedule", "ScanHistory", "AssetLifecycle", "NotificationTrigger",
     "ThreatIntelMonitor", "ThreatIntelFinding",
