@@ -5,37 +5,15 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getOrganization } from "@/lib/api";
 import {
-  Shield,
-  LayoutDashboard,
-  ScanSearch,
-  Globe,
-  Layers,
-  FileText,
   Settings,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
   LogOut,
-  Bug,
-  Network,
-  Search,
-  Waypoints,
-  ShieldCheck,
   Radar,
-  Ghost,
-  Zap,
   ChevronsUpDown,
   Building,
   CreditCard,
-  History,
-  BarChart3,
-  MessagesSquare,
-  Boxes,
-  BookOpen,
-  Wallet,
-  Eye,
-  Link2,
-  Webhook,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
@@ -56,66 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-
-const navSections = [
-  {
-    label: "Overview",
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/change-feed", label: "Change feed", icon: History },
-    ],
-  },
-  {
-    label: "Attack surface",
-    items: [
-      { href: "/inventory", label: "Asset inventory", icon: Layers },
-      { href: "/assets", label: "Assets by scan", icon: Globe },
-      { href: "/shadow-assets", label: "Shadow assets", icon: Ghost },
-      { href: "/assets/360", label: "Asset 360°", icon: Boxes },
-      { href: "/graph", label: "Attack graph", icon: Waypoints },
-      { href: "/dns", label: "DNS records", icon: Network },
-      { href: "/whois", label: "WHOIS", icon: Search },
-    ],
-  },
-  {
-    label: "Risk",
-    items: [
-      { href: "/vulnerabilities", label: "Findings", icon: Bug },
-      { href: "/supply-chain", label: "Supply chain", icon: Boxes },
-    ],
-  },
-  {
-    label: "Operations",
-    items: [
-      { href: "/scans", label: "Scans", icon: ScanSearch },
-      { href: "/scopes", label: "Authorized scopes", icon: ShieldCheck },
-    ],
-  },
-  {
-    label: "Intelligence",
-    items: [
-      { href: "/intel", label: "Threat intel", icon: Zap },
-      { href: "/darkweb", label: "Threat intel", icon: Eye },
-      { href: "/blockchain", label: "Blockchain", icon: Wallet },
-    ],
-  },
-  {
-    label: "Reporting",
-    items: [
-      { href: "/reports", label: "Reports", icon: FileText },
-      { href: "/reports/executive", label: "Executive report", icon: BarChart3 },
-      { href: "/compare", label: "Compare scans", icon: Waypoints },
-      { href: "/canvas", label: "Investigation canvas", icon: Network },
-    ],
-  },
-  {
-    label: "Team",
-    items: [
-      { href: "/collab-demo", label: "Comments", icon: MessagesSquare },
-      { href: "/docs", label: "Docs", icon: BookOpen },
-    ],
-  },
-];
+import { navSections } from "./navConfig";
 
 const ALL_HREFS = navSections.flatMap((s) => s.items.map((i) => i.href)).concat("/settings");
 
