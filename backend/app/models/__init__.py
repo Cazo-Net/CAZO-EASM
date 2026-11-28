@@ -1,5 +1,6 @@
 from app.models.user import User
 from app.models.organization import Organization
+from app.models.billing import BillingSubscription, BillingInvoice, BillingEvent  # noqa: F401
 from app.models.project import Project
 from app.models.scan import Scan, ScanJob
 from app.models.asset import Subdomain

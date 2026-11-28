@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.user import User
 from app.core.permissions import require_permission, Permission
+from app.billing.guards import schedule_plan_guard
 
 router = APIRouter()
 
@@ -170,6 +171,9 @@ async def run_scan_v2(
     if not auth.authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=auth.as_error_detail())
     request.domain = auth.target
+
+    from app.billing.entitlements import check_scan_allowed
+    check_scan_allowed(db, current_user.organization_id, request.domain, counts_toward_quota=False)
 
     from app.scanners.v2.runner import EnhancedScanRunner
 
@@ -559,7 +563,7 @@ def _schedule_out(row) -> "ScheduleResponse":
     )
 
 
-@router.post("/schedule", response_model=ScheduleResponse)
+@router.post("/schedule", response_model=ScheduleResponse, dependencies=[Depends(schedule_plan_guard)])
 async def create_schedule(
     request: ScheduleCreateRequest,
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),

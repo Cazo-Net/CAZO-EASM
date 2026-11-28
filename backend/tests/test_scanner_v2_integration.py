@@ -630,6 +630,13 @@ class TestAnalyzeEndpoint:
 
 
 class TestScheduleAPI:
+    @pytest.fixture(autouse=True)
+    def _no_plan_limits(self, monkeypatch):
+        # These tests cover scope/scheduling, not billing; the Trial plan's
+        # scan-frequency limit would otherwise reject their 6-hour schedules.
+        from app.config import settings
+        monkeypatch.setattr(settings, "BILLING_ENFORCE_LIMITS", False)
+
     def test_create_and_list_schedule(self, client, auth_headers):
         from app.models.user import User
         from tests.conftest import TestingSessionLocal

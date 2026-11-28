@@ -159,6 +159,22 @@ class Settings(BaseSettings):
     OPENSEARCH_PASSWORD: str = os.getenv("OPENSEARCH_PASSWORD", "EasmAdmin123!")
     OPENSEARCH_VERIFY_CERTS: bool = os.getenv("OPENSEARCH_VERIFY_CERTS", "false").lower() in ("1", "true", "yes")
 
+    # Billing (Stripe). Leave STRIPE_SECRET_KEY empty to disable checkout;
+    # plans and limits still apply. Live keys (sk_live_/rk_live_) are refused
+    # unless BILLING_ALLOW_LIVE_KEYS=true, so a test deploy can never charge.
+    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
+    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    BILLING_ALLOW_LIVE_KEYS: bool = os.getenv("BILLING_ALLOW_LIVE_KEYS", "false").lower() in ("1", "true", "yes")
+    # Currency for prices and checkout (lowercase ISO code). Prices for any
+    # currency other than "usd" must be supplied via BILLING_PLANS_JSON.
+    BILLING_CURRENCY: str = os.getenv("BILLING_CURRENCY", "usd").lower()
+    # Optional JSON overrides for the plan catalog (prices, limits); see app/billing/plans.py.
+    BILLING_PLANS_JSON: str = os.getenv("BILLING_PLANS_JSON", "")
+    # Enforce plan limits (root domains, hosts, scans, users) in the API.
+    BILLING_ENFORCE_LIMITS: bool = os.getenv("BILLING_ENFORCE_LIMITS", "true").lower() in ("1", "true", "yes")
+    # Days a past-due or just-expired plan keeps working before limits fall back.
+    BILLING_GRACE_DAYS: int = int(os.getenv("BILLING_GRACE_DAYS", "7"))
+
     # Frontend base URL (for links in emails, invitations, etc.)
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 

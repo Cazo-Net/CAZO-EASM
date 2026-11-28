@@ -24,6 +24,7 @@ import {
   Zap,
   ChevronsUpDown,
   Building,
+  CreditCard,
   History,
   BarChart3,
   MessagesSquare,
@@ -422,6 +423,12 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                   <DropdownMenuItem className="text-xs" onSelect={() => setOrgMenuOpen(false)}>
                     <Building className="h-3.5 w-3.5 mr-2" />
                     Manage Organization
+                  </DropdownMenuItem>
+                </Link>
+                <Link href="/billing" passHref legacyBehavior>
+                  <DropdownMenuItem className="text-xs" onSelect={() => setOrgMenuOpen(false)}>
+                    <CreditCard className="h-3.5 w-3.5 mr-2" />
+                    Billing &amp; plan
                   </DropdownMenuItem>
                 </Link>
               </DropdownMenuContent>

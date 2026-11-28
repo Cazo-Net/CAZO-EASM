@@ -1475,6 +1475,7 @@ const NAV_LINKS = [
   { href: "#shadow-assets", label: "Shadow assets" },
   { href: "#product", label: "Product" },
   { href: "#faq", label: "FAQ" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 export function LandingNav({
@@ -1541,6 +1542,7 @@ const FOOTER_COLS: { title: string; links: { label: string; href: string }[] }[]
         { label: "How it works", href: "#how-it-works" },
         { label: "Shadow assets", href: "#shadow-assets" },
         { label: "Product", href: "#product" },
+        { label: "Pricing", href: "/pricing" },
         { label: "Start free scan", href: "/register" },
       ],
     },
