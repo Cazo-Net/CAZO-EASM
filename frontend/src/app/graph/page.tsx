@@ -398,7 +398,7 @@ function GraphCanvas({
         id: n.id, type: n.type, position: pos,
         data: {
           ...n,
-          showLabel: n.type === "domain" || n.type === "vulnerability" || n.type === "certificate",
+          showLabel: n.type !== "port",
           dimmed: highlightId ? !isHighlighted : false,
           highlighted: isHighlighted,
         },
@@ -409,7 +409,7 @@ function GraphCanvas({
 
     const flowEdges: Edge[] = rawEdges.map((e, i) => ({
       id: `e-${i}`, source: e.source, target: e.target,
-      type: "smoothstep",
+      type: "straight",
       animated: e.label === "attack",
       style: {
         stroke: edgeColors[e.label || ""] || "#EC3C5355",
@@ -463,7 +463,7 @@ function GraphCanvas({
         minZoom={0.05}
         maxZoom={3}
         fitView
-        fitViewOptions={{ padding: 0.15 }}
+        fitViewOptions={{ padding: 0.12 }}
         proOptions={{ hideAttribution: true }}
         className="bg-transparent"
       >
@@ -472,7 +472,7 @@ function GraphCanvas({
           showZoom
           showFitView
           showInteractive={false}
-          className="!rounded !border !bg-[#141414dd] !"
+          className="graph-controls !rounded !border"
           style={{ borderColor: "#292929", background: "#141414dd" }}
         />
       </ReactFlow>
@@ -559,7 +559,7 @@ function GraphContent() {
   const threatLabel = nodeStats.critical > 0 ? `${nodeStats.critical} THREATS` : "No threats detected";
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden" style={{ background: "#0B0B0B" }}>
+    <div className="flex h-[calc(100dvh-3.5rem)] flex-col overflow-hidden" style={{ background: "#0B0B0B" }}>
       {/* ── Status bar (top) ── */}
       <div className="shrink-0 border-b px-6 py-2 flex items-center justify-between" style={{ borderColor: "#292929", background: "#141414ee" }}>
         <div className="flex items-center gap-4">

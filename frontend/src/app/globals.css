@@ -821,3 +821,14 @@
    text, so `bg-primary` (and its hover) take --primary-fill. */
 .bg-primary { background-color: hsl(var(--primary-fill)); }
 .hover\:bg-primary\/90:hover { background-color: hsl(var(--primary-fill) / 0.9); }
+
+/* Attack graph zoom controls: React Flow ships white buttons; match the dark canvas. */
+.graph-controls .react-flow__controls-button {
+  background: #141414;
+  border-bottom: 1px solid #292929;
+  fill: #a8a8a8;
+}
+.graph-controls .react-flow__controls-button:hover {
+  background: #1f1f1f;
+  fill: #fafafa;
+}
