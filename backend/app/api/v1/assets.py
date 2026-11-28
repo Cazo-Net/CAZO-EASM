@@ -351,9 +351,26 @@ async def get_asset_graph(
         "type": "domain"
     })
 
+    # Load every port and finding for the scan in two queries instead of two
+    # per subdomain: scans with 1,000+ subdomains made this endpoint slow.
+    sub_ids = [sub.id for sub in subdomains]
+    ports_by_sub: dict = {}
+    vulns_by_sub: dict = {}
+    for i in range(0, len(sub_ids), 500):
+        chunk = sub_ids[i:i + 500]
+        for port in (
+            db.query(Port)
+            .filter(Port.subdomain_id.in_(chunk))
+            .order_by(Port.port_number)
+            .all()
+        ):
+            ports_by_sub.setdefault(port.subdomain_id, []).append(port)
+        for vuln in db.query(Vulnerability).filter(Vulnerability.subdomain_id.in_(chunk)).all():
+            vulns_by_sub.setdefault(vuln.subdomain_id, []).append(vuln)
+
     for sub in subdomains:
-        ports = db.query(Port).filter(Port.subdomain_id == sub.id).all()
-        vulns = db.query(Vulnerability).filter(Vulnerability.subdomain_id == sub.id).all()
+        ports = ports_by_sub.get(sub.id, [])
+        vulns = vulns_by_sub.get(sub.id, [])
 
         # Compact port summary attached to the subdomain node so the UI can list
         # every port for a host directly on click, without walking edges.

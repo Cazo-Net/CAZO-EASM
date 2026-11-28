@@ -1,4 +1,5 @@
 import asyncio
+import copy
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
 from app.scanners.registry import registry, ScannerCategory
@@ -52,13 +53,61 @@ class ScanRunner:
         self.cve_scanner = CVECorrelationScanner()
         self.relationships_scanner = RelationshipsScanner()
 
+    async def _port_scan_host(
+        self,
+        subdomain: str,
+        port_mode: str,
+        ports_list: Optional[List[int]],
+    ) -> Dict[str, Any]:
+        """Port-scan one host. Returns ``{"ports", "os", "scripts", "errors"}``."""
+        out: Dict[str, Any] = {"ports": None, "os": None, "scripts": None, "errors": []}
+        try:
+            if port_mode == "full" and settings.USE_NMAP and self.nmap_scanner.available():
+                # High-fidelity nmap path: real -sV service/version + OS.
+                try:
+                    r = await self.nmap_scanner.run_with_retry(
+                        subdomain,
+                        scan_type="full",
+                        port_list=ports_list,
+                    )
+                    out["ports"] = r
+                    out["os"] = r.get("os")
+                    out["scripts"] = r.get("scripts")
+                    return out
+                except Exception as e:
+                    # Fall through to the pure-Python scanner so a scan
+                    # never completely loses port data because nmap choked.
+                    logger.warning("nmap port scan failed for %s, falling back to python: %s",
+                                   subdomain, e)
+                    out["errors"].append(
+                        {"scanner": "ports-nmap", "target": subdomain, "error": str(e)})
+
+            # Pure-Python connect scanner (quick mode, or nmap fallback).
+            out["ports"] = await self.port_scanner.run_with_retry(
+                subdomain,
+                scan_type="quick" if port_mode == "quick" else "full",
+                port_list=ports_list if port_mode == "full" else None,
+            )
+        except Exception as e:
+            out["errors"].append({"scanner": "ports", "target": subdomain, "error": str(e)})
+        return out
+
     async def _scan_one_subdomain(
         self,
         subdomain: str,
         port_mode: str,
         ports_list: List[int],
         domain: str,
+        port_cache: Optional[Dict[Any, "asyncio.Future"]] = None,
     ) -> Dict[str, Any]:
+        """DNS, TLS, ports and web fingerprint for one host, in parallel.
+
+        With ``port_cache`` (one dict per scan), hosts that resolve to exactly
+        the same addresses share a single port scan: open/closed state belongs
+        to the IP, not the name, and CDN or load-balanced estates often put
+        dozens of names on the same few addresses. The port scan then waits
+        for this host's DNS answer, which is fast next to a port scan.
+        """
         result = {
             "subdomain": subdomain,
             "dns": None,
@@ -71,6 +120,7 @@ class ScanRunner:
             "ips": [],
             "errors": [],
         }
+        dns_done = asyncio.Event()
 
         async def _dns():
             try:
@@ -80,6 +130,8 @@ class ScanRunner:
                     result["ips"] = r.get("ips", [])
             except Exception as e:
                 result["errors"].append({"scanner": "dns", "target": subdomain, "error": str(e)})
+            finally:
+                dns_done.set()
 
         async def _ssl():
             try:
@@ -91,36 +143,31 @@ class ScanRunner:
                 result["errors"].append({"scanner": "ssl", "target": subdomain, "error": str(e)})
 
         async def _ports():
-            try:
-                if port_mode == "full" and settings.USE_NMAP and self.nmap_scanner.available():
-                    # High-fidelity nmap path: real -sV service/version + OS.
-                    try:
-                        r = await self.nmap_scanner.run_with_retry(
-                            subdomain,
-                            scan_type="full",
-                            port_list=ports_list,
-                        )
-                        result["ports"] = r
-                        result["os"] = r.get("os")
-                        result["scripts"] = r.get("scripts")
-                        return
-                    except Exception as e:
-                        # Fall through to the pure-Python scanner so a scan
-                        # never completely loses port data because nmap choked.
-                        logger.warning("nmap port scan failed for %s, falling back to python: %s",
-                                       subdomain, e)
-                        result["errors"].append(
-                            {"scanner": "ports-nmap", "target": subdomain, "error": str(e)})
-
-                # Pure-Python connect scanner (quick mode, or nmap fallback).
-                r = await self.port_scanner.run_with_retry(
-                    subdomain,
-                    scan_type="quick" if port_mode == "quick" else "full",
-                    port_list=ports_list if port_mode == "full" else None,
-                )
-                result["ports"] = r
-            except Exception as e:
-                result["errors"].append({"scanner": "ports", "target": subdomain, "error": str(e)})
+            if port_cache is None:
+                out = await self._port_scan_host(subdomain, port_mode, ports_list)
+            else:
+                await dns_done.wait()
+                ips = tuple(sorted(set(result["ips"] or [])))
+                key = ips if ips else ("host", subdomain)
+                fut = port_cache.get(key)
+                if fut is None:
+                    fut = asyncio.ensure_future(self._port_scan_host(subdomain, port_mode, ports_list))
+                    fut.scanned_host = subdomain  # type: ignore[attr-defined]
+                    port_cache[key] = fut
+                # shield: one host's cancellation must not cancel the shared scan
+                shared = await asyncio.shield(fut)
+                scanned_host = getattr(fut, "scanned_host", subdomain)
+                if scanned_host == subdomain:
+                    out = shared
+                else:
+                    out = copy.deepcopy(shared)
+                    out["errors"] = []  # reported once, by the host that ran the scan
+                    if isinstance(out.get("ports"), dict):
+                        out["ports"]["shared_scan_of"] = scanned_host
+            result["ports"] = out["ports"]
+            result["os"] = out["os"]
+            result["scripts"] = out["scripts"]
+            result["errors"].extend(out["errors"])
 
         async def _tech():
             try:
@@ -237,6 +284,8 @@ class ScanRunner:
             counters = {"dns_ok": 0, "dns_fail": 0, "ssl_ok": 0, "ssl_fail": 0,
                         "port_ok": 0, "port_fail": 0, "tech_ok": 0, "tech_fail": 0}
             completed = 0
+            # One port scan per distinct set of addresses (see _scan_one_subdomain).
+            port_cache: Dict[Any, asyncio.Future] = {}
 
             async def _bounded_scan(subdomain):
                 nonlocal completed
@@ -246,7 +295,7 @@ class ScanRunner:
                     counters["skipped_out_of_scope"] = counters.get("skipped_out_of_scope", 0) + 1
                     return
                 async with sem:
-                    r = await self._scan_one_subdomain(subdomain, port_mode, ports_list, domain)
+                    r = await self._scan_one_subdomain(subdomain, port_mode, ports_list, domain, port_cache)
                     completed += 1
                     if progress_callback and completed % max(total // 20, 1) == 0:
                         pct = 15 + int((completed / max(total, 1)) * 55)
@@ -297,6 +346,13 @@ class ScanRunner:
                 ok, fail = counters[ok_key], counters[fail_key]
                 total_sq = ok + fail
                 results["scanner_status"][key] = f"ok ({ok}/{total_sq} hosts)" if total_sq > 0 else "ok"
+
+            hosts_port_scanned = counters["port_ok"] + counters["port_fail"]
+            if port_cache and hosts_port_scanned > len(port_cache):
+                results["scanner_status"]["port-dedupe"] = (
+                    f"ok ({len(port_cache)} port scans covered {hosts_port_scanned} hosts "
+                    "that share addresses)"
+                )
 
             if counters.get("skipped_out_of_scope"):
                 results["scanner_status"]["scope-guard"] = (
@@ -416,7 +472,14 @@ class ScanRunner:
                 merged_vulns.extend(findings_list)
             if isinstance(cve_list, list):
                 merged_vulns.extend(cve_list)
-            results["vulnerabilities"] = merged_vulns
+            # One vocabulary for findings (same ids, titles and severities as
+            # Scanner v2), duplicates merged, then exploited CVEs flagged.
+            from app.scanners.finding_catalog import polish_findings
+            from app.scanners.exploit_intel import enrich_with_exploit_intel
+            results["vulnerabilities"] = polish_findings(merged_vulns)
+            if options.get("exploit_intel", True):
+                results["scanner_status"]["exploit-intel"] = await enrich_with_exploit_intel(
+                    results["vulnerabilities"])
 
             # ── Step 5: Risk score ──
             if progress_callback:

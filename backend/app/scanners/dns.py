@@ -123,8 +123,6 @@ class DNSScanner(BaseScanner):
             return record_type, [], [], "NXDOMAIN"
         except dns.resolver.NoNameservers:
             return record_type, [], [], f"No nameservers for {target} ({record_type})"
-        except dns.resolver.NoRootServers:
-            return record_type, [], [], f"No root servers reachable for {target}"
         except (dns.exception.Timeout, asyncio.TimeoutError, TimeoutError):
             return record_type, [], [], f"DNS query timed out for {target} ({record_type})"
         except Exception as e:
@@ -188,7 +186,7 @@ class DNSScanner(BaseScanner):
                 for rdata in dmarc_answers:
                     results["records"]["DMARC"] = [{"type": "DMARC", "value": str(rdata), "ttl": dmarc_ttl}]
             except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers,
-                    dns.resolver.NoRootServers, dns.exception.Timeout, asyncio.TimeoutError, TimeoutError):
+                    dns.exception.Timeout, asyncio.TimeoutError, TimeoutError):
                 pass
             except Exception:
                 pass
@@ -203,7 +201,7 @@ class DNSScanner(BaseScanner):
                     for rdata in item:
                         results["records"][f"DKIM_{sel}"] = [{"type": "DKIM", "value": str(rdata), "selector": sel, "ttl": dkim_ttl}]
                 except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers,
-                        dns.resolver.NoRootServers, dns.exception.Timeout, asyncio.TimeoutError):
+                        dns.exception.Timeout, asyncio.TimeoutError):
                     pass
 
             if not results["records"] and failed:

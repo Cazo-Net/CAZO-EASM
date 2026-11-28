@@ -132,48 +132,24 @@ class CVECorrelationScanner(EnhancedBaseScanner):
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         super().__init__(config)
         self.db = CVEDatabase()
+        # Room for the first-time NVD import of new products (90 s budget).
+        self.timeout = max(float(self.timeout or 0), 150.0)
 
     def validate_target(self, target: str) -> bool:
         return bool(target)
 
     async def scan(self, target: str, **kwargs) -> ScanResult:
-        if self.db.count() == 0:
-            return ScanResult(success=True, scanner=self.name, target=target,
-                              data={"vulnerabilities": [], "count": 0, "status": "no_cve_snapshot"})
+        """Same correlation as the standard engine (``app/scanners/cve_engine.py``):
+        web fingerprints and service banners, NVD ranges, on-demand product import."""
+        from app.scanners.cve_engine import correlate_scan
 
         scan_results = kwargs.get("scan_results") or {}
-        tech_by_host = scan_results.get("technologies", {}) or {}
-        all_tech = []
-        for host, techs in tech_by_host.items():
-            for t in (techs or []):
-                t = dict(t)
-                t["host"] = host
-                all_tech.append(t)
-
-        findings = []
-        for tech in all_tech:
-            name = tech.get("name")
-            version = tech.get("version")
-            if not name or not version:
-                continue
-            vendor, product = _normalize_tech(name)
-            for m in self.db.lookup(vendor, product):
-                ranges = json.loads(m.get("affected_versions") or "[]")
-                if _version_in_range(version, ranges):
-                    findings.append({
-                        "template_id": f"cve-correlation/{m['cve_id']}",
-                        "name": f"{name} {version} — {m['cve_id']}",
-                        "severity": m.get("severity", "unknown"),
-                        "vuln_type": "cve-correlation",
-                        "host": tech.get("host", ""),
-                        "description": f"Version-correlated (UNVERIFIED): {name} {version} matches {m['cve_id']}. {m.get('description', '')[:300]}",
-                        "cve_id": m["cve_id"],
-                        "reference": [f"https://nvd.nist.gov/vuln/detail/{m['cve_id']}"],
-                        "verified": False,
-                    })
-
+        findings, status = await correlate_scan(
+            scan_results.get("technologies") or {}, scan_results.get("ports") or {},
+            fetch_missing=bool(self.config.get("fetch_missing", True)),
+        )
         return ScanResult(
             success=True, scanner=self.name, target=target,
-            data={"vulnerabilities": findings, "count": len(findings),
+            data={"vulnerabilities": findings, "count": len(findings), "status": status,
                   "note": "All CVE matches are version-correlated and UNVERIFIED."},
         )
