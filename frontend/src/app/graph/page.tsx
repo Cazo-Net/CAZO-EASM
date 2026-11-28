@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { memo, useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { listScans, getAssetGraph } from "@/lib/api";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,15 @@ import { cn } from "@/lib/utils";
 import {
   Waypoints,
   Globe,
-  Server,
   Bug,
   Loader2,
-  ShieldAlert,
   Search,
   X,
-  Radio,
+  ChevronRight,
+  ChevronDown,
+  Maximize2,
+  Minimize2,
+  Flame,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useChecklistAutoComplete } from "@/components/onboarding/GettingStartedChecklist";
@@ -23,9 +25,6 @@ import {
   Background,
   BackgroundVariant,
   Controls,
-  useNodesState,
-  useEdgesState,
-  MarkerType,
   Position,
   Handle,
   type Node,
@@ -33,169 +32,300 @@ import {
   type NodeProps,
   ReactFlowProvider,
   useReactFlow,
-  Panel,
+  useOnViewportChange,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { computeForceLayout, type RawGraphNode, type RawGraphEdge } from "@/lib/graphLayout";
+import {
+  buildView,
+  defaultExpandedGroups,
+  groupHosts,
+  groupKeyOfHost,
+  indexGraph,
+  DEFAULT_GROUP_LIMIT,
+  DEFAULT_HOST_LIMIT,
+  GROUP_BY_OPTIONS,
+  GROUP_LIMIT_STEP,
+  HOST_LIMIT_STEP,
+  SEVERITIES,
+  groupNodeId,
+  type GraphIndex,
+  type GroupBy,
+  type GroupRecord,
+  type HostRecord,
+  type LayoutMode,
+  type Severity,
+  type SevCounts,
+  type ViewResult,
+} from "@/lib/attackGraphModel";
 import type { Scan } from "@/types";
 
 // ---------------------------------------------------------------------------
-// Type metadata + severity
+// Colours
 // ---------------------------------------------------------------------------
 
-const TYPE_META: Record<string, { icon: any; color: string; size: number; label: string }> = {
-  domain: { icon: Globe, color: "#EC3C53", size: 42, label: "Domain" },
-  subdomain: { icon: Server, color: "#06B6D4", size: 30, label: "Subdomain" },
-  port: { icon: null, color: "#EC3C53", size: 18, label: "Port" },
-  vulnerability: { icon: Bug, color: "#F05151", size: 18, label: "Vulnerability" },
-  certificate: { icon: ShieldAlert, color: "#F8B925", size: 22, label: "Certificate" },
-};
+const BRAND = "#EC3C53";
+const CLEAN = "#71717A"; // host / group with no findings
+const PORT = "#A1A1AA";
 
-const SEVERITY_COLOR: Record<string, string> = {
-  critical: "#F05151",
+const SEVERITY_COLOR: Record<Severity, string> = {
+  critical: "#F0518A",
   high: "#F67A31",
   medium: "#F8B925",
-  low: "#06B6D4",
-  unknown: "#818CF8",
+  low: "#3B82F6",
+  info: "#818CF8",
 };
+const SEV_SHORT: Record<Severity, string> = { critical: "C", high: "H", medium: "M", low: "L", info: "I" };
 
-const ALL_TYPES = Object.keys(TYPE_META);
+const sevColor = (s?: Severity | null) => (s ? SEVERITY_COLOR[s] : CLEAN);
 
 // ---------------------------------------------------------------------------
-// Cyberpunk node — circular with colored ring + glow
+// Preferences (per viewer, best effort)
 // ---------------------------------------------------------------------------
 
-function CyberNode({ data, selected }: NodeProps) {
-  const d = data as any;
-  const meta = TYPE_META[d.type as string] || TYPE_META.subdomain;
-  const Icon = meta.icon;
-  const isVuln = d.type === "vulnerability";
-  const sev = (d.severity as string) || "unknown";
-  const isCritical = isVuln && (sev === "critical" || sev === "high");
-  const dimmed = d.dimmed;
-  const highlighted = d.highlighted;
+const PREF_KEY = "cazo_attack_graph_prefs";
+function readPrefs(): { groupBy?: GroupBy; layout?: LayoutMode } {
+  try {
+    return JSON.parse(localStorage.getItem(PREF_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+function writePrefs(p: { groupBy: GroupBy; layout: LayoutMode }) {
+  try {
+    localStorage.setItem(PREF_KEY, JSON.stringify(p));
+  } catch {
+    /* storage unavailable */
+  }
+}
 
-  const ringColor = isVuln ? SEVERITY_COLOR[sev] || "#F05151" : meta.color;
+// ---------------------------------------------------------------------------
+// Node components
+// ---------------------------------------------------------------------------
 
+/** Invisible handles at the node centre so edges meet nodes cleanly in both layouts. */
+function CenterHandles({ layout }: { layout: LayoutMode }) {
+  const style = layout === "radial" ? { opacity: 0, top: "50%", left: "50%", width: 1, height: 1, minWidth: 0, minHeight: 0, border: 0 } : { opacity: 0 };
+  return (
+    <>
+      <Handle type="target" position={Position.Left} style={style} isConnectable={false} />
+      <Handle type="source" position={Position.Right} style={style} isConnectable={false} />
+    </>
+  );
+}
+
+/**
+ * Label that follows the ray from the root in radial mode (readable at any
+ * density, never overlaps a sibling) and sits to the right in tree mode.
+ */
+function OrientedLabel({
+  text,
+  angle,
+  layout,
+  offset,
+  color,
+  className,
+}: {
+  text: string;
+  angle: number;
+  layout: LayoutMode;
+  offset: number;
+  color: string;
+  className?: string;
+}) {
+  if (layout === "tree") {
+    return (
+      <span
+        className={cn("absolute top-1/2 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] pointer-events-none", className)}
+        style={{ left: "calc(100% + 9px)", color }}
+      >
+        {text}
+      </span>
+    );
+  }
+  const deg = (angle * 180) / Math.PI;
+  const flip = Math.cos(angle) < 0;
   return (
     <div
-      className={cn(
-        "relative flex items-center justify-center transition-all duration-200",
-        dimmed && "opacity-10",
-        highlighted && "opacity-100 scale-110"
-      )}
-      style={{ width: meta.size * 2, height: meta.size * 2 }}
+      className="absolute left-1/2 top-1/2 h-0 w-0 pointer-events-none"
+      style={{ transform: `rotate(${flip ? deg + 180 : deg}deg)` }}
     >
-      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
-
-      {/* Outer glow ring */}
       <span
-        className="absolute rounded-full transition-all duration-300"
-        style={{
-          inset: -4,
-          border: `1.5px solid ${ringColor}44`,
-          boxShadow: selected
-            ? `0 0 24px 4px ${ringColor}66`
-            : isCritical
-            ? `0 0 18px 2px ${ringColor}44`
-            : `0 0 10px 1px ${ringColor}22`,
-        }}
-      />
-
-      {/* Main circle */}
-      <div
-        className="relative flex items-center justify-center rounded-full transition-all duration-200"
-        style={{
-          width: meta.size * 2,
-          height: meta.size * 2,
-          background: `radial-gradient(circle at 30% 30%, ${ringColor}18, #141414 70%)`,
-          border: `2px solid ${ringColor}`,
-          boxShadow: `0 0 ${selected ? 20 : isCritical ? 14 : 8}px -2px ${ringColor}88, inset 0 0 20px ${ringColor}08`,
-        }}
+        className={cn("absolute -translate-y-1/2 whitespace-nowrap font-mono text-[10px]", className)}
+        style={flip ? { right: offset, color } : { left: offset, color }}
       >
-        {Icon ? (
-          <Icon
-            style={{ width: meta.size * 0.45, height: meta.size * 0.45, color: ringColor }}
-            className="relative z-10"
-          />
-        ) : (
-          <span
-            className="relative z-10 font-mono font-semibold"
-            style={{ color: ringColor, fontSize: meta.size * 0.4 }}
-          >
-            {String(d.label).replace(":", "").slice(0, 6)}
-          </span>
-        )}
-      </div>
-
-      {/* Label below */}
-      {d.showLabel && (
-        <div
-          className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap rounded px-1.5 py-0.5 pointer-events-none z-20"
-          style={{ top: meta.size * 2 + 4, background: "#141414cc", border: `1px solid ${ringColor}33` }}
-        >
-          <span className="font-mono text-[9px]" style={{ color: ringColor }}>
-            {d.label}
-          </span>
-        </div>
-      )}
+        {text}
+      </span>
     </div>
   );
 }
 
-const nodeTypes = { domain: CyberNode, subdomain: CyberNode, port: CyberNode, vulnerability: CyberNode, certificate: CyberNode };
-
-// ---------------------------------------------------------------------------
-// Zone grouping — renders dashed-border boxes around grouped nodes
-// ---------------------------------------------------------------------------
-
-function ZoneOverlay({ nodes }: { nodes: Node[] }) {
-  const zones = useMemo(() => {
-    const groups: Record<string, { x: number; y: number; w: number; h: number; color: string; label: string }> = {};
-    for (const n of nodes) {
-      const zone = (n.data as any)?.zone;
-      if (!zone) continue;
-      if (!groups[zone]) {
-        groups[zone] = { x: n.position.x - 80, y: n.position.y - 60, w: 160, h: 120, color: "#EC3C53", label: zone };
-      }
-      const g = groups[zone];
-      g.x = Math.min(g.x, n.position.x - 80);
-      g.y = Math.min(g.y, n.position.y - 60);
-      g.w = Math.max(g.w, n.position.x + 80 - g.x);
-      g.h = Math.max(g.h, n.position.y + 60 - g.y);
-    }
-    return Object.values(groups);
-  }, [nodes]);
-
-  if (zones.length === 0) return null;
-
+function SevBar({ counts }: { counts: SevCounts }) {
+  const items = SEVERITIES.filter((s) => counts[s] > 0 && s !== "info");
+  if (!items.length) return null;
   return (
-    <div className="pointer-events-none absolute inset-0">
-      {zones.map((z, i) => (
-        <div
-          key={i}
-          className="absolute rounded-lg"
-          style={{
-            left: z.x,
-            top: z.y,
-            width: z.w,
-            height: z.h,
-            border: `1px dashed ${z.color}33`,
-            background: `${z.color}05`,
-          }}
+    <div className="flex items-center gap-1">
+      {items.map((s) => (
+        <span
+          key={s}
+          className="rounded px-1 font-mono text-[9px] font-semibold leading-[14px]"
+          style={{ background: `${SEVERITY_COLOR[s]}22`, color: SEVERITY_COLOR[s] }}
         >
-          <span
-            className="absolute -top-3 left-3 text-[11px] uppercase tracking-wider px-1"
-            style={{ color: `${z.color}88`, background: "#141414", border: `1px solid ${z.color}22` }}
-          >
-            [{z.label}]
-          </span>
-        </div>
+          {counts[s]}
+          {SEV_SHORT[s]}
+        </span>
       ))}
     </div>
   );
 }
+
+const RootNode = memo(function RootNode({ data }: NodeProps) {
+  const d = data as any;
+  return (
+    <div className="relative flex h-[76px] w-[76px] items-center justify-center rounded-full"
+      style={{
+        background: `radial-gradient(circle at 30% 30%, ${BRAND}30, #141414 70%)`,
+        border: `2px solid ${BRAND}`,
+        boxShadow: `0 0 28px -4px ${BRAND}aa`,
+      }}
+    >
+      <CenterHandles layout={d.layout} />
+      <Globe className="h-7 w-7" style={{ color: BRAND }} />
+      <div className="absolute top-[84px] left-1/2 -translate-x-1/2 whitespace-nowrap rounded px-2 py-0.5 text-center"
+        style={{ background: "#141414ee", border: `1px solid ${BRAND}55` }}>
+        <div className="font-mono text-[12px] font-semibold" style={{ color: BRAND }}>{d.label}</div>
+        <div className="font-mono text-[9px] text-muted-foreground">{d.hostCount} hosts</div>
+      </div>
+    </div>
+  );
+});
+
+function groupSize(n: number) {
+  return Math.round(Math.min(84, 44 + Math.log2(Math.max(1, n)) * 5));
+}
+
+const GroupNode = memo(function GroupNode({ data, selected }: NodeProps) {
+  const d = data as any;
+  const color = sevColor(d.worst);
+  const size = groupSize(d.hostCount);
+  const risky = d.worst === "critical" || d.worst === "high";
+  return (
+    <div className="relative flex items-center justify-center cursor-pointer" style={{ width: size, height: size }}>
+      <CenterHandles layout={d.layout} />
+      {risky && (
+        <span className="absolute rounded-full animate-pulse" style={{ inset: -7, border: `1px solid ${color}66`, boxShadow: `0 0 22px 2px ${color}44` }} />
+      )}
+      <div
+        className="relative flex h-full w-full flex-col items-center justify-center rounded-full transition-shadow"
+        style={{
+          background: d.expanded ? `${color}26` : `radial-gradient(circle at 30% 30%, ${color}22, #141414 72%)`,
+          border: `2px ${d.expanded ? "solid" : "dashed"} ${color}`,
+          boxShadow: selected ? `0 0 26px 2px ${color}88` : `0 0 12px -2px ${color}66`,
+        }}
+      >
+        <span className="font-mono text-[15px] font-bold leading-none text-foreground">{d.hostCount}</span>
+        <span className="font-mono text-[8px] uppercase tracking-wider text-muted-foreground">hosts</span>
+      </div>
+      {d.findingCount > 0 && (
+        <span
+          className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center gap-0.5 rounded-full px-1 font-mono text-[10px] font-bold text-white"
+          style={{ background: color, boxShadow: `0 0 8px ${color}` }}
+          title={`${d.findingCount} findings`}
+        >
+          <Bug className="h-2.5 w-2.5" />
+          {d.findingCount}
+        </span>
+      )}
+      <div
+        className={cn(
+          "absolute flex flex-col gap-0.5 rounded px-1.5 py-1 pointer-events-none",
+          d.layout === "tree" ? "left-full ml-3 top-1/2 -translate-y-1/2 items-start" : "top-full mt-2 left-1/2 -translate-x-1/2 items-center"
+        )}
+        style={{ background: "#141414ee", border: `1px solid ${color}44` }}
+      >
+        <span className="flex items-center gap-1 whitespace-nowrap font-mono text-[11px] font-semibold" style={{ color: d.worst ? color : "#D4D4D8" }}>
+          {d.expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          {d.label}
+        </span>
+        <SevBar counts={d.sevCounts} />
+      </div>
+    </div>
+  );
+});
+
+const HostNode = memo(function HostNode({ data, selected }: NodeProps) {
+  const d = data as any;
+  const color = sevColor(d.worst);
+  const risky = d.worst && d.worst !== "info";
+  const size = risky ? 20 : 14;
+  return (
+    <div className="relative flex items-center justify-center cursor-pointer" style={{ width: size, height: size }}>
+      <CenterHandles layout={d.layout} />
+      <div
+        className="h-full w-full rounded-full"
+        style={{
+          background: risky ? `${color}55` : "#1B1B1B",
+          border: `2px solid ${color}`,
+          boxShadow: selected ? `0 0 16px 3px ${color}` : risky ? `0 0 10px ${color}99` : "none",
+        }}
+      />
+      {d.findingCount > 0 && (
+        <span className="absolute -top-2 -right-2 rounded-full px-1 font-mono text-[8px] font-bold leading-[12px] text-white" style={{ background: color }}>
+          {d.findingCount}
+        </span>
+      )}
+      <OrientedLabel
+        text={d.label}
+        angle={d.angle}
+        layout={d.layout}
+        offset={size / 2 + 6}
+        color={selected ? "#FFFFFF" : risky ? color : "#A1A1AA"}
+        className={cn("ag-host-label", risky && "font-semibold", selected && "font-semibold")}
+      />
+    </div>
+  );
+});
+
+const MoreNode = memo(function MoreNode({ data }: NodeProps) {
+  const d = data as any;
+  return (
+    <div className="relative flex h-6 items-center cursor-pointer">
+      <CenterHandles layout={d.layout} />
+      <div className="whitespace-nowrap rounded-full border px-2.5 py-0.5 font-mono text-[10px] hover:brightness-125"
+        style={{ borderColor: "#3F3F46", background: "#1B1B1BF0", color: "#D4D4D8", transform: d.layout === "radial" ? "translateX(-50%)" : undefined, marginLeft: d.layout === "radial" ? "50%" : 0 }}>
+        {d.kind === "more-groups" ? `+${d.remaining} more groups · ${d.hosts} hosts` : `+${d.remaining} more · show ${d.step}`}
+      </div>
+    </div>
+  );
+});
+
+const ChildNode = memo(function ChildNode({ data, selected }: NodeProps) {
+  const d = data as any;
+  const isVuln = d.type === "vulnerability";
+  const color = isVuln ? sevColor(d.severity) : d.type === "certificate" ? "#F8B925" : PORT;
+  const label = isVuln ? d.label : d.type === "port" ? `${d.label}${d.service ? " " + d.service : ""}` : d.label;
+  return (
+    <div className="relative flex h-3 w-3 items-center justify-center cursor-pointer">
+      <CenterHandles layout={d.layout} />
+      <div
+        className={isVuln ? "h-2.5 w-2.5 rotate-45" : "h-2 w-2 rounded-sm"}
+        style={{ background: isVuln ? color : "#27272A", border: `1.5px solid ${color}`, boxShadow: selected || isVuln ? `0 0 8px ${color}` : "none" }}
+      />
+      <OrientedLabel text={label} angle={d.angle} layout={d.layout} offset={10} color={color} className="ag-child-label text-[9px]" />
+    </div>
+  );
+});
+
+const nodeTypes = {
+  root: RootNode,
+  cluster: GroupNode,
+  host: HostNode,
+  more: MoreNode,
+  "more-groups": MoreNode,
+  port: ChildNode,
+  vulnerability: ChildNode,
+  certificate: ChildNode,
+  child: ChildNode,
+};
 
 // ---------------------------------------------------------------------------
 // HEAT meter — bottom-left threat level indicator
@@ -203,22 +333,13 @@ function ZoneOverlay({ nodes }: { nodes: Node[] }) {
 
 function HeatMeter({ vulnCount, criticalCount }: { vulnCount: number; criticalCount: number }) {
   const heat = Math.min(10, Math.floor(criticalCount * 3 + vulnCount * 0.5));
-  const heatColor = heat >= 7 ? "#F05151" : heat >= 4 ? "#F8B925" : "#EC3C53";
-  const label = heat >= 7 ? "HIGH THREAT" : heat >= 4 ? "ELEVATED" : "SILENT";
-
+  const heatColor = heat >= 7 ? "#F05151" : heat >= 4 ? "#F8B925" : BRAND;
   return (
     <div className="flex items-center gap-2 rounded border px-3 py-1.5" style={{ borderColor: `${heatColor}44`, background: "#141414dd" }}>
       <span className=" text-[11px] font-semibold uppercase" style={{ color: heatColor }}>HEAT</span>
       <div className="flex gap-0.5">
         {Array.from({ length: 10 }, (_, i) => (
-          <div
-            key={i}
-            className="h-2 w-1.5 rounded-sm transition-all duration-300"
-            style={{
-              background: i < heat ? heatColor : "#292929",
-              boxShadow: i < heat ? `0 0 4px ${heatColor}66` : "none",
-            }}
-          />
+          <div key={i} className="h-2 w-1.5 rounded-sm" style={{ background: i < heat ? heatColor : "#292929", boxShadow: i < heat ? `0 0 4px ${heatColor}66` : "none" }} />
         ))}
       </div>
       <span className="font-mono text-[9px]" style={{ color: heatColor }}>{heat}</span>
@@ -227,243 +348,271 @@ function HeatMeter({ vulnCount, criticalCount }: { vulnCount: number; criticalCo
 }
 
 // ---------------------------------------------------------------------------
-// NODE INTEL panel — right side detail panel
+// Side panel — host / group / finding details
 // ---------------------------------------------------------------------------
 
-function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) {
-  const d = node.data as any;
-  const type = d.type as string;
-  const meta = TYPE_META[type] || TYPE_META.subdomain;
-  const ringColor = type === "vulnerability" ? SEVERITY_COLOR[(d.severity as string) || "unknown"] : meta.color;
-  const ports: any[] = Array.isArray(d.ports) ? d.ports : [];
-  const osDetection: any = d.os_detection || d.attributes?.os_detection || null;
-  const hostScripts: any[] = d.host_scripts || d.attributes?.host_scripts || [];
+type Selection = { kind: "host"; host: HostRecord } | { kind: "group"; group: GroupRecord } | { kind: "child"; data: any } | null;
 
+function IntelPanel({
+  sel,
+  onClose,
+  onPickHost,
+  shownInGraph,
+  onShowMore,
+}: {
+  sel: NonNullable<Selection>;
+  onClose: () => void;
+  onPickHost: (h: HostRecord) => void;
+  /** Hosts of the selected group currently drawn in the graph. */
+  shownInGraph?: number;
+  onShowMore?: (key: string) => void;
+}) {
+  const color =
+    sel.kind === "host" ? sevColor(sel.host.worst) : sel.kind === "group" ? sevColor(sel.group.worst) : sevColor(sel.data.severity);
   return (
     <motion.div
       initial={{ x: 20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: 20, opacity: 0 }}
-      className="absolute top-0 right-0 z-20 h-full w-72 border-l overflow-y-auto"
-      style={{ borderColor: `${ringColor}33`, background: "#141414ee" }}
+      className="absolute top-0 right-0 z-20 h-full w-80 overflow-y-auto border-l"
+      style={{ borderColor: `${color}33`, background: "#141414f2" }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: `${ringColor}22` }}>
-        <div className="flex items-center gap-2">
-          <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#EC3C53" }}>
-            NODE INTEL
-          </span>
-        </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+      <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: `${color}22` }}>
+        <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: BRAND }}>
+          {sel.kind === "group" ? "Group intel" : "Node intel"}
+        </span>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground" aria-label="Close details">
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      {/* Status */}
-      <div className="px-4 py-2 border-b" style={{ borderColor: "#292929" }}>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] text-muted-foreground">STATUS</span>
-          <span className="px-1.5 py-0.5 rounded font-mono text-[9px] font-semibold" style={{ background: `${ringColor}22`, color: ringColor }}>
-            {d.severity?.toUpperCase() || "ACTIVE"}
-          </span>
-        </div>
-      </div>
-
-      {/* Node info */}
-      <div className="px-4 py-3 space-y-3">
-        <div>
-          <span className=" text-[11px] text-muted-foreground uppercase">Type</span>
-          <p className="font-mono text-xs mt-0.5" style={{ color: ringColor }}>{meta.label}</p>
-        </div>
-        <div>
-          <span className=" text-[11px] text-muted-foreground uppercase">Label</span>
-          <p className="font-mono text-xs mt-0.5 text-foreground">{d.label}</p>
-        </div>
-        {d.ips?.length > 0 && (
+      {sel.kind === "host" && (
+        <div className="space-y-4 px-4 py-3">
           <div>
-            <span className=" text-[11px] text-muted-foreground uppercase">IPs</span>
-            {d.ips.map((ip: string, i: number) => (
-              <p key={i} className="font-mono text-xs mt-0.5 text-foreground/80">{ip}</p>
-            ))}
+            <span className="text-[11px] uppercase text-muted-foreground">Host</span>
+            <p className="mt-0.5 break-all font-mono text-xs" style={{ color }}>{sel.host.label}</p>
           </div>
-        )}
-        {ports.length > 0 && (
+          {sel.host.ips.length > 0 && (
+            <div>
+              <span className="text-[11px] uppercase text-muted-foreground">IPs</span>
+              {sel.host.ips.map((ip) => (
+                <p key={ip} className="mt-0.5 font-mono text-xs text-foreground/80">{ip}</p>
+              ))}
+            </div>
+          )}
           <div>
-            <span className=" text-[11px] text-muted-foreground uppercase">Open Ports ({ports.length})</span>
+            <span className="text-[11px] uppercase text-muted-foreground">Findings ({sel.host.findings.length})</span>
+            {sel.host.findings.length === 0 && <p className="mt-1 font-mono text-[10px] text-muted-foreground">None found</p>}
             <div className="mt-1 space-y-1">
-              {ports.slice(0, 20).map((p: any, i: number) => (
-                <div key={i} className="flex items-center justify-between rounded px-2 py-1" style={{ background: "#292929" }}>
+              {[...sel.host.findings]
+                .sort((a, b) => SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity))
+                .map((f) => (
+                  <div key={f.id} className="flex items-center justify-between gap-2 rounded px-2 py-1" style={{ background: "#292929" }}>
+                    <span className="truncate font-mono text-[10px] text-foreground">{f.label}</span>
+                    <span className="shrink-0 rounded px-1 font-mono text-[9px] font-semibold uppercase" style={{ color: SEVERITY_COLOR[f.severity], background: `${SEVERITY_COLOR[f.severity]}22` }}>
+                      {f.severity}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+          <div>
+            <span className="text-[11px] uppercase text-muted-foreground">Open ports ({sel.host.ports.length})</span>
+            <div className="mt-1 space-y-1">
+              {sel.host.ports.slice(0, 30).map((p) => (
+                <div key={p.port} className="flex items-center justify-between rounded px-2 py-1" style={{ background: "#292929" }}>
                   <span className="font-mono text-[10px] text-foreground">{p.port}</span>
                   <span className="font-mono text-[9px] text-muted-foreground">{p.service || "?"}</span>
                 </div>
               ))}
             </div>
           </div>
-        )}
-        {osDetection && (
+        </div>
+      )}
+
+      {sel.kind === "group" && (
+        <div className="space-y-4 px-4 py-3">
           <div>
-            <span className=" text-[11px] text-muted-foreground uppercase">OS Detection</span>
-            <div className="mt-1 rounded px-2 py-1" style={{ background: "#292929" }}>
-              {typeof osDetection === "string" ? (
-                <p className="font-mono text-[10px] text-foreground">{osDetection}</p>
-              ) : (
-                <>
-                  {osDetection.name && (
-                    <p className="font-mono text-[10px] text-foreground">{osDetection.name}</p>
-                  )}
-                  {osDetection.accuracy && (
-                    <p className="font-mono text-[9px] text-muted-foreground">Accuracy: {osDetection.accuracy}%</p>
-                  )}
-                  {osDetection.os_classes && osDetection.os_classes.length > 0 && (
-                    <p className="font-mono text-[9px] text-muted-foreground">
-                      {osDetection.os_classes.map((c: any) => `${c.type}/${c.vendor} ${c.osfamily} ${c.accuracy}%`).join(", ")}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
+            <span className="text-[11px] uppercase text-muted-foreground">Group</span>
+            <p className="mt-0.5 break-all font-mono text-xs" style={{ color: sel.group.worst ? color : "#D4D4D8" }}>{sel.group.label}</p>
+            <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+              {sel.group.hosts.length} hosts · {sel.group.findingCount} findings
+            </p>
+            <div className="mt-1.5"><SevBar counts={sel.group.sevCounts} /></div>
+            {shownInGraph !== undefined && shownInGraph < sel.group.hosts.length && onShowMore && (
+              <button
+                onClick={() => onShowMore(sel.group.key)}
+                className="mt-2 w-full rounded border px-2 py-1 font-mono text-[10px] text-foreground hover:brightness-125"
+                style={{ borderColor: "#3F3F46", background: "#1B1B1B" }}
+              >
+                Showing {shownInGraph} of {sel.group.hosts.length} in graph · show {Math.min(HOST_LIMIT_STEP, sel.group.hosts.length - shownInGraph)} more
+              </button>
+            )}
           </div>
-        )}
-        {hostScripts.length > 0 && (
           <div>
-            <span className=" text-[11px] text-muted-foreground uppercase">Host Scripts ({hostScripts.length})</span>
+            <span className="text-[11px] uppercase text-muted-foreground">{sel.group.findingCount ? "Riskiest hosts" : "Hosts"}</span>
             <div className="mt-1 space-y-1">
-              {hostScripts.slice(0, 5).map((s: any, i: number) => (
-                <div key={i} className="rounded px-2 py-1" style={{ background: "#292929" }}>
-                  <p className="font-mono text-[10px] text-foreground">{s.id || s.name || "script"}</p>
-                  {s.output && (
-                    <p className="font-mono text-[9px] text-muted-foreground mt-0.5 break-all">{s.output.slice(0, 200)}</p>
+              {sel.group.hosts.slice(0, 12).map((h) => (
+                <button
+                  key={h.id}
+                  onClick={() => onPickHost(h)}
+                  className="flex w-full items-center justify-between gap-2 rounded px-2 py-1 text-left hover:brightness-125"
+                  style={{ background: "#292929" }}
+                >
+                  <span className="truncate font-mono text-[10px] text-foreground">{h.label}</span>
+                  {h.findings.length > 0 && (
+                    <span className="shrink-0 font-mono text-[9px] font-semibold" style={{ color: sevColor(h.worst) }}>
+                      {h.findings.length}
+                    </span>
                   )}
-                </div>
+                </button>
               ))}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {sel.kind === "child" && (
+        <div className="space-y-3 px-4 py-3">
+          <div>
+            <span className="text-[11px] uppercase text-muted-foreground">{sel.data.type}</span>
+            <p className="mt-0.5 break-all font-mono text-xs" style={{ color }}>{sel.data.label}</p>
+          </div>
+          {sel.data.severity && (
+            <div>
+              <span className="text-[11px] uppercase text-muted-foreground">Severity</span>
+              <p className="mt-0.5 font-mono text-xs uppercase" style={{ color }}>{sel.data.severity}</p>
+            </div>
+          )}
+          {sel.data.service && (
+            <div>
+              <span className="text-[11px] uppercase text-muted-foreground">Service</span>
+              <p className="mt-0.5 font-mono text-xs text-foreground">{sel.data.service} {sel.data.version || ""}</p>
+            </div>
+          )}
+          {sel.data.host && (
+            <div>
+              <span className="text-[11px] uppercase text-muted-foreground">Host</span>
+              <p className="mt-0.5 break-all font-mono text-xs text-foreground/80">{sel.data.host}</p>
+            </div>
+          )}
+          {sel.data.banner && (
+            <div>
+              <span className="text-[11px] uppercase text-muted-foreground">Banner</span>
+              <p className="mt-0.5 break-all font-mono text-[10px] text-muted-foreground">{String(sel.data.banner).slice(0, 300)}</p>
+            </div>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Graph canvas — core React Flow
+// Graph canvas
 // ---------------------------------------------------------------------------
 
+const LOD_CSS = `
+.ag-wrap[data-lod="far"] .ag-host-label,
+.ag-wrap[data-lod="far"] .ag-child-label { display: none; }
+`;
+
 function GraphCanvas({
-  graphData,
-  loading,
-  typeFilters,
-  searchTerm,
-  highlightId,
-  onNodeSelect,
-  selectedNode,
+  view,
+  layout,
+  fitKey,
+  focusId,
+  selectedId,
+  onNodeClick,
 }: {
-  graphData: any;
-  loading: boolean;
-  typeFilters: Record<string, boolean>;
-  searchTerm: string;
-  highlightId: string | null;
-  onNodeSelect: (node: Node | null) => void;
-  selectedNode: Node | null;
+  view: ViewResult;
+  layout: LayoutMode;
+  fitKey: string;
+  focusId: { id: string; n: number } | null;
+  selectedId: string | null;
+  onNodeClick: (node: Node) => void;
 }) {
-  const { fitView, zoomTo, getNodes } = useReactFlow();
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const { fitView, setCenter, getZoom } = useReactFlow();
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  // Layout + filter
+  const nodes: Node[] = useMemo(
+    () =>
+      view.nodes.map((n) => ({
+        id: n.id,
+        // "group" is a reserved React Flow type with its own box styling.
+        type: n.kind === "group" ? "cluster" : n.kind,
+        position: { x: n.x, y: n.y },
+        selected: n.id === selectedId,
+        draggable: false,
+        connectable: false,
+        data: { ...n.data, kind: n.kind, angle: n.angle, layout },
+      })),
+    [view, layout, selectedId]
+  );
+
+  const edges: Edge[] = useMemo(
+    () =>
+      view.edges.map((e) => {
+        const hot = e.severity === "critical" || e.severity === "high";
+        return {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          type: layout === "radial" ? "straight" : "default",
+          selectable: false,
+          style: {
+            stroke: hot ? `${SEVERITY_COLOR[e.severity as Severity]}99` : e.severity && e.severity !== "info" ? `${SEVERITY_COLOR[e.severity]}55` : "#3F3F4688",
+            strokeWidth: e.depth === 1 ? 1.6 : hot ? 1.3 : 0.8,
+          },
+        };
+      }),
+    [view, layout]
+  );
+
+  // Fit when the dataset / grouping / layout / search changes.
   useEffect(() => {
-    if (!graphData?.nodes?.length) {
-      setNodes([]);
-      setEdges([]);
-      return;
-    }
+    const t = setTimeout(() => fitView({ padding: 0.25, minZoom: 0.45, duration: 350 }), 60);
+    return () => clearTimeout(t);
+  }, [fitKey, fitView]);
 
-    const filteredNodes = graphData.nodes.filter((n: any) => typeFilters[n.type] !== false);
-    const filteredIds = new Set(filteredNodes.map((n: any) => n.id));
+  // After expanding/collapsing, keep the clicked node in view.
+  useEffect(() => {
+    if (!focusId) return;
+    const n = view.nodes.find((v) => v.id === focusId.id);
+    if (!n) return;
+    const t = setTimeout(() => setCenter(n.x, n.y, { zoom: Math.max(getZoom(), 0.55), duration: 350 }), 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusId]);
 
-    const rawNodes: RawGraphNode[] = filteredNodes.map((n: any) => ({
-      id: n.id, label: n.label, type: n.type, ips: n.ips, ports: n.ports,
-      severity: n.severity, zone: n.zone,
-    }));
-    const rawEdges: RawGraphEdge[] = (graphData.edges || [])
-      .filter((e: any) => filteredIds.has(e.source) && filteredIds.has(e.target))
-      .map((e: any) => ({ source: e.source, target: e.target, label: e.label }));
-
-    const layout = computeForceLayout(rawNodes, rawEdges);
-
-    const flowNodes: Node[] = rawNodes.map((n) => {
-      const pos = layout.positions.get(n.id) || { x: 0, y: 0 };
-      const isHighlighted = highlightId === n.id || n.id.includes(searchTerm.toLowerCase());
-      return {
-        id: n.id, type: n.type, position: pos,
-        data: {
-          ...n,
-          showLabel: n.type !== "port",
-          dimmed: highlightId ? !isHighlighted : false,
-          highlighted: isHighlighted,
-        },
-      };
-    });
-
-    const edgeColors: Record<string, string> = { attack: "#F05151", "weak-cipher": "#F8B925" };
-
-    const flowEdges: Edge[] = rawEdges.map((e, i) => ({
-      id: `e-${i}`, source: e.source, target: e.target,
-      type: "straight",
-      animated: e.label === "attack",
-      style: {
-        stroke: edgeColors[e.label || ""] || "#EC3C5355",
-        strokeWidth: e.label === "attack" ? 2 : 1,
-        strokeDasharray: e.label === "attack" ? "6 3" : undefined,
-      },
-      markerEnd: { type: MarkerType.ArrowClosed, color: edgeColors[e.label || ""] || "#EC3C5355", width: 12, height: 12 },
-    }));
-
-    setNodes(flowNodes);
-    setEdges(flowEdges);
-
-    setTimeout(() => fitView({ padding: 0.15, duration: 400 }), 50);
-  }, [graphData, typeFilters, highlightId, searchTerm, fitView, setNodes, setEdges]);
-
-  const onNodeClick = useCallback((_: any, node: Node) => {
-    onNodeSelect(node);
-  }, [onNodeSelect]);
-
-  if (loading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#EC3C53" }} />
-          <p className="font-mono text-xs" style={{ color: "#EC3C5388" }}>Computing attack graph...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!graphData || !graphData.nodes?.length) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center space-y-3">
-          <Waypoints className="h-10 w-10 mx-auto" style={{ color: "#292929" }} />
-          <p className="font-mono text-xs text-muted-foreground">No graph data available</p>
-        </div>
-      </div>
-    );
-  }
+  // Level of detail: hide small labels when zoomed far out (set on the wrapper
+  // so nodes do not re-render on every zoom step).
+  useOnViewportChange({
+    onChange: (vp) => {
+      const el = wrapRef.current;
+      if (!el) return;
+      const lod = vp.zoom < 0.4 ? "far" : vp.zoom < 0.75 ? "mid" : "near";
+      if (el.dataset.lod !== lod) el.dataset.lod = lod;
+    },
+  });
 
   return (
-    <div ref={wrapRef} className="relative h-full w-full">
+    <div ref={wrapRef} className="ag-wrap relative h-full w-full" data-lod="mid">
+      <style>{LOD_CSS}</style>
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
-        minZoom={0.05}
+        nodeOrigin={[0.5, 0.5]}
+        onNodeClick={(_, n) => onNodeClick(n)}
+        onlyRenderVisibleElements
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable
+        minZoom={0.02}
         maxZoom={3}
         fitView
-        fitViewOptions={{ padding: 0.12 }}
+        fitViewOptions={{ padding: 0.25, minZoom: 0.45 }}
         proOptions={{ hideAttribution: true }}
         className="bg-transparent"
       >
@@ -472,14 +621,11 @@ function GraphCanvas({
           showZoom
           showFitView
           showInteractive={false}
+          position="bottom-right"
           className="graph-controls !rounded !border"
           style={{ borderColor: "#292929", background: "#141414dd" }}
         />
       </ReactFlow>
-
-      <AnimatePresence>
-        {selectedNode && <NodeIntelPanel node={selectedNode} onClose={() => onNodeSelect(null)} />}
-      </AnimatePresence>
     </div>
   );
 }
@@ -487,6 +633,29 @@ function GraphCanvas({
 // ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
+
+function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string; hint?: string }[]; onChange: (v: T) => void; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="flex rounded border p-0.5" style={{ borderColor: "#292929", background: "#1B1B1B" }} role="radiogroup" aria-label={label}>
+        {options.map((o) => (
+          <button
+            key={o.value}
+            role="radio"
+            aria-checked={value === o.value}
+            title={o.hint}
+            onClick={() => onChange(o.value)}
+            className={cn("rounded px-2 py-0.5 font-mono text-[10px] transition-colors", value === o.value ? "text-white" : "text-muted-foreground hover:text-foreground")}
+            style={value === o.value ? { background: `${BRAND}cc` } : undefined}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function GraphContent() {
   const { markComplete } = useChecklistAutoComplete();
@@ -497,12 +666,29 @@ function GraphContent() {
   const [loadingGraph, setLoadingGraph] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [typeFilters, setTypeFilters] = useState<Record<string, boolean>>({
-    domain: true, subdomain: true, port: true, vulnerability: true, certificate: true,
-  });
+  const [groupBy, setGroupBy] = useState<GroupBy>("risk");
+  const [layout, setLayout] = useState<LayoutMode>("radial");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [expandedHosts, setExpandedHosts] = useState<Set<string>>(new Set());
+  const [hostLimits, setHostLimits] = useState<Record<string, number>>({});
+  const [groupLimit, setGroupLimit] = useState(DEFAULT_GROUP_LIMIT);
+  const [layers, setLayers] = useState<Record<string, boolean>>({ port: true, vulnerability: true, certificate: true });
+  const [riskyOnly, setRiskyOnly] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [highlightId, setHighlightId] = useState<string | null>(null);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [matchCursor, setMatchCursor] = useState(0);
+  const [selection, setSelection] = useState<Selection>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [focusId, setFocusId] = useState<{ id: string; n: number } | null>(null);
+  const focusSeq = useRef(0);
+  const focus = (id: string) => setFocusId({ id, n: ++focusSeq.current });
+
+  useEffect(() => {
+    const p = readPrefs();
+    if (p.groupBy && GROUP_BY_OPTIONS.some((o) => o.value === p.groupBy)) setGroupBy(p.groupBy);
+    if (p.layout === "radial" || p.layout === "tree") setLayout(p.layout);
+  }, []);
+  useEffect(() => writePrefs({ groupBy, layout }), [groupBy, layout]);
 
   useEffect(() => {
     listScans({ limit: 100 })
@@ -529,47 +715,163 @@ function GraphContent() {
     } finally {
       setLoadingGraph(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (selectedScanId) fetchGraph(selectedScanId);
   }, [selectedScanId, fetchGraph]);
 
-  const nodeStats = useMemo(() => {
-    if (!graphData) return { total: 0, domains: 0, subdomains: 0, vulns: 0, critical: 0 };
-    const nodes = graphData.nodes || [];
-    return {
-      total: nodes.length,
-      domains: nodes.filter((n: any) => n.type === "domain").length,
-      subdomains: nodes.filter((n: any) => n.type === "subdomain").length,
-      vulns: nodes.filter((n: any) => n.type === "vulnerability").length,
-      critical: nodes.filter((n: any) => n.type === "vulnerability" && (n.severity === "critical" || n.severity === "high")).length,
-    };
-  }, [graphData]);
+  const index: GraphIndex | null = useMemo(() => indexGraph(graphData), [graphData]);
 
-  const toggleType = (t: string) => setTypeFilters((prev) => ({ ...prev, [t]: !prev[t] }));
+  // Reset disclosure state whenever the data or the grouping changes: open the
+  // riskiest groups so threats are visible on first paint.
+  useEffect(() => {
+    if (!index) return;
+    const groups = groupHosts(index.hosts, groupBy, index.root.label);
+    setExpandedGroups(groups.length === 1 ? new Set([groups[0].key]) : defaultExpandedGroups(groups));
+    setExpandedHosts(new Set());
+    setHostLimits({});
+    setGroupLimit(DEFAULT_GROUP_LIMIT);
+    setSelection(null);
+    setSelectedId(null);
+  }, [index, groupBy]);
 
-  const matchNode = useMemo(() => {
-    if (!search.trim() || !graphData) return null;
-    const q = search.trim().toLowerCase();
-    const found = graphData.nodes.find((n: any) => n.label?.toLowerCase().includes(q) || n.id.toLowerCase().includes(q));
-    return found ? found.id : null;
-  }, [search, graphData]);
+  // Debounce search typing.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput);
+      setMatchCursor(0);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
-  const threatLabel = nodeStats.critical > 0 ? `${nodeStats.critical} THREATS` : "No threats detected";
+  const view = useMemo(
+    () =>
+      index
+        ? buildView(index, { groupBy, layout, expandedGroups, expandedHosts, hostLimits, groupLimit, layers, riskyOnly, search })
+        : null,
+    [index, groupBy, layout, expandedGroups, expandedHosts, hostLimits, groupLimit, layers, riskyOnly, search]
+  );
+
+  const stats = useMemo(() => {
+    if (!index) return { hosts: 0, findings: 0, critical: 0 };
+    let findings = 0;
+    let critical = 0;
+    for (const h of index.hosts) {
+      findings += h.findings.length;
+      critical += h.sevCounts.critical + h.sevCounts.high;
+    }
+    return { hosts: index.hosts.length, findings, critical };
+  }, [index]);
+
+  const toggleSet = (set: Set<string>, key: string) => {
+    const next = new Set(set);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  };
+
+  const selectHost = useCallback(
+    (h: HostRecord) => {
+      if (!index || !view) return;
+      const key = groupKeyOfHost(view.groups, h.id);
+      if (key) {
+        setExpandedGroups((s) => new Set(s).add(key));
+        const g = view.groups.find((x) => x.key === key)!;
+        const pos = g.hosts.findIndex((x) => x.id === h.id);
+        if (pos >= DEFAULT_HOST_LIMIT) setHostLimits((l) => ({ ...l, [key]: Math.max(l[key] ?? DEFAULT_HOST_LIMIT, pos + 1) }));
+        const gi = view.groups.findIndex((x) => x.key === key);
+        if (gi >= groupLimit) setGroupLimit(gi + 1);
+      }
+      setSelection({ kind: "host", host: h });
+      setSelectedId(h.id);
+      focus(h.id);
+    },
+    [index, view, groupLimit]
+  );
+
+  const onNodeClick = useCallback(
+    (node: Node) => {
+      if (!index || !view) return;
+      const d = node.data as any;
+      switch (node.type) {
+        case "cluster": {
+          const g = view.groups.find((x) => x.key === d.key);
+          if (!view.searching) setExpandedGroups((s) => toggleSet(s, d.key));
+          if (g) setSelection({ kind: "group", group: g });
+          setSelectedId(node.id);
+          focus(node.id);
+          break;
+        }
+        case "host": {
+          const h = index.hostById.get(node.id);
+          if (!h) break;
+          if (h.children.length) setExpandedHosts((s) => toggleSet(s, h.id));
+          setSelection({ kind: "host", host: h });
+          setSelectedId(h.id);
+          focus(h.id);
+          break;
+        }
+        case "more":
+          setHostLimits((l) => ({ ...l, [d.key]: (l[d.key] ?? DEFAULT_HOST_LIMIT) + HOST_LIMIT_STEP }));
+          focus(groupNodeId(d.key));
+          break;
+        case "more-groups":
+          setGroupLimit((n) => n + GROUP_LIMIT_STEP);
+          break;
+        case "root":
+          setSelection(null);
+          setSelectedId(null);
+          break;
+        default:
+          setSelection({ kind: "child", data: d });
+          setSelectedId(node.id);
+      }
+    },
+    [index, view]
+  );
+
+  const expandRisky = () => {
+    if (!view) return;
+    setExpandedGroups(new Set(view.groups.filter((g) => g.worst && g.worst !== "info").map((g) => g.key)));
+    setGroupLimit(Math.max(groupLimit, view.groups.filter((g) => g.worst && g.worst !== "info").length));
+  };
+  const collapseAll = () => {
+    setExpandedGroups(new Set());
+    setExpandedHosts(new Set());
+    setHostLimits({});
+  };
+
+  const matches = view?.searching ? [...view.filteredHosts].sort((a, b) => a.label.localeCompare(b.label)) : [];
+  const onSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchInput !== search) {
+      setSearch(searchInput);
+      return;
+    }
+    if (!matches.length) return;
+    const h = matches[matchCursor % matches.length];
+    setMatchCursor((c) => c + 1);
+    selectHost(h);
+  };
+
+  const fitKey = `${selectedScanId}|${groupBy}|${layout}|${search}|${riskyOnly}|${index ? "1" : "0"}`;
+  const layerTypes = index ? ["port", "vulnerability", "certificate"].filter((t) => index.childTypes.has(t)) : [];
+  const LAYER_LABEL: Record<string, string> = { port: "Ports", vulnerability: "Findings", certificate: "Certificates" };
 
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] flex-col overflow-hidden" style={{ background: "#0B0B0B" }}>
-      {/* ── Status bar (top) ── */}
-      <div className="shrink-0 border-b px-6 py-2 flex items-center justify-between" style={{ borderColor: "#292929", background: "#141414ee" }}>
+      {/* ── Toolbar ── */}
+      <div className="shrink-0 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-6 py-2" style={{ borderColor: "#292929", background: "#141414ee" }}>
         <div className="flex items-center gap-4">
-          {/* Scan selector */}
           <select
             value={selectedScanId}
             onChange={(e) => setSelectedScanId(e.target.value)}
             disabled={loadingScans}
-            className="h-7 rounded border px-2 text-[11px] font-mono focus:outline-none"
-            style={{ borderColor: "#292929", background: "#1B1B1B", color: "#EC3C53" }}
+            className="h-7 rounded border px-2 font-mono text-[11px] focus:outline-none"
+            style={{ borderColor: "#292929", background: "#1B1B1B", color: BRAND }}
+            aria-label="Scan"
           >
             {loadingScans && <option>Loading...</option>}
             {!loadingScans && scans.length === 0 && <option>No scans</option>}
@@ -577,118 +879,168 @@ function GraphContent() {
               <option key={scan.id} value={scan.id}>{scan.domain}</option>
             ))}
           </select>
-
-          {/* Threat status */}
           <div className="flex items-center gap-2">
             <span
-              className=" text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded"
+              className="rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider"
               style={{
-                color: nodeStats.critical > 0 ? "#F05151" : "#EC3C53",
-                background: nodeStats.critical > 0 ? "#F0515115" : "#EC3C5315",
-                border: `1px solid ${nodeStats.critical > 0 ? "#F0515133" : "#EC3C5333"}`,
+                color: stats.critical > 0 ? "#F05151" : BRAND,
+                background: stats.critical > 0 ? "#F0515115" : `${BRAND}15`,
+                border: `1px solid ${stats.critical > 0 ? "#F0515133" : `${BRAND}33`}`,
               }}
             >
-              {nodeStats.critical > 0 ? "ALERT" : "SILENT"}
+              {stats.critical > 0 ? "ALERT" : "SILENT"}
             </span>
-            <span className="font-mono text-[10px] text-muted-foreground">{threatLabel}</span>
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {stats.critical > 0 ? `${stats.critical} critical/high findings` : "No critical or high findings"}
+            </span>
           </div>
         </div>
 
-        {/* Search */}
-        <form
-          onSubmit={(e) => { e.preventDefault(); setHighlightId(matchNode); }}
-          className="flex items-center gap-1.5 rounded border px-2 py-1"
-          style={{ borderColor: "#292929", background: "#1B1B1B" }}
-        >
-          <Search className="h-3 w-3" style={{ color: "#EC3C5366" }} />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search nodes..."
-            className="h-5 w-32 bg-transparent text-[10px] font-mono focus:outline-none"
-            style={{ color: "#EC3C53" }}
+        <div className="flex flex-wrap items-center gap-3">
+          <Segmented label="Group by" value={groupBy} options={GROUP_BY_OPTIONS} onChange={setGroupBy} />
+          <Segmented
+            label="Layout"
+            value={layout}
+            options={[{ value: "radial", label: "Radial" }, { value: "tree", label: "Tree" }]}
+            onChange={setLayout}
           />
-          {search.trim() && (
-            <span className="font-mono text-[9px]" style={{ color: matchNode ? "#EC3C53" : "#F0515166" }}>
-              {matchNode ? "found" : "—"}
-            </span>
-          )}
-        </form>
+          <div className="flex items-center gap-1">
+            <button onClick={expandRisky} title="Open every group that has findings" className="flex items-center gap-1 rounded border px-2 py-1 font-mono text-[10px] text-muted-foreground hover:text-foreground" style={{ borderColor: "#292929", background: "#1B1B1B" }}>
+              <Maximize2 className="h-3 w-3" /> Expand risky
+            </button>
+            <button onClick={collapseAll} title="Collapse all groups" className="flex items-center gap-1 rounded border px-2 py-1 font-mono text-[10px] text-muted-foreground hover:text-foreground" style={{ borderColor: "#292929", background: "#1B1B1B" }}>
+              <Minimize2 className="h-3 w-3" /> Collapse
+            </button>
+          </div>
+          <form onSubmit={onSearchSubmit} className="flex items-center gap-1.5 rounded border px-2 py-1" style={{ borderColor: "#292929", background: "#1B1B1B" }}>
+            <Search className="h-3 w-3" style={{ color: `${BRAND}99` }} />
+            <input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Host, IP, port, finding…"
+              className="h-5 w-44 bg-transparent font-mono text-[10px] focus:outline-none"
+              style={{ color: "#E4E4E7" }}
+              aria-label="Search the graph"
+            />
+            {search.trim() && (
+              <span className="whitespace-nowrap font-mono text-[9px]" style={{ color: matches.length ? BRAND : "#F0515188" }}>
+                {matches.length ? `${matches.length} match${matches.length === 1 ? "" : "es"} · ↵ next` : "no match"}
+              </span>
+            )}
+            {searchInput && (
+              <button type="button" onClick={() => setSearchInput("")} aria-label="Clear search" className="text-muted-foreground hover:text-foreground">
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </form>
+        </div>
       </div>
 
       {/* ── Main area ── */}
       <div className="relative flex-1 overflow-hidden">
-        {/* Filter toggles (left) */}
-        {graphData && !loadingGraph && (
-          <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 rounded border p-2" style={{ borderColor: "#292929", background: "#141414ee", backdropFilter: "blur(8px)" }}>
-            <span className=" text-[11px] text-muted-foreground uppercase mb-1">Types</span>
-            {ALL_TYPES.map((t) => {
-              const m = TYPE_META[t];
-              const on = typeFilters[t];
-              return (
-                <button
-                  key={t}
-                  onClick={() => toggleType(t)}
-                  className={cn(
-                    "flex items-center gap-1.5 rounded px-2 py-1 text-[10px] font-mono transition-all",
-                    on ? "opacity-100" : "opacity-30"
-                  )}
-                  style={{ background: on ? `${m.color}11` : "transparent" }}
-                >
-                  <span className="h-2 w-2 rounded-full" style={{ background: m.color, boxShadow: on ? `0 0 6px ${m.color}66` : "none" }} />
-                  {m.label}
-                </button>
-              );
-            })}
+        {index && !loadingGraph && (
+          <div className="absolute top-3 left-3 z-10 flex w-48 flex-col gap-2 rounded border p-2.5" style={{ borderColor: "#292929", background: "#141414ee", backdropFilter: "blur(8px)" }}>
+            <span className="text-[11px] uppercase text-muted-foreground">Show</span>
+            <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px] text-foreground">
+              <input type="checkbox" checked={riskyOnly} onChange={(e) => setRiskyOnly(e.target.checked)} className="accent-[#EC3C53]" />
+              <Flame className="h-3 w-3" style={{ color: "#F67A31" }} /> Only hosts with findings
+            </label>
+            {layerTypes.map((t) => (
+              <label key={t} className="flex cursor-pointer items-center gap-2 font-mono text-[10px] text-foreground">
+                <input type="checkbox" checked={layers[t] !== false} onChange={(e) => setLayers((l) => ({ ...l, [t]: e.target.checked }))} className="accent-[#EC3C53]" />
+                {LAYER_LABEL[t]} <span className="text-muted-foreground">(on open host)</span>
+              </label>
+            ))}
+            <div className="mt-1 border-t pt-2" style={{ borderColor: "#292929" }}>
+              <span className="text-[11px] uppercase text-muted-foreground">Severity</span>
+              <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1">
+                {(["critical", "high", "medium", "low"] as Severity[]).map((s) => (
+                  <span key={s} className="flex items-center gap-1.5 font-mono text-[10px] capitalize text-foreground/80">
+                    <span className="h-2 w-2 rounded-full" style={{ background: SEVERITY_COLOR[s] }} /> {s}
+                  </span>
+                ))}
+                <span className="flex items-center gap-1.5 font-mono text-[10px] text-foreground/80">
+                  <span className="h-2 w-2 rounded-full border" style={{ borderColor: CLEAN }} /> clean
+                </span>
+              </div>
+            </div>
+            <p className="font-mono text-[9px] leading-snug text-muted-foreground">Click a group to open it, a host to see its ports and findings.</p>
           </div>
         )}
 
-        {/* HEAT meter (bottom-left) */}
-        {graphData && !loadingGraph && (
+        {index && !loadingGraph && (
           <div className="absolute bottom-3 left-3 z-10">
-            <HeatMeter vulnCount={nodeStats.vulns} criticalCount={nodeStats.critical} />
+            <HeatMeter vulnCount={stats.findings} criticalCount={stats.critical} />
           </div>
         )}
 
-        {/* Node stats (bottom-center) */}
-        {graphData && !loadingGraph && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4 rounded border px-4 py-1.5" style={{ borderColor: "#292929", background: "#141414ee" }}>
+        {index && view && !loadingGraph && (
+          <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-4 rounded border px-4 py-1.5" style={{ borderColor: "#292929", background: "#141414ee" }}>
             <span className="font-mono text-[10px] text-muted-foreground">
-              Nodes: <span className="text-foreground">{nodeStats.total}</span>
+              Showing <span className="text-foreground">{view.nodes.length}</span> of {index.totalNodes} nodes
             </span>
-            <span className="font-mono text-[10px]" style={{ color: "#EC3C53" }}>
-              {nodeStats.domains} domains
+            <span className="font-mono text-[10px]" style={{ color: "#D4D4D8" }}>
+              {view.filteredHosts.length === stats.hosts ? `${stats.hosts} hosts` : `${view.filteredHosts.length} of ${stats.hosts} hosts`} in {view.groups.length} groups
             </span>
-            <span className="font-mono text-[10px]" style={{ color: "#06B6D4" }}>
-              {nodeStats.subdomains} subdomains
-            </span>
+            <span className="font-mono text-[10px]" style={{ color: stats.findings ? "#F67A31" : CLEAN }}>{stats.findings} findings</span>
           </div>
         )}
 
-        {/* Graph */}
         {error ? (
           <div className="flex h-full items-center justify-center">
-            <div className="text-center space-y-3">
-              <Bug className="h-8 w-8 mx-auto" style={{ color: "#F05151" }} />
+            <div className="space-y-3 text-center">
+              <Bug className="mx-auto h-8 w-8" style={{ color: "#F05151" }} />
               <p className="font-mono text-xs" style={{ color: "#F05151" }}>{error}</p>
               <Button variant="outline" size="sm" onClick={() => selectedScanId && fetchGraph(selectedScanId)} className="gap-1.5" style={{ borderColor: "#292929" }}>
                 Retry
               </Button>
             </div>
           </div>
+        ) : loadingGraph ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-6 w-6 animate-spin" style={{ color: BRAND }} />
+              <p className="font-mono text-xs" style={{ color: `${BRAND}88` }}>Computing attack graph...</p>
+            </div>
+          </div>
+        ) : !index || !view ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="space-y-3 text-center">
+              <Waypoints className="mx-auto h-10 w-10" style={{ color: "#292929" }} />
+              <p className="font-mono text-xs text-muted-foreground">No graph data available</p>
+            </div>
+          </div>
         ) : (
           <ReactFlowProvider>
-            <GraphCanvas
-              graphData={graphData}
-              loading={loadingGraph}
-              typeFilters={typeFilters}
-              searchTerm={search}
-              highlightId={highlightId}
-              onNodeSelect={setSelectedNode}
-              selectedNode={selectedNode}
-            />
+            <GraphCanvas view={view} layout={layout} fitKey={fitKey} focusId={focusId} selectedId={selectedId} onNodeClick={onNodeClick} />
+            {view.searching && view.filteredHosts.length === 0 && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <p className="rounded border px-3 py-2 font-mono text-xs text-muted-foreground" style={{ borderColor: "#292929", background: "#141414ee" }}>
+                  No host matches “{search}”
+                </p>
+              </div>
+            )}
           </ReactFlowProvider>
         )}
+
+        <AnimatePresence>
+          {selection && (
+            <IntelPanel
+              sel={selection}
+              onClose={() => {
+                setSelection(null);
+                setSelectedId(null);
+              }}
+              onPickHost={selectHost}
+              shownInGraph={
+                selection.kind === "group" && (view?.searching || expandedGroups.has(selection.group.key))
+                  ? Math.min(selection.group.hosts.length, hostLimits[selection.group.key] ?? DEFAULT_HOST_LIMIT)
+                  : undefined
+              }
+              onShowMore={(key) => setHostLimits((l) => ({ ...l, [key]: (l[key] ?? DEFAULT_HOST_LIMIT) + HOST_LIMIT_STEP }))}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
