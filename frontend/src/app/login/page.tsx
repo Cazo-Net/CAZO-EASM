@@ -3,15 +3,28 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Mail, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Loader2, Mail, Lock, Eye, EyeOff, ShieldCheck, KeyRound } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth, hasPendingTwoFactor } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { getErrorMessage } from "@/lib/api";
+import { getErrorMessage, startSso } from "@/lib/api";
 import { GoogleButton } from "@/components/auth/GoogleButton";
 import { AuthShell } from "@/components/auth/AuthShell";
+
+const SSO_ERRORS: Record<string, string> = {
+  expired: "That sign-in attempt expired. Please try again.",
+  denied: "Your identity provider did not complete the sign-in.",
+  provider:
+    "We could not confirm your identity with your provider. Please try again or contact your administrator.",
+  domain: "Your identity provider returned an email address that does not belong to this organization.",
+  no_account: "You do not have an account in this organization. Ask an administrator to invite you.",
+  other_org: "This email address already belongs to a different organization. Contact support to move it.",
+  inactive: "Your account is deactivated. Contact your administrator.",
+  seats: "Your organization has no free user seats. Contact your administrator.",
+  off: "Single sign-on is not available for this organization.",
+};
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -25,11 +38,35 @@ export default function LoginPage() {
   const { login, verifyTwoFactor, cancelTwoFactor } = useAuth();
   const router = useRouter();
 
-  // Arriving from Google sign-in on an account with 2FA (/login?step=2fa).
+  const [ssoLoading, setSsoLoading] = useState(false);
+
+  // Arriving from Google or single sign-on with 2FA (/login?step=2fa), or
+  // from a single sign-on that did not complete (/login?sso_error=...).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("step") === "2fa" && hasPendingTwoFactor()) setStep("2fa");
+    const ssoError = params.get("sso_error");
+    if (ssoError) {
+      setError(SSO_ERRORS[ssoError] || SSO_ERRORS.provider);
+      window.history.replaceState(null, "", "/login");
+    }
   }, []);
+
+  // Single sign-on needs only the work email; the identity provider does the rest.
+  const handleSso = async () => {
+    setError("");
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setError("Enter your work email first, then choose single sign-on.");
+      return;
+    }
+    setSsoLoading(true);
+    try {
+      window.location.href = await startSso(email.trim());
+    } catch (err: any) {
+      setError(getErrorMessage(err, "Single sign-on could not be started. Please try again."));
+      setSsoLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,6 +249,17 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-3 h-10 w-full"
+            onClick={handleSso}
+            disabled={ssoLoading || loading}
+          >
+            {ssoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
+            {!ssoLoading && "Sign in with SSO"}
+          </Button>
 
           <GoogleButton />
           </>

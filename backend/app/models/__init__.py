@@ -38,6 +38,8 @@ from app.models.periodic_task import PeriodicTaskState
 from app.models.v2_scanner import MonitorSchedule, ScanHistory, AssetLifecycle, NotificationTrigger
 from app.models.threat_intel import ThreatIntelMonitor, ThreatIntelFinding
 from app.models.integration import OrgIntegration, IntegrationDelivery
+from app.models.report_schedule import ReportSchedule
+from app.models.sso import OrgSsoConfig, SsoDomain, SsoLoginState
 from app.models.blockchain import (
     BlockchainWatch, BlockchainAlert, BlockchainCase, BlockchainCaseMember, BlockchainCaseEntry,
 )
@@ -60,5 +62,6 @@ __all__ = [
     "MonitorSchedule", "ScanHistory", "AssetLifecycle", "NotificationTrigger",
     "ThreatIntelMonitor", "ThreatIntelFinding",
     "OrgIntegration", "IntegrationDelivery",
+    "ReportSchedule",
     "BlockchainWatch", "BlockchainAlert", "BlockchainCase", "BlockchainCaseMember", "BlockchainCaseEntry",
 ]

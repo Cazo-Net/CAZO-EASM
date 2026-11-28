@@ -101,6 +101,19 @@ export async function loginWithGoogle(credential: string): Promise<LoginResult> 
   return data;
 }
 
+/** Finish a single sign-on: trade the one-time code from the redirect for a session. */
+export async function loginWithSso(code: string): Promise<LoginResult> {
+  const { data } = await api.post<LoginResult>("/auth/sso/exchange", { code });
+  if (!data.requires_2fa) storeTokens(data, true);
+  return data;
+}
+
+/** Start a single sign-on for a work email. Returns the identity provider URL to go to. */
+export async function startSso(email: string): Promise<string> {
+  const { data } = await api.post<{ url: string }>("/auth/sso/start", { email });
+  return data.url;
+}
+
 export function logout() {
   if (typeof window !== "undefined") {
     localStorage.removeItem("access_token");

@@ -19,6 +19,8 @@ import {
   LogOut,
   History,
   ScrollText,
+  CalendarClock,
+  KeyRound,
   Link2,
   ShieldCheck,
   ChevronRight,
@@ -57,6 +59,8 @@ import { AuditLogViewer } from "@/components/AuditLogViewer";
 import { WebhookManager } from "@/components/settings/WebhookManager";
 import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel";
 import { AuditLogPanel } from "@/components/settings/AuditLogPanel";
+import { ScheduledReportsPanel } from "@/components/settings/ScheduledReportsPanel";
+import { SsoPanel } from "@/components/settings/SsoPanel";
 import { useChecklistAutoComplete } from "@/components/onboarding/GettingStartedChecklist";
 import type { User as UserType } from "@/types";
 
@@ -87,6 +91,7 @@ const navSections: NavSection[] = [
       { id: "security", label: "Password & MFA", icon: Shield },
       { id: "security-center", label: "Security Center", icon: ShieldCheck, href: "/security-center" },
       { id: "sessions", label: "Sessions", icon: History },
+      { id: "sso", label: "Single sign-on", icon: KeyRound },
       { id: "audit-log", label: "Audit log", icon: ScrollText },
     ],
   },
@@ -97,6 +102,7 @@ const navSections: NavSection[] = [
       { id: "webhooks", label: "Webhooks", icon: Link2 },
       { id: "notifications", label: "Notifications", icon: Bell },
       { id: "integrations", label: "Integrations", icon: Link2 },
+      { id: "scheduled-reports", label: "Scheduled reports", icon: CalendarClock },
     ],
   },
   {
@@ -521,7 +527,9 @@ function SettingsContent() {
           )}
           {activeTab === "webhooks" && <WebhookManager />}
           {activeTab === "integrations" && <IntegrationsPanel />}
+          {activeTab === "sso" && <SsoPanel />}
           {activeTab === "audit-log" && <AuditLogPanel />}
+          {activeTab === "scheduled-reports" && <ScheduledReportsPanel />}
           {activeTab === "danger" && (
             <DangerTab
               showDeleteConfirm={showDeleteConfirm}

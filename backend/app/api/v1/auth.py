@@ -38,6 +38,7 @@ MAX_FAILED_PER_IP = 5
 LOGIN_PER_EMAIL_PER_MINUTE = 10
 LOCKOUT_MINUTES = 15
 RESET_TOKEN_EXPIRY_MINUTES = 30
+SSO_REQUIRED_MESSAGE = "Your organization requires single sign-on. Use \"Sign in with SSO\" on the login page."
 
 
 def find_user_by_email(db: Session, email: str):
@@ -289,6 +290,14 @@ async def login(login_data: UserLogin, request: Request, db: Session = Depends(g
 
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Inactive user")
+
+    # Organizations can require single sign-on. Checked only after the password
+    # is known to be right, so the answer does not reveal who has an account.
+    from app.services import sso
+    if sso.password_login_blocked(db, user):
+        log_auth_event(db, "login_failed", user.id, ip_address=_client_ip(request),
+                       success=False, detail={"reason": "sso_required"})
+        raise HTTPException(status_code=403, detail=SSO_REQUIRED_MESSAGE)
 
     # Second factor: no session tokens until the TOTP / recovery code is checked.
     if user.totp_enabled and user.totp_secret:
