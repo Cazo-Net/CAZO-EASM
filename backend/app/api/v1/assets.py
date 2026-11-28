@@ -273,6 +273,63 @@ async def list_whois_records(
     ]
 
 
+@router.get("/whois/location")
+async def get_domain_location(
+    domain: str = Query(..., min_length=1, max_length=255),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Where a scanned domain is: WHOIS registrant country and the hosting
+    location of each IP the latest scan saw for it.
+
+    Only domains that appear in the caller's own scans can be looked up.
+    """
+    from app.services import geo
+
+    domain = domain.strip().lower().rstrip(".")
+    scans = db.query(Scan).filter(Scan.status == "completed")
+    if current_user.organization_id:
+        scans = scans.filter(Scan.organization_id == current_user.organization_id)
+    else:
+        scans = scans.filter(Scan.created_by == current_user.id)
+    scan_ids = [s.id for s in scans.with_entities(Scan.id).all()]
+    if not scan_ids:
+        raise HTTPException(status_code=404, detail="Domain not found in your scans")
+
+    whois = (
+        db.query(WhoisRecord)
+        .filter(WhoisRecord.scan_id.in_(scan_ids), WhoisRecord.domain == domain)
+        .order_by(WhoisRecord.scanned_at.desc())
+        .first()
+    )
+    sub = (
+        db.query(Subdomain)
+        .filter(Subdomain.scan_id.in_(scan_ids), Subdomain.hostname == domain)
+        .order_by(Subdomain.discovered_at.desc())
+        .first()
+    )
+    if not whois and not sub:
+        raise HTTPException(status_code=404, detail="Domain not found in your scans")
+
+    ips: list = []
+    if sub:
+        ips.extend(sub.ip_addresses or [])
+        ips.extend(
+            r.value for r in db.query(DNSRecord)
+            .filter(DNSRecord.subdomain_id == sub.id, DNSRecord.record_type.in_(["A", "AAAA"]))
+            .all()
+        )
+
+    return {
+        "domain": domain,
+        "registrant_country": (whois.registrant_country or None) if whois else None,
+        "provider": geo.PROVIDER,
+        "token_configured": geo.configured(),
+        "scanned_at": sub.discovered_at if sub else (whois.scanned_at if whois else None),
+        "locations": geo.locate(ips),
+    }
+
+
 @router.get("/graph")
 async def get_asset_graph(
     scan_id: str,
