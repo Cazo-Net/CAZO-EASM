@@ -24,6 +24,7 @@ from app.models.webhook import Webhook, WEBHOOK_EVENT_TYPES
 from app.services.webhook_dispatch import dispatch_webhook
 from app.api.deps import get_current_user
 from app.core.permissions import require_permission, Permission
+from app.services.audit import log_user_action
 
 router = APIRouter()
 
@@ -50,6 +51,16 @@ def _validate_webhook_url(url: str) -> str:
     if not check.allowed:
         raise HTTPException(status_code=400, detail="Webhook URL must point at a public internet address, not a private, local or reserved one.")
     return url
+
+
+def _url_host(url: str) -> str:
+    """Host only: webhook URLs often carry a secret in the path or query."""
+    from urllib.parse import urlsplit
+
+    try:
+        return urlsplit(url or "").hostname or ""
+    except ValueError:
+        return ""
 
 
 # ── Schemas ─────────────────────────────────────────────────────────────────
@@ -136,6 +147,9 @@ async def create_webhook(
     db.add(webhook)
     db.commit()
     db.refresh(webhook)
+    log_user_action(db, current_user, "webhook.create", "webhook", webhook.id, {
+        "host": _url_host(webhook.url), "event_types": webhook.event_types or [], "is_active": webhook.is_active,
+    })
 
     return WebhookResponse.model_validate(webhook)
 
@@ -227,6 +241,9 @@ async def update_webhook(
 
     db.commit()
     db.refresh(webhook)
+    log_user_action(db, current_user, "webhook.update", "webhook", webhook.id, {
+        "host": _url_host(webhook.url), "updated_fields": sorted(update_data.keys()),
+    })
     return WebhookResponse.model_validate(webhook)
 
 
@@ -248,8 +265,10 @@ async def delete_webhook(
     if not webhook:
         raise HTTPException(status_code=404, detail="Webhook not found")
 
+    host = _url_host(webhook.url)
     db.delete(webhook)
     db.commit()
+    log_user_action(db, current_user, "webhook.delete", "webhook", webhook_id, {"host": host})
 
 
 @router.post("/{webhook_id}/test", response_model=WebhookTestResponse)

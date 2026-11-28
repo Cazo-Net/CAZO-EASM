@@ -37,6 +37,10 @@ class Settings(BaseSettings):
 
     # JWT
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
+    # Key that signs the audit log chain. Empty = derived from SECRET_KEY.
+    # Changing either one makes older audit entries fail verification, so set
+    # it once and keep it.
+    AUDIT_LOG_KEY: str = os.getenv("AUDIT_LOG_KEY", "")
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
@@ -139,6 +143,10 @@ class Settings(BaseSettings):
     # Email
     EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "log")  # log | smtp | resend
     EMAIL_FROM: str = os.getenv("EMAIL_FROM", "noreply@cazo.io")
+    # Support chat: where the team is told about new customer messages
+    # (comma-separated addresses). Empty = no email, messages still reach the
+    # admin panel inbox.
+    SUPPORT_NOTIFY_EMAIL: str = os.getenv("SUPPORT_NOTIFY_EMAIL", "")
     SMTP_HOST: str = os.getenv("SMTP_HOST", "localhost")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
     SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")

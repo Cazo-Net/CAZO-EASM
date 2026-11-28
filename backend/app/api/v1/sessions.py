@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.auth_models import UserSession
 from app.api.deps import get_current_user
+from app.services.audit import log_user_action
 
 router = APIRouter()
 
@@ -98,6 +99,7 @@ async def revoke_session(
         raise HTTPException(status_code=404, detail="Session not found")
     session.is_active = False
     db.commit()
+    log_user_action(db, current_user, "auth.session_revoked", "session", session_id)
     return {"message": "Session revoked"}
 
 
@@ -112,4 +114,5 @@ async def revoke_all_sessions(
         UserSession.is_active,
     ).update({"is_active": False})
     db.commit()
+    log_user_action(db, current_user, "auth.all_sessions_revoked", "user", current_user.id)
     return {"message": "All sessions revoked"}

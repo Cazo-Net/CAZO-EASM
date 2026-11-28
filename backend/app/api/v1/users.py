@@ -9,6 +9,7 @@ from app.schemas.user import UserUpdate, PasswordChange, UserProfileResponse
 from app.api.deps import get_current_user
 from app.core.security import verify_password, get_password_hash
 from app.services.notification_service import dispatch_notification
+from app.services.audit import log_event, log_user_action
 
 router = APIRouter()
 
@@ -108,6 +109,7 @@ async def change_password(
     current_user.hashed_password = get_password_hash(password_data.new_password)
     current_user.token_version = (current_user.token_version or 0) + 1
     db.commit()
+    log_user_action(db, current_user, "auth.password_changed", "user", current_user.id)
 
     # Dispatch password changed notification
     try:
@@ -174,8 +176,13 @@ async def delete_account(
         db.query(Report).filter(Report.scan_id.in_(user_scan_ids)).delete(synchronize_session=False)
         db.query(Scan).filter(Scan.id.in_(user_scan_ids)).delete(synchronize_session=False)
 
+    deleted_id, deleted_email, org_id = current_user.id, current_user.email, current_user.organization_id
     db.delete(current_user)
     db.commit()
+    if org_id:
+        log_event(db, action="user.delete_account", organization_id=org_id, actor_id=deleted_id,
+                  actor_email=deleted_email, target_type="user", target_id=deleted_id,
+                  detail={"scans_deleted": len(user_scan_ids)})
 
     return {"message": "Account deleted successfully"}
 
