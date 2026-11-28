@@ -90,7 +90,14 @@ class NmapIntelligenceScanner(EnhancedBaseScanner):
                 proc = await asyncio.create_subprocess_exec(
                     *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
                 )
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self.timeout)
+                try:
+                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self.timeout)
+                except BaseException:
+                    # Timeout or cancellation: kill nmap instead of orphaning it.
+                    if proc.returncode is None:
+                        proc.kill()
+                        await asyncio.shield(proc.wait())
+                    raise
             except FileNotFoundError:
                 return ScanResult(success=False, scanner=self.name, target=target,
                                   errors=[f"nmap binary not found: {self.binary}"])

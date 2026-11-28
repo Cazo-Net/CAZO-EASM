@@ -20,6 +20,7 @@ Design notes:
 import ipaddress
 import logging
 import re
+import secrets
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Optional
@@ -76,9 +77,10 @@ class NoopVerifier(ScopeVerifier):
 class DnsTxtScopeVerifier(ScopeVerifier):
     """Ownership verification via a DNS TXT record.
 
-    Looks for a TXT record at ``_cazo-verify.<domain>`` containing
-    ``cazo-verify=<org_slug>``.  Falls back to trusting an already-verified
-    row when DNS resolution fails (network issues, no record yet, etc.).
+    The customer publishes ``cazo-verify=<token>`` at
+    ``_cazo-verify.<domain>``, where ``<token>`` is the scope's own random
+    ``verification_token``. Lookup failures count as "not verified"; they never
+    fall back to trusting the stored flag.
     """
 
     @property
@@ -89,36 +91,59 @@ class DnsTxtScopeVerifier(ScopeVerifier):
         import dns.resolver  # type: ignore[import-untyped]
 
         if scope.scope_type not in ("domain", "wildcard"):
-            # Only domain/wildcard scopes support DNS TXT verification.
-            return bool(scope.verified)
-
-        domain = scope.value.lstrip("*.")
-        verification_name = f"_cazo-verify.{domain}"
-        expected_prefix = f"cazo-verify="
-
-        try:
-            answers = dns.resolver.resolve(verification_name, "TXT", lifetime=5)
-            for rdata in answers:
-                txt = b"".join(rdata.strings).decode("utf-8", errors="replace")
-                if txt.startswith(expected_prefix):
-                    # Optionally check org slug matches
-                    org_slug = txt[len(expected_prefix):].strip()
-                    if org_slug and scope.organization_id:
-                        from app.models.organization import Organization
-                        # We can't easily get the org slug here without a session,
-                        # so just check the prefix is present
-                        return True
-                    return True
-            # TXT record exists but doesn't match
-            logger.info("DNS TXT verification failed for %s: no matching record", domain)
             return False
-        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers, dns.resolver.Timeout):
-            # DNS lookup failed — fall back to DB verified flag
-            logger.debug("DNS TXT lookup failed for %s, falling back to DB verified flag", domain)
-            return bool(scope.verified)
-        except Exception as exc:
-            logger.warning("DNS TXT verification error for %s: %s", domain, exc)
-            return bool(scope.verified)
+        token = getattr(scope, "verification_token", None)
+        if not token:
+            return False
+
+        name = verification_record_name(scope)
+        expected = f"cazo-verify={token}"
+        try:
+            answers = dns.resolver.resolve(name, "TXT", lifetime=5)
+        except Exception as exc:  # noqa: BLE001 — NXDOMAIN, NoAnswer, timeout
+            logger.info("DNS TXT lookup for %s failed: %s", name, exc)
+            return False
+        for rdata in answers:
+            txt = b"".join(rdata.strings).decode("utf-8", errors="replace").strip()
+            if secrets.compare_digest(txt, expected):
+                return True
+        logger.info("DNS TXT verification failed for %s: no matching record", name)
+        return False
+
+
+def verification_base_domain(scope: AuthorizedScope) -> str:
+    value = _normalize_hostname(scope.value)
+    return value[2:] if value.startswith("*.") else value
+
+
+def verification_record_name(scope: AuthorizedScope) -> str:
+    return f"_cazo-verify.{verification_base_domain(scope)}"
+
+
+def ensure_verification_token(scope: AuthorizedScope) -> str:
+    if not getattr(scope, "verification_token", None):
+        scope.verification_token = secrets.token_urlsafe(24)
+    return scope.verification_token
+
+
+def verification_instructions(scope: AuthorizedScope) -> dict:
+    """What the customer must publish to prove ownership of a scope."""
+    if scope.scope_type not in ("domain", "wildcard"):
+        return {
+            "method": "manual",
+            "instructions": "IP and CIDR scopes are verified by a platform administrator.",
+        }
+    token = ensure_verification_token(scope)
+    return {
+        "method": "dns_txt",
+        "record_type": "TXT",
+        "record_name": verification_record_name(scope),
+        "record_value": f"cazo-verify={token}",
+        "instructions": (
+            f"Add a DNS TXT record named {verification_record_name(scope)} with the value "
+            f"cazo-verify={token}, then press Verify. DNS changes can take a few minutes to appear."
+        ),
+    }
 
 
 def _require_explicit_scope() -> bool:
@@ -308,3 +333,169 @@ def is_valid_scope_value(scope_type: str, value: str) -> bool:
         except ValueError:
             return False
     return False
+
+
+# ---------------------------------------------------------------------------
+# Scan-time enforcement
+# ---------------------------------------------------------------------------
+
+SCOPE_MODES = ("verified", "registered", "open")
+
+
+def scope_mode() -> str:
+    """How strictly scans are gated by authorized scopes.
+
+    * ``verified``   — target must match a scope whose ownership is proven
+                       (DNS TXT, or set by a platform admin). Strictest.
+    * ``registered`` — target must match any scope the organization added.
+                       Production default.
+    * ``open``       — no scope check (development default).
+
+    Internal and private addresses are blocked in every mode.
+    """
+    from app.config import is_production
+
+    mode = (getattr(settings, "SCOPE_ENFORCEMENT", "") or "").strip().lower()
+    if mode in SCOPE_MODES:
+        return mode
+    if getattr(settings, "REQUIRE_VERIFIED_SCOPE", False):
+        return "verified"
+    return "registered" if is_production() else "open"
+
+
+@dataclass
+class ScanAuthorization:
+    authorized: bool
+    target: str
+    reason: str = ""
+    scope_id: Optional[str] = None
+    verification: Optional[dict] = None
+
+    def as_error_detail(self) -> dict:
+        detail = {"msg": self.reason, "target": self.target}
+        if self.scope_id:
+            detail["scope_id"] = self.scope_id
+        if self.verification:
+            detail["verification"] = self.verification
+        return detail
+
+
+def _matching_scopes(db: Session, organization_id: str, target: str) -> List[AuthorizedScope]:
+    return [s for s in get_scopes_for_org(db, organization_id) if _target_matches_scope(s, target)]
+
+
+def _actor_may_register_scopes(db: Session, actor_id: Optional[str]) -> bool:
+    """Only people who can manage the organization's scopes may add one implicitly."""
+    if not actor_id:
+        return False
+    from app.core.permissions import Permission, check_custom_permission, check_permission
+    from app.models.user import User
+
+    user = db.query(User).filter(User.id == actor_id).first()
+    if not user:
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    role = getattr(user, "role", None) or ""
+    try:
+        return bool(check_custom_permission(role, Permission.MANAGE_ORG, db, user.organization_id))
+    except Exception:  # noqa: BLE001 - a permission lookup failure must not grant access
+        return check_permission(role, Permission.MANAGE_ORG)
+
+
+def _audit_auto_registered(db: Session, scope: AuthorizedScope, actor_id: Optional[str]) -> None:
+    try:
+        from app.services.audit import log_event
+
+        log_event(
+            db,
+            action="scope.create",
+            organization_id=scope.organization_id,
+            actor_id=actor_id,
+            target_type="scope",
+            target_id=scope.id,
+            detail={"scope_type": scope.scope_type, "value": scope.value, "auto_registered": True},
+        )
+    except Exception:  # noqa: BLE001 - auditing must never block the scan request
+        logger.warning("Could not write audit entry for auto-registered scope %s", scope.id, exc_info=True)
+
+
+def authorize_scan_target(
+    db: Session,
+    organization_id: Optional[str],
+    raw_target: str,
+    *,
+    actor_id: Optional[str] = None,
+    auto_register: bool = True,
+    resolve: bool = True,
+    mode: Optional[str] = None,
+) -> ScanAuthorization:
+    """Decide whether ``organization_id`` may actively scan ``raw_target``.
+
+    Called when a scan or schedule is created, and again by the worker right
+    before a scan runs (scopes can be revoked and DNS can change).
+
+    When the target is not covered and ``auto_register`` is on, an unverified
+    ``*.domain`` scope is created for the organization and the response
+    carries the DNS TXT record to publish, so the user can verify and retry
+    instead of hunting for the scopes page.
+    """
+    from app.core.target_guard import check_public_target
+
+    guard = check_public_target(raw_target, resolve=resolve)
+    if not guard.allowed:
+        return ScanAuthorization(False, guard.target, guard.reason)
+    target = guard.target
+
+    if not organization_id:
+        return ScanAuthorization(False, target, "You must belong to an organization to scan.")
+
+    mode = mode if mode in SCOPE_MODES else scope_mode()
+    if mode == "open":
+        return ScanAuthorization(True, target, "Scope enforcement is disabled (SCOPE_ENFORCEMENT=open).")
+
+    matches = _matching_scopes(db, organization_id, target)
+    if mode == "registered" and matches:
+        return ScanAuthorization(True, target, "Matched registered scope.", scope_id=matches[0].id)
+
+    verified = [s for s in matches if s.verified]
+    if verified:
+        return ScanAuthorization(True, target, "Matched verified scope.", scope_id=verified[0].id)
+
+    if matches:
+        scope = matches[0]
+    elif (
+        auto_register and mode == "verified"
+        and is_valid_scope_value("wildcard", f"*.{target}")
+        and _actor_may_register_scopes(db, actor_id)
+    ):
+        scope = AuthorizedScope(
+            organization_id=organization_id,
+            scope_type="wildcard",
+            value=f"*.{target}",
+            verified=False,
+            added_by=actor_id,
+            note="Added automatically when a scan was requested; verify ownership to enable scanning.",
+        )
+        ensure_verification_token(scope)
+        db.add(scope)
+        db.commit()
+        db.refresh(scope)
+        _audit_auto_registered(db, scope, actor_id)
+    else:
+        return ScanAuthorization(
+            False, target,
+            f"'{target}' is not in your organization's authorized scope. Add it on the Scopes page first.",
+        )
+
+    instructions = verification_instructions(scope)
+    if instructions.get("method") == "dns_txt":
+        db.commit()  # persist a freshly generated token
+    return ScanAuthorization(
+        False,
+        target,
+        f"Ownership of {verification_base_domain(scope)} is not verified yet. "
+        + instructions["instructions"],
+        scope_id=scope.id,
+        verification=instructions,
+    )

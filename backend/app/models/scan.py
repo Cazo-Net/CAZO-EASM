@@ -80,16 +80,20 @@ class Scan(Base):
 
 
 class ScanJob(Base):
-    """Database-backed job queue for the scan engine service.
+    """Durable, database-backed scan job queue.
 
-    Used instead of Celery/Redis. The scan engine polls this table with
-    SELECT FOR UPDATE SKIP LOCKED for safe concurrent access.
+    The API inserts one row per scan; scan workers (``python -m
+    app.workers.scan_worker`` or the scan-engine container) claim rows with
+    ``SELECT ... FOR UPDATE SKIP LOCKED`` so that each job runs exactly once,
+    survives restarts, and is retried with backoff. See
+    ``app/services/job_queue.py``.
     """
     __tablename__ = "scan_jobs"
     __table_args__ = (
         Index("ix_scan_jobs_status_priority", "status", "priority"),
         Index("ix_scan_jobs_org_status", "org_id", "status"),
         Index("ix_scan_jobs_created", "created_at"),
+        Index("ix_scan_jobs_claim", "status", "available_at", "priority"),
     )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -104,15 +108,29 @@ class ScanJob(Base):
     max_attempts = Column(Integer, default=2)
     worker_id = Column(Text, nullable=True)
     error_message = Column(Text, nullable=True)
+    # "v1" or "v2" — which scan service executes the job.
+    engine = Column(String(10), nullable=False, default="v1", server_default="v1")
+    # "manual", "schedule", "rescan", "api"
+    triggered_by = Column(String(20), nullable=False, default="manual", server_default="manual")
+    # Earliest time the job may be claimed (used for retry backoff).
+    available_at = Column(DateTime(timezone=True), nullable=True)
+    # Updated periodically by the worker running the job; a stale heartbeat
+    # means the worker died and the job can be retried.
+    heartbeat_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
     @property
     def scan_options(self):
-        if self.scan_options_raw:
+        raw = self.scan_options_raw
+        # The initial migration created this column as JSON, so on Postgres
+        # the driver may hand back an already-decoded dict.
+        if isinstance(raw, dict):
+            return raw
+        if raw:
             try:
-                return json.loads(self.scan_options_raw)
+                return json.loads(raw)
             except (json.JSONDecodeError, TypeError):
                 return None
         return None

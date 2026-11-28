@@ -22,6 +22,8 @@ from urllib.parse import urljoin
 import dns.resolver
 import httpx
 
+from app.core.target_guard import GUARDED_HOOKS
+
 from app.scanners.v2.base import EnhancedBaseScanner, ScanResult, ScannerPriority
 from app.scanners.v2.registry import register_scanner, ScannerCategory
 
@@ -184,6 +186,14 @@ class ExposureValidator(EnhancedBaseScanner):
         self._max_concurrent = self.config.get("max_concurrent", 10)
         self._sensitive_paths = self.config.get("sensitive_paths", _SENSITIVE_PATHS)
         self._verify_ssl = self.config.get("verify_ssl", False)
+        # Path probing and the header audit are done (with content
+        # validation, per web service) by the web-exposure scanner. These
+        # unvalidated versions flagged every 200/301/403 and duplicated it.
+        self._probe_paths = bool(self.config.get("exposure_validation_probe_paths", False))
+        self._check_headers = bool(self.config.get("exposure_validation_check_headers", False))
+        # Takeover checks walk every in-scope subdomain; give them room.
+        self.timeout = max(float(self.timeout), 180.0)
+        self.max_retries = 0
 
     def validate_target(self, target: str) -> bool:
         return bool(target and "." in target)
@@ -204,6 +214,10 @@ class ExposureValidator(EnhancedBaseScanner):
             if sub not in hosts_to_probe:
                 hosts_to_probe.append(sub)
 
+        from app.core.target_guard import filter_probe_targets
+
+        hosts_to_probe = await filter_probe_targets(hosts_to_probe, kwargs.get("root_domain") or target)
+
         # Determine which ports have HTTP services
         http_ports: list[int] = []
         for port in open_ports:
@@ -214,7 +228,7 @@ class ExposureValidator(EnhancedBaseScanner):
 
         # Build URL list
         urls_to_probe: list[str] = []
-        for host in hosts_to_probe:
+        for host in (hosts_to_probe if self._probe_paths else []):
             for port in http_ports:
                 scheme = "https" if port in (443, 8443, 9443) else "http"
                 port_suffix = "" if port in (80, 443) else f":{port}"
@@ -228,7 +242,7 @@ class ExposureValidator(EnhancedBaseScanner):
 
         async with httpx.AsyncClient(
             timeout=self.timeout,
-            follow_redirects=True,
+            follow_redirects=True, event_hooks=GUARDED_HOOKS,
             verify=self._verify_ssl,
             headers={"User-Agent": "CAZO-EASM/2.0 (Security Scanner)"},
         ) as client:
@@ -239,8 +253,8 @@ class ExposureValidator(EnhancedBaseScanner):
                     findings.append(r)
 
         # Security header check on main domain
-        header_findings = await self._check_security_headers(target)
-        findings.extend(header_findings)
+        if self._check_headers:
+            findings.extend(await self._check_security_headers(target))
 
         # Information disclosure check
         disclosure_findings = await self._check_info_disclosure(target)
@@ -255,7 +269,7 @@ class ExposureValidator(EnhancedBaseScanner):
         findings.extend(redirect_findings)
 
         # Subdomain takeover / dangling CNAME
-        takeover_findings = await self._check_subdomain_takeover(subdomains)
+        takeover_findings = await self._check_subdomain_takeover(subdomains[:200])
         findings.extend(takeover_findings)
 
         # SSRF surface mapping
@@ -366,7 +380,7 @@ class ExposureValidator(EnhancedBaseScanner):
 
         async with httpx.AsyncClient(
             timeout=15,
-            follow_redirects=True,
+            follow_redirects=True, event_hooks=GUARDED_HOOKS,
             verify=False,
             headers={"User-Agent": "CAZO-EASM/2.0 (Security Scanner)"},
         ) as client:
@@ -427,7 +441,7 @@ class ExposureValidator(EnhancedBaseScanner):
 
         async with httpx.AsyncClient(
             timeout=15,
-            follow_redirects=True,
+            follow_redirects=True, event_hooks=GUARDED_HOOKS,
             verify=False,
             headers={"User-Agent": "CAZO-EASM/2.0 (Security Scanner)"},
         ) as client:
@@ -591,7 +605,7 @@ class ExposureValidator(EnhancedBaseScanner):
 
         async with httpx.AsyncClient(
             timeout=15,
-            follow_redirects=True,
+            follow_redirects=True, event_hooks=GUARDED_HOOKS,
             verify=False,
             headers={"User-Agent": "CAZO-EASM/2.0 (Security Scanner)"},
         ) as client:
@@ -802,7 +816,7 @@ class ExposureValidator(EnhancedBaseScanner):
         """Check if a hostname returns an error page indicating it's unclaimed."""
         try:
             async with httpx.AsyncClient(
-                timeout=10, follow_redirects=True, verify=False,
+                timeout=10, follow_redirects=True, event_hooks=GUARDED_HOOKS, verify=False,
                 headers={"User-Agent": "CAZO-EASM/2.0"},
             ) as client:
                 resp = await client.get(f"https://{hostname}", timeout=8)

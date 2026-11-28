@@ -6,6 +6,7 @@ from app.models.project import Project
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
 from app.api.deps import get_current_user
+from app.core.permissions import require_permission, require_any_permission, Permission
 
 router = APIRouter()
 
@@ -53,7 +54,7 @@ async def list_projects(
 async def create_project(
     project_data: ProjectCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN))
 ):
     """Create a new project."""
     target_org_id = project_data.organization_id or current_user.organization_id
@@ -95,7 +96,7 @@ async def update_project(
     project_id: str,
     project_data: ProjectUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN))
 ):
     """Update a project."""
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -116,7 +117,7 @@ async def update_project(
 async def delete_project(
     project_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_permission(Permission.MANAGE_ASSETS))
 ):
     """Delete a project."""
     project = db.query(Project).filter(Project.id == project_id).first()

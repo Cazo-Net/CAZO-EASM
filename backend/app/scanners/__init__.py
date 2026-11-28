@@ -34,6 +34,8 @@ from app.scanners.v2.cve_intel import CVECorrelationScanner
 from app.scanners.v2.security_intel import SecurityFindingsScanner as SecurityFindingsV2
 from app.scanners.v2.cloud_buckets import CloudBucketScanner
 from app.scanners.v2.exposure_validation import ExposureValidator
+from app.scanners.v2.web_exposure import WebExposureScanner
+from app.scanners.v2.external_tools import NucleiSafeScanner
 
 
 def load_plugins() -> None:
@@ -91,4 +93,6 @@ __all__ = [
     "SecurityFindingsV2",
     "CloudBucketScanner",
     "ExposureValidator",
+    "WebExposureScanner",
+    "NucleiSafeScanner",
 ]

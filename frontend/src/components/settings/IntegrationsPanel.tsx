@@ -101,7 +101,7 @@ export function IntegrationsPanel() {
     try {
       const res = await fetch(`${API_BASE}/api/v1/integrations/status`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+          Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
         },
       });
       if (res.ok) {
@@ -138,7 +138,7 @@ export function IntegrationsPanel() {
         {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token") || ""}`,
+            Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
           },
         }
       );

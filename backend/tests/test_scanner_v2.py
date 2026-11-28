@@ -231,8 +231,15 @@ class TestV2APIRoutes:
     def test_monitor_crud(self, client, auth_headers, db_session):
         # Upgrade user to admin role so they have CREATE_SCAN permission
         from app.models.user import User
+        from app.models.organization import Organization
+        import uuid
         user = db_session.query(User).filter(User.email == auth_headers["email"]).first()
         if user:
+            # Monitors belong to an organization (and are scope-checked).
+            org = Organization(name="Mon Org", slug=f"mon-{uuid.uuid4().hex[:8]}")
+            db_session.add(org)
+            db_session.flush()
+            user.organization_id = org.id
             user.role = "admin"
             db_session.commit()
 

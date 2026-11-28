@@ -49,7 +49,7 @@ def upgrade():
     # confirming an asset promotes it to 'known'. This avoids silently marking
     # unconfirmed discoveries as authoritative inventory.
     op.execute(
-        "UPDATE assets SET inventory_status='discovered', confirmed=0 "
+        "UPDATE assets SET inventory_status='discovered', confirmed=false "
         "WHERE inventory_status IS NULL OR inventory_status=''"
     )
 

@@ -1,0 +1,7 @@
+# Lint gate for CI: only rules that catch real bugs (syntax errors, undefined
+# names, broken comparisons). Style rules are not enforced yet because the
+# existing code has thousands of style findings; widen this list gradually.
+target-version = "py312"
+
+[lint]
+select = ["E9", "F63", "F7", "F82"]

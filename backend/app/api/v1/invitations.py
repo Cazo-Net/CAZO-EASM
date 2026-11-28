@@ -152,10 +152,25 @@ async def accept_invitation(
     if current_user.organization_id != invitation.organization_id:
         from app.billing.entitlements import check_seat_available
         check_seat_available(db, invitation.organization_id, joining=True)
-    if invitation.expires_at < datetime.now(timezone.utc):
+    expires_at = invitation.expires_at
+    if expires_at is not None and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at is not None and expires_at < datetime.now(timezone.utc):
         invitation.status = "expired"
         db.commit()
         raise HTTPException(status_code=400, detail="Invitation expired")
+
+    # The invite is for one address: only the account with that email may use it.
+    if (invitation.email or "").strip().lower() != (current_user.email or "").strip().lower():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This invitation was sent to a different email address",
+        )
+    if current_user.organization_id and current_user.organization_id != invitation.organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Leave your current organization before joining another one",
+        )
 
     current_user.organization_id = invitation.organization_id
     # Defense in depth: never grant owner via invitation (ownership is only
@@ -207,7 +222,7 @@ async def revoke_invitation(
 async def resend_invitation(
     invitation_id: str,
     db: DBSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_permission(Permission.INVITE_USERS)),
 ):
     """Resend a pending invitation."""
     invitation = db.query(Invitation).filter(

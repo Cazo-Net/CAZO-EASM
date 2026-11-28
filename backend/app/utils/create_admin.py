@@ -1,4 +1,8 @@
-"""Create (or promote) the first admin user.
+"""Create (or promote) the platform admin account.
+
+The account is a "superuser": it can sign in to the admin panel and see
+platform-wide data. Its password is stored hashed in the users table, so it is
+changed like any other user password (or by running this command again).
 
 Usage:
     python -m app.utils.create_admin --email admin@example.com --password 's3cret'
@@ -8,16 +12,20 @@ environment variables (useful for non-interactive deploys):
     ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=s3cret python -m app.utils.create_admin
 
 The command is idempotent: if a user with the given email already exists it is
-promoted to the admin role (and reactivated) rather than duplicated.
+promoted to superuser (and reactivated) rather than duplicated.
 """
 import argparse
 import getpass
 import os
 import sys
 
+from sqlalchemy import func
+
 from app.database import SessionLocal, init_db
 from app.core.security import get_password_hash
 from app.models.user import User
+
+MIN_PASSWORD_LENGTH = 12
 
 
 def _resolve_credentials(args) -> tuple[str, str, str]:
@@ -30,8 +38,12 @@ def _resolve_credentials(args) -> tuple[str, str, str]:
     if not password:
         password = getpass.getpass("Admin password: ")
 
+    email = (email or "").strip().lower()
     if not email or not password:
         print("Error: both email and password are required.", file=sys.stderr)
+        sys.exit(2)
+    if len(password) < MIN_PASSWORD_LENGTH:
+        print(f"Error: the admin password must be at least {MIN_PASSWORD_LENGTH} characters.", file=sys.stderr)
         sys.exit(2)
 
     return email, password, full_name
@@ -40,19 +52,21 @@ def _resolve_credentials(args) -> tuple[str, str, str]:
 def create_admin(email: str, password: str, full_name: str) -> User:
     db = SessionLocal()
     try:
-        user = db.query(User).filter(User.email == email).first()
+        user = db.query(User).filter(func.lower(User.email) == email.lower()).first()
         if user:
-            user.role = "admin"
+            user.role = "superuser"
             user.is_active = True
             user.email_verified = True
             user.hashed_password = get_password_hash(password)
+            # Sign out any existing sessions that used the old password.
+            user.token_version = (user.token_version or 0) + 1
             action = "updated"
         else:
             user = User(
                 email=email,
                 full_name=full_name,
                 hashed_password=get_password_hash(password),
-                role="admin",
+                role="superuser",
                 is_active=True,
                 email_verified=True,
             )
@@ -68,7 +82,7 @@ def create_admin(email: str, password: str, full_name: str) -> User:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Create or promote an admin user.")
+    parser = argparse.ArgumentParser(description="Create or promote the platform admin (superuser) account.")
     parser.add_argument("--email", help="Admin email (or set ADMIN_EMAIL)")
     parser.add_argument("--password", help="Admin password (or set ADMIN_PASSWORD)")
     parser.add_argument("--full-name", help="Admin full name (or set ADMIN_FULL_NAME)")

@@ -153,7 +153,7 @@ async def run_scan_v2(
     request: ScanV2Request,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_permission(Permission.VIEW_SCAN)),
+    current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),
 ):
     """Execute a v2 scanner pipeline scan.
 
@@ -161,13 +161,16 @@ async def run_scan_v2(
     network intelligence → technology fingerprinting → certificate analysis →
     risk evaluation → graph mapping.
     """
-    from app.core.scope import check_target_authorized
+    import asyncio
+    from app.core.scope import authorize_scan_target
 
-    if not current_user.organization_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You must belong to an organization to scan.",
-        )
+    auth = await asyncio.to_thread(
+        authorize_scan_target, db, current_user.organization_id, request.domain,
+        actor_id=current_user.id,
+    )
+    if not auth.authorized:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=auth.as_error_detail())
+    request.domain = auth.target
 
     from app.billing.entitlements import check_scan_allowed
     check_scan_allowed(db, current_user.organization_id, request.domain, counts_toward_quota=False)
@@ -195,7 +198,7 @@ async def run_scan_v2(
                 included_scanners=set(request.included_scanners) if request.included_scanners else None,
                 excluded_scanners=set(request.excluded_scanners) if request.excluded_scanners else None,
             )
-    except Exception as e:
+    except Exception:
         logger.exception("Scan failed for domain %s", request.domain)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -269,11 +272,37 @@ async def scan_stream_v2(websocket: WebSocket):
 
     from app.core.security import decode_token
     payload = decode_token(token)
-    if not payload:
+    if not payload or payload.get("type", "access") != "access":
         await websocket.accept()
         await websocket.send_json({"type": "error", "message": "Invalid or expired token"})
         await websocket.close()
         return
+
+    # Same checks as the HTTP API: active user, current token version,
+    # permission to create scans, and the organization's authorized scope.
+    import app.database as _database
+    from app.core.permissions import check_custom_permission
+
+    ws_db = _database.SessionLocal()
+    try:
+        ws_user = ws_db.query(User).filter(User.id == payload.get("sub")).first()
+        token_tv = payload.get("tv")
+        if (
+            not ws_user or not ws_user.is_active
+            or (token_tv is not None and token_tv != (ws_user.token_version or 0))
+        ):
+            await websocket.accept()
+            await websocket.send_json({"type": "error", "message": "Invalid or expired token"})
+            await websocket.close()
+            return
+        if not check_custom_permission(ws_user.role, Permission.CREATE_SCAN, ws_db, ws_user.organization_id):
+            await websocket.accept()
+            await websocket.send_json({"type": "error", "message": "You do not have permission to run scans"})
+            await websocket.close()
+            return
+        ws_org_id, ws_user_id = ws_user.organization_id, ws_user.id
+    finally:
+        ws_db.close()
 
     await websocket.accept()
 
@@ -295,6 +324,26 @@ async def scan_stream_v2(websocket: WebSocket):
         await websocket.send_json({"type": "error", "message": "domain is required"})
         await websocket.close()
         return
+
+    import asyncio
+    from app.core.scope import authorize_scan_target
+
+    ws_db = _database.SessionLocal()
+    try:
+        auth = await asyncio.to_thread(
+            authorize_scan_target, ws_db, ws_org_id, domain, actor_id=ws_user_id,
+        )
+    finally:
+        ws_db.close()
+    if not auth.authorized:
+        await websocket.send_json({"type": "error", "message": auth.reason, "detail": auth.as_error_detail()})
+        await websocket.close()
+        return
+    domain = auth.target
+    try:
+        timeout = max(5, min(int(timeout), 120))
+    except (TypeError, ValueError):
+        timeout = 30
 
     from app.scanners.v2.runner import EnhancedScanRunner
     from app.scanners.v2.pipeline import PipelineStage
@@ -358,7 +407,7 @@ async def scan_stream_v2(websocket: WebSocket):
             },
         })
 
-    except Exception as e:
+    except Exception:
         try:
             await websocket.send_json({"type": "error", "message": "Scan failed"})
         except Exception:
@@ -380,7 +429,17 @@ async def create_monitor(
     db: Session = Depends(get_db),
 ):
     """Create a continuous monitoring schedule for a domain."""
+    import asyncio
+    from app.core.scope import authorize_scan_target
     from app.scanners.v2.monitoring import monitor as v2_monitor, MonitorScheduleData
+
+    auth = await asyncio.to_thread(
+        authorize_scan_target, db, current_user.organization_id, request.domain,
+        actor_id=current_user.id,
+    )
+    if not auth.authorized:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=auth.as_error_detail())
+    request.domain = auth.target
 
     schedule_data = MonitorScheduleData(
         interval_hours=request.interval_hours,
@@ -392,6 +451,7 @@ async def create_monitor(
         user_id=current_user.id,
         organization_id=getattr(current_user, "organization_id", None),
         schedule=schedule_data,
+        scan_type=request.scan_type,
     )
     db.commit()
     return MonitorResponse(
@@ -414,7 +474,9 @@ async def list_monitors(
     """List all monitoring schedules for the current user's org."""
     from app.scanners.v2.monitoring import monitor as v2_monitor
 
-    rows = v2_monitor.list_targets(db, organization_id=getattr(current_user, "organization_id", None))
+    if not current_user.organization_id:
+        return []
+    rows = v2_monitor.list_targets(db, organization_id=current_user.organization_id)
     return [
         MonitorResponse(
             id=r["id"],
@@ -439,7 +501,7 @@ async def delete_monitor(
     """Delete a monitoring schedule."""
     from app.scanners.v2.monitoring import monitor as v2_monitor
 
-    removed = v2_monitor.remove_target(db, monitor_id)
+    removed = v2_monitor.remove_target(db, monitor_id, organization_id=current_user.organization_id or "")
     if not removed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Monitor not found")
     db.commit()
@@ -491,72 +553,100 @@ class ScheduleResponse(BaseModel):
     enabled: bool
 
 
+def _schedule_out(row) -> "ScheduleResponse":
+    return ScheduleResponse(
+        id=row.id,
+        domain=row.domain,
+        interval_hours=row.interval_hours,
+        scan_type=row.scan_type,
+        enabled=bool(row.enabled),
+    )
+
+
 @router.post("/schedule", response_model=ScheduleResponse, dependencies=[Depends(schedule_plan_guard)])
 async def create_schedule(
     request: ScheduleCreateRequest,
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),
+    db: Session = Depends(get_db),
 ):
-    """Create a scheduled scan that runs automatically."""
-    import uuid
-    from app.services.scan_scheduler import get_scheduler, ScheduleConfig
+    """Create a scheduled scan that runs automatically.
 
-    schedule_id = str(uuid.uuid4())[:12]
-    config = ScheduleConfig(
-        id=schedule_id,
-        domain=request.domain,
+    Schedules are stored in the database and run by scan workers, which
+    create a normal scan (with saved results) each time one is due. The
+    first run happens on the next scheduler tick (about a minute).
+    """
+    import asyncio
+    import uuid
+    from app.core.scope import authorize_scan_target
+    from app.models.v2_scanner import MonitorSchedule
+
+    auth = await asyncio.to_thread(
+        authorize_scan_target, db, current_user.organization_id, request.domain,
+        actor_id=current_user.id,
+    )
+    if not auth.authorized:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=auth.as_error_detail())
+
+    now = datetime.now(timezone.utc)
+    row = MonitorSchedule(
+        id=str(uuid.uuid4()),
+        domain=auth.target,
         interval_hours=request.interval_hours,
-        scan_type=request.scan_type,
+        scan_type=request.scan_type if request.scan_type in ("quick", "full") else "quick",
         enabled=request.enabled,
         created_by=current_user.id,
-        organization_id=getattr(current_user, "organization_id", None),
+        organization_id=current_user.organization_id,
+        next_run_at=now,
+        created_at=now,
+        updated_at=now,
     )
-
-    scheduler = get_scheduler()
-    scheduler.add_schedule(config)
-
-    return ScheduleResponse(
-        id=schedule_id,
-        domain=request.domain,
-        interval_hours=request.interval_hours,
-        scan_type=request.scan_type,
-        enabled=request.enabled,
-    )
+    db.add(row)
+    db.commit()
+    return _schedule_out(row)
 
 
 @router.get("/schedules", response_model=List[ScheduleResponse])
 async def list_schedules(
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),
+    db: Session = Depends(get_db),
 ):
-    """List all scheduled scans."""
-    from app.services.scan_scheduler import get_scheduler
+    """List the organization's active scheduled scans."""
+    from app.models.v2_scanner import MonitorSchedule
 
-    scheduler = get_scheduler()
-    schedules = [
-        ScheduleResponse(
-            id=c.id,
-            domain=c.domain,
-            interval_hours=c.interval_hours,
-            scan_type=c.scan_type,
-            enabled=c.enabled,
+    if not current_user.organization_id:
+        return []
+    rows = (
+        db.query(MonitorSchedule)
+        .filter(
+            MonitorSchedule.organization_id == current_user.organization_id,
+            MonitorSchedule.enabled.is_(True),
         )
-        for c in scheduler._schedules.values()
-        if c.created_by == current_user.id
-    ]
-    return schedules
+        .order_by(MonitorSchedule.created_at.desc())
+        .all()
+    )
+    return [_schedule_out(r) for r in rows]
 
 
 @router.delete("/schedule/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_schedule(
     schedule_id: str,
     current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),
+    db: Session = Depends(get_db),
 ):
-    """Delete a scheduled scan."""
-    from app.services.scan_scheduler import get_scheduler
+    """Stop a scheduled scan (it is disabled, not deleted, to keep its history)."""
+    from app.models.v2_scanner import MonitorSchedule
 
-    scheduler = get_scheduler()
-    config = scheduler._schedules.get(schedule_id)
-    if not config:
+    row = (
+        db.query(MonitorSchedule)
+        .filter(
+            MonitorSchedule.id == schedule_id,
+            MonitorSchedule.organization_id == (current_user.organization_id or ""),
+            MonitorSchedule.enabled.is_(True),
+        )
+        .first()
+    )
+    if not row:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Schedule not found")
-    if config.created_by != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-    scheduler.remove_schedule(schedule_id)
+    row.enabled = False
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()

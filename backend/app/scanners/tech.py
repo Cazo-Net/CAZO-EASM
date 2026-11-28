@@ -6,6 +6,8 @@ import logging
 import re
 import httpx
 
+from app.core.target_guard import GUARDED_HOOKS
+
 logger = logging.getLogger(__name__)
 
 
@@ -149,7 +151,7 @@ class TechScanner(BaseScanner):
         used_url = None
 
         # Race HTTPS and HTTP — take the first successful response
-        async with httpx.AsyncClient(verify=False, timeout=6, follow_redirects=True) as client:
+        async with httpx.AsyncClient(verify=False, timeout=6, follow_redirects=True, event_hooks=GUARDED_HOOKS) as client:
             async def _try_url(url):
                 try:
                     r = await client.get(url)
@@ -232,7 +234,7 @@ class TechScanner(BaseScanner):
         # Second pass: path probes — ALL in parallel
         base = used_url.rsplit("/", 1)[0] if used_url else http_url
         if response.status_code < 500:
-            async with httpx.AsyncClient(verify=False, timeout=4, follow_redirects=True) as client:
+            async with httpx.AsyncClient(verify=False, timeout=4, follow_redirects=True, event_hooks=GUARDED_HOOKS) as client:
                 async def _probe(path, name):
                     try:
                         pr = await client.get(base + path)

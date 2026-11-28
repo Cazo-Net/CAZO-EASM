@@ -17,6 +17,8 @@ from app.risk_scorer import calculate_risk
 from app.config import settings
 import logging
 
+from app.core.target_guard import filter_probe_targets, probe_allowed
+
 logger = logging.getLogger(__name__)
 
 _SUBDOMAIN_CONCURRENCY = 75
@@ -238,6 +240,11 @@ class ScanRunner:
 
             async def _bounded_scan(subdomain):
                 nonlocal completed
+                # Discovered hosts are untrusted: only probe those under the
+                # authorized domain that resolve to public addresses.
+                if not await probe_allowed(subdomain, domain):
+                    counters["skipped_out_of_scope"] = counters.get("skipped_out_of_scope", 0) + 1
+                    return
                 async with sem:
                     r = await self._scan_one_subdomain(subdomain, port_mode, ports_list, domain)
                     completed += 1
@@ -290,6 +297,12 @@ class ScanRunner:
                 ok, fail = counters[ok_key], counters[fail_key]
                 total_sq = ok + fail
                 results["scanner_status"][key] = f"ok ({ok}/{total_sq} hosts)" if total_sq > 0 else "ok"
+
+            if counters.get("skipped_out_of_scope"):
+                results["scanner_status"]["scope-guard"] = (
+                    f"ok ({counters['skipped_out_of_scope']} hosts recorded but not probed: "
+                    "outside the authorized domain or not public)"
+                )
 
             # Collect zone transfer result
             zt_result = await zone_transfer_task
@@ -484,7 +497,7 @@ class ScanRunner:
                 await progress_callback(30, f"Found {len(subdomains)} subdomains")
 
             quick_ports = [80, 443, 22, 8080, 8443, 21, 25, 53, 3306, 5432]
-            scan_targets = subdomains[:20]
+            scan_targets = await filter_probe_targets(subdomains[:20], domain)
             sem = asyncio.Semaphore(20)
             counters = {"dns_ok": 0, "dns_fail": 0, "ssl_ok": 0, "ssl_fail": 0,
                         "port_ok": 0, "port_fail": 0, "tech_ok": 0, "tech_fail": 0}

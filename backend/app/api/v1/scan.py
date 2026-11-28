@@ -9,7 +9,7 @@ from app.models.vulnerability import Vulnerability
 from app.models.asset import Subdomain
 from app.models.port import Port
 from app.schemas.scan import ScanCreate, ScanResponse, ScanDetail
-from app.services.scan_service import ScanService
+from app.services.scan_service import ScanService, ScopeDenied
 from app.services.scan_dispatch import dispatch_scan
 from app.api.deps import get_current_user
 from app.core.permissions import require_permission, Permission
@@ -48,6 +48,8 @@ async def create_scan(
     service = ScanService(db)
     request_id = request.headers.get("x-request-id")
     engine = request.headers.get("x-scan-engine", "v2").lower()
+    if engine not in ("v1", "v2"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Scan-Engine must be v1 or v2")
 
     try:
         scan = await service.create_scan(
@@ -60,6 +62,11 @@ async def create_scan(
             request_id=request_id,
             engine=engine,
         )
+    except ScopeDenied as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=exc.authorization.as_error_detail(),
+        )
     except PermissionError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -68,9 +75,9 @@ async def create_scan(
 
     if engine == "v2":
         from app.services.scan_dispatch import dispatch_scan_v2
-        dispatch_scan_v2(scan.id, background_tasks)
+        dispatch_scan_v2(scan.id, background_tasks, db=db)
     else:
-        dispatch_scan(scan.id, background_tasks)
+        dispatch_scan(scan.id, background_tasks, db=db)
 
     return scan
 
@@ -320,28 +327,56 @@ async def rerun_scan(
 
     service = ScanService(db)
 
-    stored_options = None
-    if scan.scan_options:
-        try:
-            import json
-            stored_options = json.loads(scan.scan_options)
-        except (json.JSONDecodeError, TypeError):
-            pass
+    # ``scan_options`` is already decoded by the model property.
+    stored_options = scan.scan_options if isinstance(scan.scan_options, dict) else None
+    engine = getattr(scan, "engine", None) or "v1"
 
-    new_scan = await service.create_scan(
-        domain=scan.domain,
-        user_id=current_user.id,
-        scan_type=scan.scan_type.value if hasattr(scan.scan_type, 'value') else scan.scan_type,
-        scan_options=stored_options,
-        project_id=scan.project_id,
-        organization_id=current_user.organization_id,
-        engine=getattr(scan, 'engine', 'v1'),
-    )
+    try:
+        new_scan = await service.create_scan(
+            domain=scan.domain,
+            user_id=current_user.id,
+            scan_type=scan.scan_type.value if hasattr(scan.scan_type, 'value') else scan.scan_type,
+            scan_options=stored_options,
+            project_id=scan.project_id,
+            organization_id=current_user.organization_id,
+            engine=engine,
+        )
+    except ScopeDenied as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=exc.authorization.as_error_detail())
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
 
-    if getattr(scan, 'engine', 'v1') == "v2":
+    if engine == "v2":
         from app.services.scan_dispatch import dispatch_scan_v2
-        dispatch_scan_v2(new_scan.id, background_tasks)
+        dispatch_scan_v2(new_scan.id, background_tasks, triggered_by="rescan", db=db)
     else:
-        dispatch_scan(new_scan.id, background_tasks)
+        dispatch_scan(new_scan.id, background_tasks, triggered_by="rescan", db=db)
 
     return new_scan
+
+
+@router.post("/{scan_id}/cancel", response_model=ScanResponse)
+async def cancel_scan(
+    scan_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(Permission.CREATE_SCAN)),
+):
+    """Cancel a queued or running scan.
+
+    A queued scan is removed from the queue immediately. A running scan is
+    stopped by its worker at the next heartbeat (within about 30 seconds).
+    """
+    from app.services.job_queue import cancel_scan_jobs
+
+    scan = db.query(Scan).filter(Scan.id == scan_id).first()
+    _assert_scan_access(db, scan, current_user)
+    if scan.status not in ("pending", "queued", "running"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Scan is already {scan.status}")
+
+    cancel_scan_jobs(db, scan.id, reason=f"Cancelled by {current_user.id}")
+    scan.status = "cancelled"
+    scan.completed_at = datetime.now(timezone.utc)
+    scan.error_message = "Cancelled by user"
+    db.commit()
+    db.refresh(scan)
+    return scan

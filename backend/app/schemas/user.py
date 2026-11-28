@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional, Dict, Any
 from datetime import datetime
 import re
@@ -6,7 +6,14 @@ import re
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
+    # Required when changing the email address.
+    current_password: Optional[str] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _norm_email(cls, v):
+        return v.strip().lower() if isinstance(v, str) else v
 
 
 class PasswordChange(BaseModel):

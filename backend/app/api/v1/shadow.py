@@ -13,6 +13,7 @@ from app.schemas.shadow import (
     ShadowListResponse,
 )
 from app.api.deps import get_current_user
+from app.core.permissions import require_any_permission, Permission
 from app.services.shadow_assets import detect_shadow_assets, review_shadow_asset
 
 logger = logging.getLogger(__name__)
@@ -72,7 +73,7 @@ async def review_asset(
     asset_id: str,
     payload: ShadowReviewRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN)),
 ):
     """Apply a review decision (confirm / reject / investigate) to an asset."""
     org_id = _org_id(current_user)

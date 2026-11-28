@@ -1,22 +1,23 @@
 """Models for v2 scanner tables — monitor_schedules, scan_history, asset_lifecycle, notification_triggers."""
 from datetime import datetime, timezone
 from sqlalchemy import (
-    Column, String, Integer, Float, Boolean, Text, DateTime, ForeignKey, func
+    Column, String, Integer, Float, Boolean, Text, DateTime, ForeignKey, Index, func
 )
 from app.database import Base
 
 
 class MonitorSchedule(Base):
     __tablename__ = "monitor_schedules"
+    __table_args__ = (Index("ix_monitor_schedules_due", "enabled", "next_run_at"),)
 
     id = Column(String(36), primary_key=True)
     domain = Column(String(255), nullable=False, index=True)
     interval_hours = Column(Integer, nullable=False, default=24)
     scan_type = Column(String(20), nullable=False, default="quick")
     enabled = Column(Boolean, nullable=False, default=True)
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
     last_run_at = Column(DateTime(timezone=True), nullable=True)
     next_run_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -33,9 +34,9 @@ class ScanHistory(Base):
     status = Column(String(20), nullable=False, default="pending")
     triggered_by = Column(String(20), nullable=False, default="manual")
     monitor_schedule_id = Column(String(36), nullable=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
-    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True)
     subdomains_found = Column(Integer, default=0)
     open_ports_found = Column(Integer, default=0)
     technologies_found = Column(Integer, default=0)
@@ -62,7 +63,7 @@ class AssetLifecycle(Base):
     last_seen_at = Column(DateTime(timezone=True), server_default=func.now())
     removed_at = Column(DateTime(timezone=True), nullable=True)
     scan_history_id = Column(String(36), nullable=True)
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True)
     metadata_json = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -78,8 +79,8 @@ class NotificationTrigger(Base):
     threshold = Column(Integer, default=1)
     enabled = Column(Boolean, nullable=False, default=True)
     notification_method = Column(String(20), nullable=False, default="email")
-    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
+    created_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    organization_id = Column(String(36), ForeignKey("organizations.id"), nullable=True)
     last_triggered_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now())

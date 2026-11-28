@@ -21,7 +21,7 @@ import {
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { createScan, getScan } from "@/lib/api";
+import { createScan, getErrorMessage, getScan } from "@/lib/api";
 import type { ScanDetail } from "@/types";
 import { CazoLogo } from "@/components/marketing/CazoLogo";
 
@@ -75,8 +75,7 @@ function FirstScanContent() {
       await updateOnboardingState({ first_scan_id: result.id });
     } catch (e: any) {
       setError(
-        e?.response?.data?.detail ||
-          "Couldn't start the scan. You can try again or skip to the dashboard."
+        getErrorMessage(e, "Couldn't start the scan. You can try again or skip to the dashboard.")
       );
     } finally {
       setCreating(false);
