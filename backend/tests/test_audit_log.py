@@ -35,7 +35,7 @@ def _actions(client, h, **params):
 def test_actions_are_recorded_with_actor_ip_and_agent(client):
     h = _owner_with_org(client, "owner@acme.io", "Acme")
     hdr = {**h, "User-Agent": "pytest-agent/1.0", "X-Forwarded-For": "203.0.113.9"}
-    r = client.post("/api/v1/webhooks", headers=hdr, json={"url": "https://8.8.8.8/hook?secret=abc"})
+    r = client.post("/api/v1/webhooks", headers=hdr, json={"url": "https://8.8.8.8/hook?secret=not-a-hex-secret"})
     assert r.status_code == 201, r.text
     wid = r.json()["id"]
     assert client.delete(f"/api/v1/webhooks/{wid}", headers=hdr).status_code == 204
@@ -50,7 +50,7 @@ def test_actions_are_recorded_with_actor_ip_and_agent(client):
     assert created["target_id"] == wid
     # Only the host is kept: the URL's secret must not reach the log.
     assert created["detail"]["host"] == "8.8.8.8"
-    assert "abc" not in json.dumps(created)
+    assert "not-a-hex-secret" not in json.dumps(created)
     assert created["hash"] and created["seq"]
 
 
