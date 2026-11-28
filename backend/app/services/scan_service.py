@@ -123,6 +123,10 @@ class ScanService:
             raise ScopeDenied(auth)
         domain = auth.target
 
+        # Plan allowance: root domains, hosts and monthly scans (HTTP 402 if over).
+        from app.billing.entitlements import check_scan_allowed
+        check_scan_allowed(self.db, organization_id, domain)
+
         # Store scan_options as JSON string if provided
         scan_options_json = json.dumps(scan_options) if scan_options else None
 

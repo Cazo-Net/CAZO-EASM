@@ -507,6 +507,19 @@ app.include_router(webhooks.router, prefix="/api/v1/webhooks", tags=["Webhooks"]
 app.include_router(integrations.router, prefix="/api/v1/integrations", tags=["Integrations"])
 
 
+# Billing: plans, checkout, Stripe webhooks; plan limits answer HTTP 402.
+from app.api.v1 import billing  # noqa: E402
+from app.billing.entitlements import PlanLimitExceeded  # noqa: E402
+
+app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
+
+
+@app.exception_handler(PlanLimitExceeded)
+async def plan_limit_handler(request: Request, exc: PlanLimitExceeded):
+    """Plan limits are a payment matter, not a permission one: HTTP 402."""
+    return JSONResponse(status_code=402, content={"detail": exc.as_detail()})
+
+
 # API docs (only in debug mode)
 if settings.DEBUG:
     from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html

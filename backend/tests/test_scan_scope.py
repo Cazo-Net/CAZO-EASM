@@ -206,6 +206,13 @@ class TestDnsTxtVerifier:
 
 
 class TestScanApiEnforcement:
+    @pytest.fixture(autouse=True)
+    def _no_plan_limits(self, monkeypatch):
+        # These tests cover scope/scheduling, not billing; the Trial plan's
+        # scan-frequency limit would otherwise reject their 6-hour schedules.
+        from app.config import settings
+        monkeypatch.setattr(settings, "BILLING_ENFORCE_LIMITS", False)
+
     def test_unverified_domain_gets_403_with_txt_record(self, client, org_user, verified_mode):
         resp = client.post("/api/v1/scans", headers=org_user["headers"],
                            json={"domain": "example.com", "scan_type": "quick"})
