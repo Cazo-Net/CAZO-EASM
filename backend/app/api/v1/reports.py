@@ -9,6 +9,7 @@ from app.models.user import User
 from app.api.deps import get_current_user
 from app.core.permissions import require_permission, Permission
 from app.services.report_service import ReportService
+from app.services.audit import log_user_action
 import logging
 import os
 
@@ -71,6 +72,7 @@ async def generate_report(
     db.add(report)
     db.commit()
     db.refresh(report)
+    log_user_action(db, current_user, "report.generate", "report", report.id, {"scan_id": scan_id, "format": format})
 
     return {
         "id": report.id,
@@ -143,6 +145,7 @@ async def download_report(
     _assert_report_access(db, report, current_user)
 
     if report.file_path and os.path.exists(report.file_path):
+        log_user_action(db, current_user, "report.download", "report", report_id, {"format": report.format})
         media_types = {
             "json": "application/json",
             "csv": "text/csv",
@@ -174,7 +177,9 @@ async def delete_report(
             import logging
             logging.getLogger(__name__).warning("Failed to delete report file %s: %s", report.file_path, exc)
 
+    scan_id, fmt = report.scan_id, report.format
     db.delete(report)
     db.commit()
+    log_user_action(db, current_user, "report.delete", "report", report_id, {"scan_id": scan_id, "format": fmt})
 
     return {"message": "Report deleted successfully"}

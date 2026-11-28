@@ -19,6 +19,7 @@ from app.core.permissions import SYSTEM_ROLES
 from app.services.audit import log_auth_event
 from app.services.email import get_email_service
 from app.services.email import templates
+from app.services.audit import log_user_action
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +215,10 @@ async def revoke_invitation(
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
     invitation.status = "revoked"
+    invited_email, invited_role = invitation.email, invitation.role
     db.commit()
+    log_user_action(db, current_user, "member.invitation_revoked", "invitation", invitation_id,
+                    {"email": invited_email, "role": invited_role})
     return {"message": "Invitation revoked"}
 
 

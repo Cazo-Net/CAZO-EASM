@@ -25,6 +25,7 @@ from app.database import get_db
 from app.models.user import User
 from app.core.permissions import require_permission, Permission
 from app.billing.guards import schedule_plan_guard
+from app.services.audit import log_user_action
 
 router = APIRouter()
 
@@ -602,6 +603,9 @@ async def create_schedule(
     )
     db.add(row)
     db.commit()
+    log_user_action(db, current_user, "scan.schedule.create", "schedule", row.id, {
+        "domain": row.domain, "interval_hours": row.interval_hours,
+    })
     return _schedule_out(row)
 
 
@@ -650,3 +654,4 @@ async def delete_schedule(
     row.enabled = False
     row.updated_at = datetime.now(timezone.utc)
     db.commit()
+    log_user_action(db, current_user, "scan.schedule.delete", "schedule", schedule_id, {"domain": row.domain})

@@ -276,7 +276,7 @@ async def update_member_role(
         actor_id=current_user.id,
         target_type="user",
         target_id=user_id,
-        detail={"old_role": old_role, "new_role": role_data.role},
+        detail={"email": target_user.email, "old_role": old_role, "new_role": role_data.role},
     )
 
     return target_user

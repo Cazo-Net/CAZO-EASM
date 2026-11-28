@@ -18,6 +18,7 @@ import {
   Check,
   LogOut,
   History,
+  ScrollText,
   Link2,
   ShieldCheck,
   ChevronRight,
@@ -55,6 +56,7 @@ import { cn } from "@/lib/utils";
 import { AuditLogViewer } from "@/components/AuditLogViewer";
 import { WebhookManager } from "@/components/settings/WebhookManager";
 import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel";
+import { AuditLogPanel } from "@/components/settings/AuditLogPanel";
 import { useChecklistAutoComplete } from "@/components/onboarding/GettingStartedChecklist";
 import type { User as UserType } from "@/types";
 
@@ -85,6 +87,7 @@ const navSections: NavSection[] = [
       { id: "security", label: "Password & MFA", icon: Shield },
       { id: "security-center", label: "Security Center", icon: ShieldCheck, href: "/security-center" },
       { id: "sessions", label: "Sessions", icon: History },
+      { id: "audit-log", label: "Audit log", icon: ScrollText },
     ],
   },
   {
@@ -518,6 +521,7 @@ function SettingsContent() {
           )}
           {activeTab === "webhooks" && <WebhookManager />}
           {activeTab === "integrations" && <IntegrationsPanel />}
+          {activeTab === "audit-log" && <AuditLogPanel />}
           {activeTab === "danger" && (
             <DangerTab
               showDeleteConfirm={showDeleteConfirm}

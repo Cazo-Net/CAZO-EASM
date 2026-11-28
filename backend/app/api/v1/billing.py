@@ -28,6 +28,7 @@ from app.database import get_db
 from app.models.billing import BillingInvoice, BillingSubscription
 from app.models.organization import Organization
 from app.models.user import User
+from app.services.audit import log_event, log_user_action
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -227,11 +228,15 @@ async def create_checkout(
     current_user: User = Depends(require_permission(Permission.MANAGE_ORG)),
 ):
     org = _org(db, current_user)
-    return _stripe_call(
+    result = _stripe_call(
         svc.create_checkout_session, db, org, current_user.email,
         plan_id=req.plan, interval=req.interval, quantity=req.clients,
         extra_domains=req.extra_domains, payment=req.payment,
     )
+    log_user_action(db, current_user, "billing.checkout_started", "subscription", detail={
+        "plan": req.plan, "interval": req.interval, "clients": req.clients, "extra_domains": req.extra_domains,
+    })
+    return result
 
 
 @router.get("/checkout/{session_id}")
@@ -338,6 +343,7 @@ async def cancel_subscription(
 ):
     org = _org(db, current_user)
     sub = _stripe_call(svc.set_cancel_at_period_end, db, get_subscription(db, org.id), True)
+    log_user_action(db, current_user, "billing.cancel_requested", "subscription", detail={"plan": sub.plan})
     return {"cancel_at_period_end": sub.cancel_at_period_end, "current_period_end": sub.current_period_end}
 
 
@@ -348,6 +354,7 @@ async def resume_subscription(
 ):
     org = _org(db, current_user)
     sub = _stripe_call(svc.set_cancel_at_period_end, db, get_subscription(db, org.id), False)
+    log_user_action(db, current_user, "billing.cancel_withdrawn", "subscription", detail={"plan": sub.plan})
     return {"cancel_at_period_end": sub.cancel_at_period_end, "current_period_end": sub.current_period_end}
 
 
@@ -382,5 +389,10 @@ async def set_manual_plan(
     sub.note = req.note
     org.plan = plan.id
     db.commit()
+    # Recorded in the customer's log, attributed to platform staff.
+    log_event(db, action="billing.plan_set_by_staff", organization_id=org.id, actor_id=current_user.id,
+              actor_type="staff", target_type="subscription",
+              detail={"plan": plan.id, "clients": req.clients, "extra_domains": req.extra_domains,
+                      "period_end": req.period_end.isoformat() if req.period_end else None})
     ent = get_entitlement(db, org.id)
     return {"organization_id": org.id, "plan": plan.id, "limits": ent.limits, "period_end": req.period_end}
