@@ -117,6 +117,14 @@ class Settings(BaseSettings):
     SCAN_HEARTBEAT_SECONDS: int = int(os.getenv("SCAN_HEARTBEAT_SECONDS", "30"))
     SCAN_TIMEOUT_QUICK_MINUTES: int = int(os.getenv("SCAN_TIMEOUT_QUICK_MINUTES", "10"))
     SCAN_TIMEOUT_FULL_MINUTES: int = int(os.getenv("SCAN_TIMEOUT_FULL_MINUTES", "45"))
+    # Scan depth (app/scanners/v2/profiles.py). Full scans use "standard";
+    # a scan can ask for "deep" through scan_options.depth.
+    # Optional open-source tools, used only when the binary is installed.
+    # nuclei stays off until the person running the platform turns it on;
+    # it runs non-intrusive templates only (see external_tools.py).
+    SCAN_ENABLE_NUCLEI: bool = os.getenv("SCAN_ENABLE_NUCLEI", "false").lower() in ("1", "true", "yes")
+    NUCLEI_RATE_LIMIT: int = int(os.getenv("NUCLEI_RATE_LIMIT", "10"))
+    SCAN_ENABLE_SUBFINDER: bool = os.getenv("SCAN_ENABLE_SUBFINDER", "true").lower() in ("1", "true", "yes")
     # Periodic jobs (scheduled scans, SSL expiry, weekly digest, CVE sync)
     # run inside scan workers; turn off if you run Celery beat instead.
     RUN_PERIODIC_TASKS: bool = os.getenv("RUN_PERIODIC_TASKS", "true").lower() in ("1", "true", "yes")

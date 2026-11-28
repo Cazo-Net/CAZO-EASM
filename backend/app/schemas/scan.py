@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
 from enum import Enum
 from app.utils.validators import validate_domain
@@ -17,6 +17,9 @@ class ScanOptions(BaseModel):
     port_mode: str = "full"
     include_nuclei: bool = True
     subdomain_tools: List[str] = ["default", "subfinder", "amass"]
+    # Scan depth profile (see app/scanners/v2/profiles.py). Unset: quick scans
+    # use "quick", full scans use "standard".
+    depth: Optional[Literal["quick", "standard", "deep"]] = None
 
 
 class ScanCreate(BaseModel):

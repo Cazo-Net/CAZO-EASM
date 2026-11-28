@@ -87,6 +87,7 @@ class EnhancedScanRunner:
         result = {
             "domain": domain,
             "scan_type": "full",
+            "profile": cfg.get("profile"),
             "duration_ms": round(total_duration, 2),
             "pipeline": pipeline_result.to_dict(),
             "risk_score": risk_result,
@@ -103,15 +104,17 @@ class EnhancedScanRunner:
         config: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Execute a lightweight quick scan."""
+        from app.scanners.v2.profiles import resolve_profile
+
         quick_config = {
+            **resolve_profile("quick").to_config(),
             "timeout": 10,
             "max_retries": 1,
             "scan_type": "quick",
-            "top_ports": [80, 443, 8080, 8443],
             "scanner_concurrency": 5,
-            "max_concurrency": 500,
             **(config or {}),
         }
+        quick_config.setdefault("pipeline_timeout", quick_config.get("pipeline_timeout_s", 300))
 
         # Only run essential stages
         essential_stages = [
@@ -148,77 +151,9 @@ class EnhancedScanRunner:
         domain: str,
     ) -> Dict[str, Any]:
         """Transform pipeline scanner-by-scanner results into data-type-keyed format."""
-        transformed: Dict[str, Any] = {
-            "subdomains": [],
-            "ports": {},
-            "dns": {},
-            "technologies": {},
-            "certificates": {},
-            "whois": None,
-            "vulnerabilities": [],
-        }
+        from app.scanners.v2.normalize import transform_pipeline_results
 
-        for stage_name, stage_result in pipeline_result.stages.items():
-            for scanner_name, sr in stage_result.scanner_results.items():
-                if not sr.success or not sr.data:
-                    continue
-                data = sr.data
-
-                # Asset discovery -> subdomains list
-                if scanner_name in ("advanced-asset-discovery", "subdomain-intelligence"):
-                    subs = data.get("subdomains", data.get("discovered_subdomains", []))
-                    if isinstance(subs, list):
-                        transformed["subdomains"].extend(subs)
-                    elif isinstance(subs, dict):
-                        transformed["subdomains"].extend(subs.keys())
-
-                # Network intelligence -> ports
-                elif scanner_name == "network-intelligence":
-                    hosts = data.get("hosts", data.get("services", {}))
-                    if isinstance(hosts, dict):
-                        for host, port_list in hosts.items():
-                            if isinstance(port_list, list):
-                                transformed["ports"][host] = port_list
-                    elif isinstance(hosts, list):
-                        for item in hosts:
-                            if isinstance(item, dict):
-                                host = item.get("host", item.get("hostname", ""))
-                                port_list = item.get("ports", item.get("open_ports", []))
-                                if host and port_list:
-                                    transformed["ports"][host] = port_list
-
-                # Technology fingerprint -> technologies
-                elif scanner_name == "technology-intelligence":
-                    hosts = data.get("hosts", data.get("technologies", {}))
-                    if isinstance(hosts, dict):
-                        for host, techs in hosts.items():
-                            if isinstance(techs, list):
-                                transformed["technologies"][host] = techs
-                    elif isinstance(hosts, list):
-                        for item in hosts:
-                            if isinstance(item, dict):
-                                host = item.get("host", item.get("hostname", ""))
-                                techs = item.get("technologies", [])
-                                if host and techs:
-                                    transformed["technologies"][host] = techs
-
-                # Certificate intelligence -> certificates
-                elif scanner_name == "certificate-intelligence":
-                    certs = data.get("certificates", data.get("hosts", {}))
-                    if isinstance(certs, dict):
-                        for host, cert in certs.items():
-                            transformed["certificates"][host] = cert
-
-                # DNS intelligence -> dns records
-                elif "dns" in scanner_name.lower():
-                    hosts = data.get("hosts", data.get("dns", {}))
-                    if isinstance(hosts, dict):
-                        transformed["dns"].update(hosts)
-
-        # Deduplicate subdomains
-        transformed["subdomains"] = sorted(set(transformed["subdomains"]))
-
-        return transformed
+        return transform_pipeline_results(pipeline_result, domain)
 
     def _build_summary(
         self,
@@ -249,8 +184,17 @@ class EnhancedScanRunner:
                 if isinstance(techs, list):
                     tech_count += len(techs)
 
+        vulns = all_data.get("vulnerabilities", []) or []
+        by_sev: Dict[str, int] = {}
+        for v in vulns:
+            sev = v.get("severity", "unknown") if isinstance(v, dict) else "unknown"
+            by_sev[sev] = by_sev.get(sev, 0) + 1
+
         return {
             "total_subdomains": sub_count,
+            "total_findings": len(vulns),
+            "findings_by_severity": by_sev,
+            "total_web_services": len(all_data.get("http_services", []) or []),
             "total_open_ports": open_ports,
             "total_technologies": tech_count,
             "risk_score": risk_result.get("risk_score", 0),

@@ -12,7 +12,7 @@ import asyncio
 import re
 import json
 import logging
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 import httpx
 
@@ -41,6 +41,13 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
     category = ScannerCategory.ASSET_DISCOVERY
     priority = ScannerPriority.CRITICAL
 
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        super().__init__(config)
+        # Passive sources (crt.sh, subfinder) routinely take longer than the
+        # generic 30s scanner timeout, which used to discard every result.
+        self.timeout = max(float(self.timeout), 240.0)
+        self.max_retries = min(self.max_retries, 1)
+
     async def scan(self, target: str, **kwargs) -> ScanResult:
         all_subdomains: Set[str] = {target}
         source_counts: Dict[str, int] = {}
@@ -62,6 +69,8 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
                 "google_dns": self._google_dns(target, client),
                 "dns_bruteforce": self._dns_bruteforce(target),
             }
+            from app.scanners.v2.external_tools import subfinder_subdomains
+            tasks["subfinder"] = subfinder_subdomains(target)
 
             results = await asyncio.gather(
                 *tasks.values(), return_exceptions=True
@@ -227,6 +236,23 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
                 pass
         return list(subdomains)
 
+    async def _wildcard_ips(self, domain: str) -> Set[str]:
+        """Addresses a random label resolves to (empty if no wildcard DNS)."""
+        import secrets
+        import dns.resolver
+
+        ips: Set[str] = set()
+        loop = asyncio.get_running_loop()
+        for _ in range(2):
+            name = f"cazo-{secrets.token_hex(5)}.{domain}"
+            try:
+                answers = await asyncio.wait_for(
+                    loop.run_in_executor(None, lambda n=name: dns.resolver.resolve(n, "A")), timeout=3.0)
+                ips.update(str(r) for r in answers)
+            except Exception:
+                pass
+        return ips
+
     async def _dns_bruteforce(self, domain: str) -> Set[str]:
         common_prefixes = [
             "www", "mail", "ftp", "smtp", "ns1", "ns2", "ns3", "ns4", "ns5",
@@ -301,6 +327,9 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
 
         found: Set[str] = set()
         semaphore = asyncio.Semaphore(50)
+        # With wildcard DNS every guess "resolves"; keep only names that point
+        # somewhere other than the wildcard.
+        wildcard = await self._wildcard_ips(domain)
 
         async def _check_prefix(prefix: str) -> Optional[str]:
             async with semaphore:
@@ -308,17 +337,20 @@ class AdvancedAssetDiscoveryScanner(EnhancedBaseScanner):
                 try:
                     import dns.resolver
                     loop = asyncio.get_running_loop()
-                    await asyncio.wait_for(
+                    answers = await asyncio.wait_for(
                         loop.run_in_executor(
                             None, lambda: dns.resolver.resolve(hostname, "A")
                         ),
                         timeout=3.0,
                     )
+                    ips = {str(r) for r in answers}
+                    if wildcard and ips <= wildcard:
+                        return None
                     return hostname
                 except Exception:
                     return None
 
-        tasks = [_check_prefix(p) for p in common_prefixes]
+        tasks = [_check_prefix(p) for p in dict.fromkeys(common_prefixes)]
         results = await asyncio.gather(*tasks)
         for r in results:
             if isinstance(r, str):
