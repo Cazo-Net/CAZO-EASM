@@ -403,15 +403,13 @@ def test_osint_lookup_requires_scope(client, verified_mode, org_user, monkeypatc
     assert r.status_code == 200 and called == ["mine.com"]
 
 
-def test_osint_sockets_refuse_internal_hosts(public_dns):
+def test_osint_engine_has_no_live_probes():
+    """The OSINT lookup is passive: the socket-level probes are gone entirely
+    (the target is contacted only by the scan engines). See test_osint_engine."""
     from app.services import osint
 
-    public_dns["intra.acme.com"] = ["10.9.9.9"]
-    osint._connectable.cache_clear()
-    assert osint._probe_port("intra.acme.com", 80).state == "filtered"
-    assert osint._probe_port("127.0.0.1", 80).state == "filtered"
-    assert osint._grab_cert_sans("169.254.169.254") is None
-    osint._connectable.cache_clear()
+    for name in ("_probe_port", "_grab_cert_sans", "_run_live_checks"):
+        assert not hasattr(osint, name)
 
 
 def test_osint_import_needs_asset_or_scan_permission(client, verified_mode, org_user):

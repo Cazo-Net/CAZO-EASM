@@ -138,7 +138,7 @@ def _upsert_vuln(
         matched_at=vuln.get("matched_at") or "osint",
         description=vuln.get("description") or "",
         reference=vuln.get("reference") or [],
-        tags=["osint", "nvd"] + (["kev"] if vuln.get("is_kev") else []),
+        tags=list(vuln.get("tags") or ["osint"]) + (["kev"] if vuln.get("is_kev") else []),
         status="open",
         first_seen=datetime.now(timezone.utc),
         last_seen=datetime.now(timezone.utc),
@@ -278,7 +278,10 @@ def import_osint_findings(
     for port in intel.ports:
         # Try to find a subdomain that matches this port's host
         # Ports from the OSINT engine are typically for the apex domain
-        target_sub = scan_subdomains.get(intel.query) or root_sub
+        target_sub = next(
+            (scan_subdomains[h] for h in (getattr(port, "hostnames", None) or []) if h in scan_subdomains),
+            None,
+        ) or scan_subdomains.get(intel.query) or root_sub
         existing_port = (
             db.query(Port)
             .filter(Port.subdomain_id == target_sub.id, Port.port_number == port.port)
@@ -359,11 +362,19 @@ def import_osint_findings(
             host_asset = hostname_assets.get(intel.query)
             if host_asset:
                 vuln_host = host_asset
+        ips = ", ".join(getattr(vuln, "ips", None) or [])
         _upsert_vuln(db, org_id, {
             "cve_id": vuln.cve_id,
-            "description": vuln.description,
-            "severity": vuln.severity,
+            "description": (
+                "Potential: Shodan InternetDB matched this CVE to a software version it observed"
+                + (f" on {ips}" if ips else "") + ". Not verified; confirm with a scan. "
+                + (vuln.description or "")
+            ).strip(),
+            "severity": (vuln.severity or "unknown").lower(),
             "is_kev": vuln.is_kev,
+            "host": ips or None,
+            "reference": [u for u in (getattr(vuln, "reference_url", None), getattr(vuln, "source_url", None)) if u],
+            "tags": ["osint", "shodan-internetdb", "potential"],
         }, asset_id=vuln_host.id if vuln_host else None, scan_id=osint_scan.id)
         counts["vulnerabilities"] += 1
 

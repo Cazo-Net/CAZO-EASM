@@ -1094,9 +1094,33 @@ export async function searchAssets(query: string, limit = 50): Promise<SearchRes
 
 // ==================== OSINT INTELLIGENCE ENGINE ====================
 
+export interface OsintSource {
+  id: string;
+  name: string;
+  category: string;
+  /** ok | no_results | needs_key | rate_limited | refused | http_NNN | error: X | not_run | ... */
+  status: string;
+  /** A page a person can open to check this source's data for the domain. */
+  link: string | null;
+  home: string | null;
+  key_env: string | null;
+  key_required: boolean;
+  key_configured: boolean | null;
+  passive: boolean;
+}
+
 export interface OsintResult {
+  engine_version?: number;
   query: string;
-  subdomains: { hostname: string; ips: string[]; sources: string[] }[];
+  /** Always true: the lookup uses third-party data and public DNS only. */
+  passive?: boolean;
+  subdomains: {
+    hostname: string;
+    ips: string[];
+    sources: string[];
+    cname?: string | null;
+    source_links?: Record<string, string>;
+  }[];
   dns_records: Record<string, string[]>;
   certificates: {
     issuer: string | null;
@@ -1106,6 +1130,7 @@ export interface OsintResult {
     not_after: string | null;
     serial: string | null;
     source: string | null;
+    source_url?: string | null;
   }[];
   ports: {
     port: number;
@@ -1114,8 +1139,21 @@ export interface OsintResult {
     banner: string | null;
     tls: boolean;
     title: string | null;
+    ip?: string | null;
+    hostnames?: string[];
+    source?: string | null;
+    source_url?: string | null;
   }[];
   technologies: string[];
+  technology_details?: {
+    name: string;
+    vendor: string | null;
+    version: string | null;
+    cpe: string;
+    ips: string[];
+    source: string;
+    source_url: string;
+  }[];
   vulnerabilities: {
     cve_id: string;
     description: string;
@@ -1124,19 +1162,29 @@ export interface OsintResult {
     published: string | null;
     is_kev: boolean;
     source: string;
+    epss?: number | null;
+    ips?: string[];
+    /** "potential" = Shodan matched it to an observed version; not verified. */
+    confidence?: string;
+    source_url?: string | null;
+    reference_url?: string | null;
   }[];
   sources_status: Record<string, string>;
+  sources?: OsintSource[];
   ip_reputation: {
     ip: string;
     country: string | null;
     org: string | null;
-    city: string | null;
-    loc: string | null;
-    hostname: string | null;
-    abuse_confidence: number;
-    noise?: boolean;
-    riot?: boolean;
-    classification?: string;
+    asn?: string | null;
+    city?: string | null;
+    hostname?: string | null;
+    /** null when AbuseIPDB was not checked (no key). */
+    abuse_confidence: number | null;
+    total_reports?: number | null;
+    noise?: boolean | null;
+    riot?: boolean | null;
+    classification?: string | null;
+    links?: Record<string, string>;
   }[];
   whois: {
     name: string;
@@ -1146,10 +1194,22 @@ export interface OsintResult {
     expiration_date: string | null;
     last_changed: string | null;
     registrar: string | null;
+    registrar_iana_id?: string | null;
+    registrant_org?: string | null;
+    abuse_email?: string | null;
+    dnssec?: boolean | null;
     handle: string | null;
+    source_url?: string | null;
   } | null;
   historical_subdomains: string[];
   reverse_ip: string[];
+  cohosted_domains?: {
+    domain: string;
+    ip: string;
+    same_domain: boolean;
+    source: string;
+    source_url: string;
+  }[];
   email_security: {
     mx_records: { host: string; priority: string }[];
     dmarc_record: string | null;
@@ -1160,6 +1220,7 @@ export interface OsintResult {
     smtp_banner: string | null;
     emails_found: string[];
   } | null;
+  /** Edge provider recognised from DNS / ASN data (passive). */
   waf_cdn: {
     cdn: string | null;
     waf: string | null;
@@ -1167,40 +1228,15 @@ export interface OsintResult {
     powered_by: string | null;
     technologies_from_headers: string[];
   } | null;
-  security_headers: {
-    hsts: string | null;
-    csp: string | null;
-    x_frame_options: string | null;
-    x_content_type_options: string | null;
-    x_xss_protection: string | null;
-    referrer_policy: string | null;
-    permissions_policy: string | null;
-    score: number;
-    issues: string[];
-  } | null;
-  sensitive_paths: {
-    path: string;
-    status: number;
-    size: number;
-    category: string;
-  }[];
-  web_fingerprint: {
-    title: string | null;
-    meta_generator: string | null;
-    technologies: string[];
-    cookies: string[];
-    forms: number;
-    external_links: number;
-    js_files: string[];
-    email_addresses: string[];
-    phone_numbers: string[];
-    social_links: string[];
-  } | null;
+  /** Live web checks were removed from OSINT (they run in scans); always empty. */
+  security_headers: null;
+  sensitive_paths: never[];
+  web_fingerprint: null;
   reverse_dns_range: string[];
   risk_score: {
     score: number;
     grade: string;
-    findings: { severity: string; detail: string }[];
+    findings: { severity: string; detail: string; source?: string; source_url?: string | null }[];
     exposed_services: number;
     missing_security_headers: number;
     sensitive_paths_found: number;
@@ -1210,7 +1246,7 @@ export interface OsintResult {
 }
 
 export async function osintLookup(query: string): Promise<OsintResult> {
-  const { data } = await api.get("/osint", { params: { q: query }, timeout: 300000 });
+  const { data } = await api.get("/osint", { params: { q: query }, timeout: 180000 });
   return data;
 }
 

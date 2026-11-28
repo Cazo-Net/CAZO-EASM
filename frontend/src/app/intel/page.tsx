@@ -20,13 +20,13 @@ import {
   Clock,
   RotateCcw,
   Mail,
-  Globe,
-  Eye,
   ShieldCheck,
-  FileWarning,
-  Fingerprint,
   Gauge,
+  ExternalLink,
+  KeyRound,
+  Radar,
 } from "lucide-react";
+import Link from "next/link";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -34,7 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { getErrorMessage, osintImport, type OsintResult } from "@/lib/api";
+import { getErrorMessage, osintImport, type OsintResult, type OsintSource } from "@/lib/api";
 import { useIntelStore } from "@/lib/intelStore";
 
 function sevVariant(sev: string | null): "destructive" | "warning" | "secondary" {
@@ -42,6 +42,79 @@ function sevVariant(sev: string | null): "destructive" | "warning" | "secondary"
   const s = sev.toLowerCase();
   if (s === "critical" || s === "high") return "destructive";
   return "warning";
+}
+
+function SourceLink({ href, label }: { href?: string | null; label?: string }) {
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-0.5 text-[10px] text-brand hover:underline"
+      title={href}
+    >
+      {label || "source"}
+      <ExternalLink className="h-2.5 w-2.5" />
+    </a>
+  );
+}
+
+function sourceTone(status: string): string {
+  if (status === "ok" || /^\d+ /.test(status)) return "text-success";
+  if (status === "needs_key") return "text-warning";
+  if (status.startsWith("error") || status.startsWith("http_") || status === "refused") return "text-destructive";
+  return "text-muted-foreground";
+}
+
+function sourceLabel(status: string): string {
+  const map: Record<string, string> = {
+    ok: "ok",
+    no_results: "nothing found",
+    needs_key: "needs key",
+    rate_limited: "rate limited",
+    refused: "refused",
+    not_run: "not run",
+    no_targets: "nothing to check",
+    skipped_cdn: "skipped (CDN IPs)",
+  };
+  return map[status] || status;
+}
+
+function SourcesPanel({ sources }: { sources: OsintSource[] }) {
+  const missingKeys = sources.filter((s) => s.status === "needs_key");
+  return (
+    <SectionCard
+      title="Sources"
+      description="Every result below comes from one of these public sources. Open a link to check the data yourself."
+      icon={<ShieldCheck className="h-4 w-4" />}
+    >
+      <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3" data-testid="osint-sources">
+        {sources.map((s) => (
+          <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface-2 px-2 py-1.5">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium">{s.name}</p>
+              <p className="truncate text-[10px] text-muted-foreground">{s.category}</p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-0.5">
+              <span className={`font-mono text-[10px] ${sourceTone(s.status)}`}>
+                {s.status === "needs_key" ? (
+                  <span className="inline-flex items-center gap-0.5"><KeyRound className="h-2.5 w-2.5" />needs key</span>
+                ) : sourceLabel(s.status)}
+              </span>
+              <SourceLink href={s.link} label="open" />
+            </div>
+          </div>
+        ))}
+      </div>
+      {missingKeys.length > 0 && (
+        <p className="mt-3 text-[11px] text-muted-foreground">
+          Not checked because no API key is configured:{" "}
+          {missingKeys.map((s) => `${s.name} (${s.key_env})`).join(", ")}. Nothing is guessed for these sources.
+        </p>
+      )}
+    </SectionCard>
+  );
 }
 
 function IntelContent() {
@@ -79,8 +152,8 @@ function IntelContent() {
   return (
     <div className="page-container-lg">
       <PageHeader
-        title="OSINT Intelligence Engine"
-        description="Live, key-free OSINT for any domain or company — subdomains, certificates, vulnerabilities, and exposed services, like Shodan."
+        title="OSINT Lookup"
+        description="Passive public intelligence for your authorized domains: subdomains, certificates, DNS and email security, registration, hosting, and what Shodan has seen exposed. Your servers are not contacted."
         icon={<Zap className="h-5 w-5" />}
         breadcrumbs={[{ label: "Home", href: "/dashboard" }, { label: "Intelligence" }]}
       />
@@ -112,7 +185,7 @@ function IntelContent() {
         </Button>
       </form>
       <p className="mt-2 text-xs text-muted-foreground">
-        Sources: hackertarget, certspotter, live TLS/DNS, NVD, CISA KEV. No API keys required. Live lookups take ~30-60s.
+        Passive only: certificate transparency, passive DNS, public DNS, RDAP, Shodan InternetDB/CVEDB, ipinfo, GreyNoise and more. Each result links to its source. Lookups take about 20-60s.
       </p>
 
       {data && (
@@ -144,9 +217,9 @@ function IntelContent() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 text-muted-foreground">
             <Loader2 className="mb-3 h-8 w-8 animate-spin text-brand" />
-            <p className="text-sm">Probing external intelligence sources…</p>
+            <p className="text-sm">Querying public intelligence sources…</p>
             <p className="mt-1 text-xs text-brand font-mono">{elapsed}s elapsed</p>
-            <p className="mt-1 text-xs">subdomains · certificates · ports · CVEs</p>
+            <p className="mt-1 text-xs">certificate transparency · passive DNS · registration · exposure</p>
           </div>
         ) : error ? (
           <EmptyState
@@ -157,27 +230,12 @@ function IntelContent() {
         ) : !data ? (
           <EmptyState
             icon={<Globe2 className="h-8 w-8" />}
-            title="Investigate any target"
-            description="Enter a domain or company to gather live public intelligence — subdomains, certs, exposed ports, and known CVEs."
+            title="Look up one of your domains"
+            description="Enter a domain from your authorized scopes. Results come from public datasets only; nothing is sent to the domain's own servers."
           />
         ) : (
           <div className="space-y-4">
-            {/* Source status strip */}
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(data.sources_status).map(([k, v]) => {
-                const isError = typeof v === "string" && (v.startsWith("error") || v.startsWith("http_"));
-                const isWarn = typeof v === "string" && (v === "rate_limited" || v === "no_results" || v === "skipped_no_tech" || v === "no-cert" || v === "no_targets");
-                return (
-                  <span
-                    key={k}
-                    className="inline-flex items-center gap-1 rounded-md border border-border bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
-                  >
-                    <span className="text-brand">{k}</span>
-                    <span className={isError ? "text-destructive" : isWarn ? "text-warning" : "text-success"}>{v}</span>
-                  </span>
-                );
-              })}
-            </div>
+            {data.sources && data.sources.length > 0 && <SourcesPanel sources={data.sources} />}
 
             {/* Summary stats */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -195,7 +253,7 @@ function IntelContent() {
                   {data.vulnerabilities.length}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {data.vulnerabilities.filter((v) => v.is_kev).length} in CISA KEV
+                  {data.vulnerabilities.filter((v) => v.is_kev).length} in CISA KEV · potential, unverified
                 </p>
               </SectionCard>
             </div>
@@ -203,55 +261,50 @@ function IntelContent() {
             {/* Exposed services / ports */}
             <SectionCard
               title="Exposed Services"
-              description="Live-probed open ports with service banners"
+              description="Open ports Shodan's own crawlers last saw on this domain's IPs (not probed by us)"
               icon={<Server className="h-4 w-4" />}
             >
               {data.ports.length === 0 ? (
                 <EmptyState
                   icon={<Server className="h-8 w-8" />}
                   title={
-                    data.sources_status["port-scan"] === "no_targets"
-                      ? "No targets to probe"
-                      : data.sources_status["hackertarget"] === "rate_limited" && data.subdomains.length <= 1
-                        ? "No ports detected — subdomain enumeration was rate-limited, only apex domain probed"
-                        : "No open ports detected"
-                  }
-                  description={
-                    data.sources_status["port-scan"] === "no_targets"
-                      ? "No IP addresses could be resolved for this domain."
-                      : undefined
+                    data.sources_status["shodan-internetdb"] === "no_targets"
+                      ? "No IP addresses resolved for this domain"
+                      : "Shodan has no open ports on record for these IPs"
                   }
                 />
               ) : (
                 <div className="divide-y divide-border/40">
                   {data.ports.map((p, i) => (
-                    <div key={i} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 md:flex-row md:items-start md:gap-4">
+                    <div key={i} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 md:flex-row md:items-center md:gap-4">
                       <div className="flex shrink-0 items-center gap-2">
                         <span className="inline-flex items-center justify-center rounded-lg bg-brand-2/10 px-2.5 py-1 font-mono text-base font-semibold text-brand-2">
                           {p.port}
                         </span>
-                        <Badge variant={p.state === "open" ? "success" : "warning"} className="text-xs">
-                          {p.state}
-                        </Badge>
                         {p.tls ? <Badge variant="outline" className="text-xs">TLS</Badge> : null}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">
-                          {p.service || "Unknown"}
-                          {p.title ? (
-                            <span className="ml-2 text-xs text-muted-foreground">“{p.title}”</span>
-                          ) : null}
+                          {p.service || "Unknown service"}
+                          {p.ip ? <span className="ml-2 font-mono text-xs text-muted-foreground">{p.ip}</span> : null}
                         </p>
-                        {p.banner ? (
-                          <pre className="mt-1.5 max-h-32 overflow-auto rounded-md border border-border bg-surface-2 p-2 font-mono text-[11px] text-muted-foreground">
-                            {p.banner}
-                          </pre>
+                        {p.hostnames && p.hostnames.length > 0 ? (
+                          <p className="truncate font-mono text-[10px] text-muted-foreground">{p.hostnames.join(", ")}</p>
                         ) : null}
                       </div>
+                      <SourceLink href={p.source_url} label="Shodan InternetDB" />
                     </div>
                   ))}
                 </div>
               )}
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-dashed border-border p-2.5 text-xs text-muted-foreground">
+                <span>Want to confirm what is open right now, with banners, TLS and web checks? Run a scan.</span>
+                <Link href="/scan/new">
+                  <Button variant="outline" size="sm" className="gap-1.5">
+                    <Radar className="h-3.5 w-3.5" /> Run a scan
+                  </Button>
+                </Link>
+              </div>
             </SectionCard>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -260,15 +313,27 @@ function IntelContent() {
                 {data.subdomains.length === 0 ? (
                   <EmptyState icon={<Network className="h-8 w-8" />} title="Nothing returned" />
                 ) : (
-                  <ul className="space-y-1.5">
+                  <ul className="max-h-[32rem] space-y-1.5 overflow-auto">
                     {data.subdomains.map((s, i) => (
                       <li key={i} className="rounded-md bg-muted/20 px-2 py-1.5">
                         <p className="truncate font-mono text-xs font-medium">{s.hostname}</p>
                         {s.ips.length > 0 ? (
                           <p className="truncate font-mono text-[10px] text-muted-foreground">
                             {s.ips.join(", ")}
+                            {s.cname ? ` · CNAME ${s.cname}` : ""}
                           </p>
-                        ) : null}
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground">does not resolve now</p>
+                        )}
+                        <div className="mt-0.5 flex flex-wrap gap-x-2">
+                          {s.sources.map((src) =>
+                            s.source_links?.[src] ? (
+                              <SourceLink key={src} href={s.source_links[src]} label={src} />
+                            ) : (
+                              <span key={src} className="text-[10px] text-muted-foreground">{src}</span>
+                            ),
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -276,44 +341,45 @@ function IntelContent() {
               </SectionCard>
 
               {/* Technologies */}
-              <SectionCard title="Detected Technologies" icon={<Cpu className="h-4 w-4" />}>
-                {data.technologies.length === 0 ? (
-                  <EmptyState
-                    icon={<Cpu className="h-8 w-8" />}
-                    title={
-                      data.ports.length === 0
-                        ? "No technologies — no ports open to fingerprint"
-                        : "No technologies detected from service banners"
-                    }
-                  />
+              <SectionCard
+                title="Detected Technologies"
+                description="Products and versions Shodan identified on these IPs"
+                icon={<Cpu className="h-4 w-4" />}
+              >
+                {!data.technology_details || data.technology_details.length === 0 ? (
+                  <EmptyState icon={<Cpu className="h-8 w-8" />} title="Shodan has no product data for these IPs" />
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {data.technologies.map((t, i) => (
-                      <span
-                        key={i}
-                        className="rounded-lg border border-border bg-surface-2 px-2.5 py-1 text-xs font-medium"
-                      >
-                        {t}
-                      </span>
+                  <ul className="space-y-1.5">
+                    {data.technology_details.map((t, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2 rounded-md bg-muted/20 px-2 py-1.5">
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-medium">
+                            {t.name}
+                            {t.version ? <span className="ml-1 font-mono text-muted-foreground">{t.version}</span> : null}
+                          </p>
+                          <p className="truncate font-mono text-[10px] text-muted-foreground">{t.ips.join(", ")}</p>
+                        </div>
+                        <SourceLink href={t.source_url} label="Shodan" />
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 )}
               </SectionCard>
             </div>
 
             {/* Certificates */}
             {data.certificates.length > 0 && (
-              <SectionCard title="TLS Certificates" icon={<Lock className="h-4 w-4" />}>
-                <div className="space-y-3">
+              <SectionCard
+                title="TLS Certificates"
+                description={`Most recent certificates in public certificate transparency logs (${data.certificates.length} shown)`}
+                icon={<Lock className="h-4 w-4" />}
+              >
+                <div className="max-h-[32rem] space-y-3 overflow-auto">
                   {data.certificates.map((c, i) => (
                     <div key={i} className="rounded-lg border border-border bg-muted/20 p-3">
                       <div className="flex items-center justify-between">
                         <p className="truncate font-mono text-xs">{c.subject || "—"}</p>
-                        {c.source ? (
-                          <Badge variant="outline" className="text-[10px]">
-                            {c.source}
-                          </Badge>
-                        ) : null}
+                        <SourceLink href={c.source_url} label={c.source || "source"} />
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">Issuer: {c.issuer || "—"}</p>
                       {c.san.length > 0 ? (
@@ -334,23 +400,14 @@ function IntelContent() {
 
             {/* Vulnerabilities */}
             <SectionCard
-              title="Known Vulnerabilities"
-              description="NVD keyword matches for detected technologies (versions not confirmed), flagged if in CISA KEV. For confirmed exploited CVEs see Dark Web & Threat Intelligence."
+              title="Potential Vulnerabilities"
+              description="CVEs Shodan matched to software versions it saw on these IPs. Not verified: confirm with a scan. CVSS, EPSS and CISA KEV status from Shodan CVEDB."
               icon={<ShieldAlert className="h-4 w-4" />}
             >
               {data.vulnerabilities.length === 0 ? (
                 <EmptyState
                   icon={<ShieldAlert className="h-8 w-8" />}
-                  title={
-                    data.sources_status["nvd"] === "skipped_no_tech"
-                      ? "No CVEs — no technologies detected to match against"
-                      : "No CVEs found"
-                  }
-                  description={
-                    data.sources_status["nvd"] === "skipped_no_tech"
-                      ? "CVE lookup requires detected technologies from port/service fingerprinting."
-                      : undefined
-                  }
+                  title="Shodan lists no CVEs for these IPs"
                 />
               ) : (
                 <div className="space-y-2">
@@ -367,10 +424,19 @@ function IntelContent() {
                               KEV
                             </Badge>
                           ) : null}
+                          {v.confidence === "potential" ? (
+                            <Badge variant="outline" className="text-[10px]">potential</Badge>
+                          ) : null}
                         </div>
                         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                          {v.description}
+                          {v.description || "No summary available."}
                         </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 text-[10px] text-muted-foreground">
+                          {v.ips && v.ips.length > 0 ? <span className="font-mono">{v.ips.join(", ")}</span> : null}
+                          {v.epss != null ? <span>EPSS {(v.epss * 100).toFixed(1)}%</span> : null}
+                          <SourceLink href={v.source_url} label="Shodan" />
+                          <SourceLink href={v.reference_url} label="NVD" />
+                        </div>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
                         <Badge variant={sevVariant(v.severity)} className="text-xs capitalize">
@@ -392,7 +458,7 @@ function IntelContent() {
             {data.ip_reputation && data.ip_reputation.length > 0 && (
               <SectionCard
                 title="IP Reputation"
-                description="Geolocation, ASN, and threat intelligence for resolved IPs"
+                description="Hosting network, location and reputation for resolved IPs"
                 icon={<MapPin className="h-4 w-4" />}
               >
                 <div className="space-y-2">
@@ -409,11 +475,21 @@ function IntelContent() {
                           {r.noise && <Badge variant="warning" className="text-[10px]">Noise</Badge>}
                           {r.riot && <Badge variant="success" className="text-[10px]">RIOT</Badge>}
                         </div>
-                        {r.org && <p className="mt-0.5 text-xs text-muted-foreground truncate max-w-md">{r.org}</p>}
+                        {r.org && (
+                          <p className="mt-0.5 max-w-md truncate text-xs text-muted-foreground">
+                            {r.asn ? <span className="font-mono">{r.asn} </span> : null}
+                            {r.org}
+                          </p>
+                        )}
+                        <div className="mt-0.5 flex gap-2">
+                          {Object.entries(r.links || {}).map(([k, href]) => (
+                            <SourceLink key={k} href={href} label={k} />
+                          ))}
+                        </div>
                         {r.hostname && <p className="text-[10px] font-mono text-muted-foreground">{r.hostname}</p>}
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        {r.abuse_confidence > 0 && (
+                        {r.abuse_confidence != null && r.abuse_confidence > 0 && (
                           <Badge variant={r.abuse_confidence > 50 ? "destructive" : "warning"} className="text-[10px]">
                             Abuse: {r.abuse_confidence}%
                           </Badge>
@@ -430,7 +506,7 @@ function IntelContent() {
             {data.whois && (
               <SectionCard
                 title="Domain Registration (WHOIS)"
-                description="Domain registration details from RDAP"
+                description="Registration data from the registry's RDAP service"
                 icon={<Building className="h-4 w-4" />}
               >
                 <div className="grid gap-3 md:grid-cols-2">
@@ -452,6 +528,20 @@ function IntelContent() {
                       <p className="text-sm font-mono">{new Date(data.whois.expiration_date).toLocaleDateString()}</p>
                     </div>
                   )}
+                  {data.whois.abuse_email && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">Registrar abuse contact</p>
+                      <p className="text-sm font-mono text-xs">{data.whois.abuse_email}</p>
+                    </div>
+                  )}
+                  {data.whois.dnssec != null && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground">DNSSEC</p>
+                      <p className={`text-sm ${data.whois.dnssec ? "text-success" : "text-warning"}`}>
+                        {data.whois.dnssec ? "Signed" : "Not signed"}
+                      </p>
+                    </div>
+                  )}
                   {data.whois.nameservers.length > 0 && (
                     <div>
                       <p className="text-xs font-medium text-muted-foreground">Nameservers</p>
@@ -469,6 +559,9 @@ function IntelContent() {
                     </div>
                   </div>
                 )}
+                <div className="mt-2">
+                  <SourceLink href={data.whois.source_url} label="RDAP record" />
+                </div>
               </SectionCard>
             )}
 
@@ -476,7 +569,7 @@ function IntelContent() {
             {data.historical_subdomains && data.historical_subdomains.length > 0 && (
               <SectionCard
                 title="Historical Subdomains"
-                description="Previously discovered subdomains from Wayback Machine"
+                description="Hostnames the Internet Archive has captured under this domain"
                 icon={<Clock className="h-4 w-4" />}
               >
                 <div className="flex flex-wrap gap-2">
@@ -492,18 +585,27 @@ function IntelContent() {
               </SectionCard>
             )}
 
-            {/* Reverse IP */}
-            {data.reverse_ip && data.reverse_ip.length > 0 && (
+            {/* Co-hosted domains */}
+            {data.cohosted_domains && data.cohosted_domains.length > 0 && (
               <SectionCard
-                title="Reverse IP Lookup"
-                description="Other domains hosted on the same IP addresses"
+                title="Domains on the Same IPs"
+                description="Other domains hosted on this domain's (non-CDN) IP addresses, from reverse IP data"
                 icon={<RotateCcw className="h-4 w-4" />}
               >
                 <div className="flex flex-wrap gap-2">
-                  {data.reverse_ip.map((h, i) => (
-                    <span key={i} className="rounded-md border border-border bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
-                      {h}
-                    </span>
+                  {data.cohosted_domains.map((c, i) => (
+                    <a
+                      key={i}
+                      href={c.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`${c.ip} · ${c.source}`}
+                      className={`rounded-md border px-2 py-0.5 font-mono text-[10px] hover:underline ${
+                        c.same_domain ? "border-brand/40 text-brand" : "border-border bg-surface-2 text-muted-foreground"
+                      }`}
+                    >
+                      {c.domain}
+                    </a>
                   ))}
                 </div>
               </SectionCard>
@@ -513,7 +615,7 @@ function IntelContent() {
             {data.risk_score && (
               <SectionCard
                 title="Risk Assessment"
-                description="Automated security posture score"
+                description="Scored only from the sourced facts on this page"
                 icon={<Gauge className="h-4 w-4" />}
               >
                 <div className="flex items-center gap-6">
@@ -529,9 +631,8 @@ function IntelContent() {
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground">Score: <span className="font-mono text-foreground">{data.risk_score.score}/100</span></p>
                     <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
-                      <span>{data.risk_score.exposed_services} exposed ports</span>
-                      <span>{data.risk_score.missing_security_headers} missing headers</span>
-                      <span>{data.risk_score.sensitive_paths_found} sensitive paths</span>
+                      <span>{data.risk_score.exposed_services} exposed services</span>
+                      <span>{data.risk_score.findings.length} findings</span>
                     </div>
                   </div>
                 </div>
@@ -542,7 +643,10 @@ function IntelContent() {
                         <Badge variant={f.severity === "critical" || f.severity === "high" ? "destructive" : f.severity === "medium" ? "warning" : "secondary"} className="shrink-0 text-[9px]">
                           {f.severity}
                         </Badge>
-                        <span className="text-muted-foreground">{f.detail}</span>
+                        <span className="text-muted-foreground">
+                          {f.detail}{" "}
+                          <SourceLink href={f.source_url} label={f.source || "source"} />
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -550,38 +654,14 @@ function IntelContent() {
               </SectionCard>
             )}
 
-            {/* WAF / CDN */}
-            {data.waf_cdn && (
+            {/* Edge provider */}
+            {data.waf_cdn?.cdn && (
               <SectionCard
-                title="WAF / CDN Detection"
-                description="Web application firewall and CDN identification"
+                title="CDN / Edge Provider"
+                description="Recognised from DNS (CNAME, nameservers) and IP network owner data"
                 icon={<ShieldCheck className="h-4 w-4" />}
               >
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <span className="text-muted-foreground">Server</span>
-                    <p className="mt-0.5 font-mono text-foreground">{data.waf_cdn.server || "Unknown"}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">CDN</span>
-                    <p className="mt-0.5 font-mono text-foreground">{data.waf_cdn.cdn || "None detected"}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">WAF</span>
-                    <p className="mt-0.5 font-mono text-foreground">{data.waf_cdn.waf || "None detected"}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Powered By</span>
-                    <p className="mt-0.5 font-mono text-foreground">{data.waf_cdn.powered_by || "Unknown"}</p>
-                  </div>
-                </div>
-                {data.waf_cdn.technologies_from_headers.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {data.waf_cdn.technologies_from_headers.map((t, i) => (
-                      <span key={i} className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{t}</span>
-                    ))}
-                  </div>
-                )}
+                <p className="font-mono text-sm">{data.waf_cdn.cdn}</p>
               </SectionCard>
             )}
 
@@ -589,7 +669,7 @@ function IntelContent() {
             {data.email_security && (
               <SectionCard
                 title="Email Security"
-                description="DMARC, SPF, DKIM, and MX analysis"
+                description="DMARC, SPF, DKIM and MX from public DNS"
                 icon={<Mail className="h-4 w-4" />}
               >
                 <div className="grid grid-cols-2 gap-3 text-xs">
@@ -641,98 +721,6 @@ function IntelContent() {
               </SectionCard>
             )}
 
-            {/* Security Headers */}
-            {data.security_headers && (
-              <SectionCard
-                title="Security Headers"
-                description={`Security header audit — score: ${data.security_headers.score}/100`}
-                icon={<Eye className="h-4 w-4" />}
-              >
-                <div className="flex items-center gap-4 mb-3">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-lg text-lg font-semibold ${
-                    data.security_headers.score >= 80 ? "bg-success/10 text-success" :
-                    data.security_headers.score >= 50 ? "bg-yellow-500/10 text-yellow-400" :
-                    "bg-destructive/10 text-destructive"
-                  }`}>
-                    {data.security_headers.score}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {data.security_headers.issues.length === 0
-                      ? "All security headers present"
-                      : `${data.security_headers.issues.length} issues detected`}
-                  </div>
-                </div>
-                {data.security_headers.issues.length > 0 && (
-                  <div className="space-y-1">
-                    {data.security_headers.issues.map((issue, i) => (
-                      <div key={i} className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                        <AlertTriangle className="h-3 w-3 text-yellow-400 shrink-0" />
-                        {issue}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </SectionCard>
-            )}
-
-            {/* Sensitive Paths */}
-            {data.sensitive_paths && data.sensitive_paths.length > 0 && (
-              <SectionCard
-                title="Sensitive Paths Found"
-                description="Exposed files and endpoints discovered"
-                icon={<FileWarning className="h-4 w-4" />}
-              >
-                <div className="space-y-1.5">
-                  {data.sensitive_paths.map((p, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs">
-                      <Badge variant={p.status === 200 ? "destructive" : "warning"} className="shrink-0 text-[9px]">
-                        {p.status}
-                      </Badge>
-                      <span className="font-mono text-foreground">{p.path}</span>
-                      <span className="text-muted-foreground ml-auto">{p.category}</span>
-                    </div>
-                  ))}
-                </div>
-              </SectionCard>
-            )}
-
-            {/* Web Fingerprint */}
-            {data.web_fingerprint && data.web_fingerprint.technologies.length > 0 && (
-              <SectionCard
-                title="Web Fingerprint"
-                description="Technologies detected from the main page"
-                icon={<Fingerprint className="h-4 w-4" />}
-              >
-                {data.web_fingerprint.title && (
-                  <p className="mb-2 text-xs text-muted-foreground">Title: <span className="text-foreground">{data.web_fingerprint.title}</span></p>
-                )}
-                <div className="flex flex-wrap gap-1.5">
-                  {data.web_fingerprint.technologies.map((tech, i) => (
-                    <span key={i} className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">{tech}</span>
-                  ))}
-                </div>
-                {data.web_fingerprint.email_addresses.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-[10px] text-muted-foreground mb-1">Emails found:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {data.web_fingerprint.email_addresses.map((e, i) => (
-                        <span key={i} className="font-mono text-[10px] text-muted-foreground">{e}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {data.web_fingerprint.social_links.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-[10px] text-muted-foreground mb-1">Social links:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {data.web_fingerprint.social_links.map((link, i) => (
-                        <span key={i} className="font-mono text-[10px] text-primary truncate max-w-[200px]">{link}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </SectionCard>
-            )}
           </div>
         )}
       </div>

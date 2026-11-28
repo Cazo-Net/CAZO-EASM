@@ -1,4 +1,4 @@
-"""OSINT intelligence API — key-free Shodan-style lookup for any domain/company."""
+"""OSINT lookup API: passive, sourced public intelligence about an authorized domain."""
 import json
 import logging
 from datetime import datetime, timezone
@@ -32,7 +32,13 @@ def _get_cached(domain: str, db: Session, ttl: int = DEFAULT_TTL) -> dict | None
         db.delete(row)
         db.flush()
         return None
-    return json.loads(row.result_json)
+    data = json.loads(row.result_json)
+    if data.get("engine_version") != osint.ENGINE_VERSION:
+        # Produced by an older engine (different sources/meaning): don't serve it.
+        db.delete(row)
+        db.flush()
+        return None
+    return data
 
 
 def _set_cache(domain: str, result: dict, db: Session, ttl: int = DEFAULT_TTL) -> None:
@@ -53,7 +59,7 @@ def _set_cache(domain: str, result: dict, db: Session, ttl: int = DEFAULT_TTL) -
 
 
 def _authorize(db: Session, user: User, raw: str) -> str:
-    """OSINT lookups connect to the target (ports, TLS), so they follow scan scope rules."""
+    """Only domains the organization is authorized for (same rules as scans)."""
     auth = authorize_scan_target(db, user.organization_id, raw, actor_id=user.id, auto_register=False)
     if not auth.authorized:
         raise HTTPException(status_code=403, detail=auth.as_error_detail())
@@ -66,10 +72,11 @@ async def osint_lookup(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Aggregate public OSINT (subdomains, certs, vulns, ports) for a target.
+    """Aggregate passive public intelligence for an authorized domain.
 
-    Key-free: uses hackertarget, certspotter, live TLS/DNS, NVD, and CISA KEV.
-    Results are cached for 1 hour to avoid re-probing the same domain.
+    Third-party sources and public DNS only; the target itself is not
+    contacted. Every item names its source (see ``sources`` in the result).
+    Results are cached for 1 hour to spare the free third-party APIs.
     """
     if not q or not q.strip():
         raise HTTPException(status_code=400, detail="Query parameter 'q' is required")
@@ -91,10 +98,10 @@ async def osint_lookup(
 
     # Only cache results that have meaningful data (not empty/partial)
     has_data = (
-        result_dict.get("subdomains")
+        len(result_dict.get("subdomains") or []) > 1
         or result_dict.get("ports")
-        or result_dict.get("technologies")
         or result_dict.get("dns_records")
+        or result_dict.get("whois")
     )
     if has_data:
         try:
@@ -133,34 +140,7 @@ async def osint_import(
     # Check cache first (import uses cached result if available)
     cached = _get_cached(domain, db)
     if cached:
-        # Convert cached dict back to IntelResult-like structure for import
-        from app.services.osint import (
-            IntelResult, SubdomainResult, CertResult, PortResult, VulnResult,
-        )
-        intel = IntelResult(query=cached["query"])
-        for s in cached.get("subdomains", []):
-            intel.subdomains.append(SubdomainResult(hostname=s["hostname"], ips=s["ips"], sources=s["sources"]))
-        for c in cached.get("certificates", []):
-            intel.certificates.append(CertResult(
-                issuer=c.get("issuer"), subject=c.get("subject"), san=c.get("san", []),
-                not_before=c.get("not_before"), not_after=c.get("not_after"),
-                serial=c.get("serial"), source=c.get("source"),
-            ))
-        for p in cached.get("ports", []):
-            intel.ports.append(PortResult(
-                port=p["port"], state=p["state"], service=p.get("service"),
-                banner=p.get("banner"), tls=p.get("tls", False), title=p.get("title"),
-            ))
-        intel.technologies = cached.get("technologies", [])
-        for v in cached.get("vulnerabilities", []):
-            intel.vulnerabilities.append(VulnResult(
-                cve_id=v["cve_id"], description=v.get("description", ""),
-                severity=v.get("severity"), cvss=v.get("cvss"),
-                published=v.get("published"), is_kev=v.get("is_kev", False),
-                source=v.get("source", "NVD"),
-            ))
-        intel.dns_records = cached.get("dns_records", {})
-        intel.sources_status = cached.get("sources_status", {})
+        intel = osint.intel_from_dict(cached)
     else:
         intel = await run_in_threadpool(osint.lookup_domain, domain)
         result_dict = osint.intel_to_dict(intel)
