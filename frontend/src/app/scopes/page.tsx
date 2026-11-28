@@ -473,7 +473,7 @@ function ScopesContent() {
               />
             </div>
 
-            <div className="rounded-lg border border-phosphor/20 bg-phosphor/5 p-3">
+            <div className="rounded-lg border border-border bg-muted/40 p-3">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"

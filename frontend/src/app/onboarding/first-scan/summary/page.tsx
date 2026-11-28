@@ -236,7 +236,7 @@ function SummaryContent() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="rounded-xl border border-phosphor/20 bg-phosphor/5 p-4 mb-8 text-center"
+          className="rounded-xl border border-border bg-muted/40 p-4 mb-8 text-center"
         >
           <Shield className="h-8 w-8 text-phosphor mx-auto mb-2" />
           <p className="text-sm text-foreground font-medium">No findings detected</p>

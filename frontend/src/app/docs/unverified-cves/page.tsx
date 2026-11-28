@@ -109,7 +109,7 @@ export default function UnverifiedCvesDocPage() {
           <em>&ldquo;we saw it.&rdquo;</em>
         </p>
 
-        <div className="mt-6 rounded-lg border border-phosphor/20 bg-phosphor/5 p-4">
+        <div className="mt-6 rounded-lg border border-border bg-muted/40 p-4">
           <p className="text-sm text-muted-foreground">
             <strong className="text-foreground">What to do:</strong> Treat
             unverified CVEs as a prioritization signal. Check whether the

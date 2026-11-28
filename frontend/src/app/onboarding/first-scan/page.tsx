@@ -194,7 +194,7 @@ function FirstScanContent() {
               transition={{ delay: i * 0.05 }}
               className={`rounded-xl border p-4 transition-colors ${
                 stageStatus === "complete"
-                  ? "border-phosphor/20 bg-phosphor/5"
+                  ? "border-border bg-muted/40"
                   : stageStatus === "active"
                   ? "border-cyan-signal/30 bg-cyan-signal/5"
                   : "border-border bg-card"

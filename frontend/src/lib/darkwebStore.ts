@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
 
 const API_BASE = "";
@@ -83,7 +84,7 @@ function _initActions() {
     _emit();
 
     try {
-      const res = await fetch(`${API_BASE}/api/v1/darkweb/search?q=${encodeURIComponent(trimmed)}`);
+      const res = await authFetch(`${API_BASE}/api/v1/darkweb/search?q=${encodeURIComponent(trimmed)}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: "Search failed" }));
         throw new Error(err.detail || `HTTP ${res.status}`);
@@ -105,7 +106,7 @@ function _initActions() {
     _state = { ..._state, monitorsLoading: true };
     _emit();
     try {
-      const res = await fetch(`${API_BASE}/api/v1/darkweb/monitors`);
+      const res = await authFetch(`${API_BASE}/api/v1/darkweb/monitors`);
       if (res.ok) {
         const data = await res.json();
         _state = { ..._state, monitors: data.monitors || [], monitorsLoading: false };
@@ -121,7 +122,7 @@ function _initActions() {
     _state = { ..._state, reportsLoading: true };
     _emit();
     try {
-      const res = await fetch(`${API_BASE}/api/v1/darkweb/reports`);
+      const res = await authFetch(`${API_BASE}/api/v1/darkweb/reports`);
       if (res.ok) {
         const data = await res.json();
         _state = { ..._state, reports: data.reports || [], reportsLoading: false };

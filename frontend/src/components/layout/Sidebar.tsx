@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getOrganization } from "@/lib/api";
 import {
   Shield,
   LayoutDashboard,
@@ -125,6 +126,26 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [orgMenuOpen, setOrgMenuOpen] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const orgId = user?.organization_id;
+
+  useEffect(() => {
+    if (!orgId) {
+      setOrgName("");
+      return;
+    }
+    let cancelled = false;
+    getOrganization(orgId)
+      .then((org) => {
+        if (!cancelled) setOrgName(org?.name ?? "");
+      })
+      .catch(() => {
+        // The label falls back to "Your organization".
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orgId]);
 
   // Sections are open by default; people can fold the ones they don't use.
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
@@ -333,14 +354,12 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                   className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-muted/40 mb-1"
                   aria-label="Organization menu"
                 >
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-cyan-signal/10">
-                    <Building className="h-3.5 w-3.5 text-cyan-signal" />
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">
+                    <Building className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0 text-left">
-                    <p className="text-xs font-medium truncate">Organization</p>
-                    <p className="text-[10px] text-muted-foreground truncate font-mono">
-                      {user.organization_id.slice(0, 12)}...
-                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">Organization</p>
+                    <p className="text-xs font-medium truncate">{orgName || "Your organization"}</p>
                   </div>
                   <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 </button>

@@ -1,5 +1,6 @@
 "use client";
 
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
@@ -65,7 +66,7 @@ function changeBadge(
   }
 }
 
-export default function ChangeFeedPage() {
+function ChangeFeedContent() {
   const { user, loading: authLoading } = useAuth();
   const orgId = user?.organization_id;
 
@@ -206,5 +207,13 @@ export default function ChangeFeedPage() {
         )}
       </SectionCard>
     </div>
+  );
+}
+
+export default function ChangeFeedPage() {
+  return (
+    <ProtectedRoute>
+      <ChangeFeedContent />
+    </ProtectedRoute>
   );
 }

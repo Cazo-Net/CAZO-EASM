@@ -1,10 +1,11 @@
 "use client";
 
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useRouter } from "next/navigation";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useAuth } from "@/contexts/AuthContext";
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const router = useRouter();
   const { refreshUser } = useAuth();
 
@@ -21,5 +22,13 @@ export default function OnboardingPage() {
       onSkip={handleSkip}
       onOrgCreated={handleOrgCreated}
     />
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <ProtectedRoute>
+      <OnboardingContent />
+    </ProtectedRoute>
   );
 }

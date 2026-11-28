@@ -1,5 +1,6 @@
 "use client";
 
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { getSecurityDashboard, listSecurityCenterSessions, listSecurityCenterDev
 import { useAuth } from "@/contexts/AuthContext";
 import { LoginHistory } from "@/components/security/LoginHistory";
 
-export default function SecurityCenterPage() {
+function SecurityCenterContent() {
   const { user } = useAuth();
   const router = useRouter();
   const [dashboard, setDashboard] = useState<any>(null);
@@ -239,5 +240,13 @@ export default function SecurityCenterPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function SecurityCenterPage() {
+  return (
+    <ProtectedRoute>
+      <SecurityCenterContent />
+    </ProtectedRoute>
   );
 }

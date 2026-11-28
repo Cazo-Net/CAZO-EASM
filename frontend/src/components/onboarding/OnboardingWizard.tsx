@@ -98,13 +98,8 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,212,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
-        <div className="absolute top-1/3 left-1/4 h-96 w-96 rounded-full bg-phosphor/5 blur-[128px]" />
-        <div className="absolute bottom-1/3 right-1/4 h-96 w-96 rounded-full bg-cyan-signal/5 blur-[128px]" />
-      </div>
       <Card className="relative w-full max-w-2xl border-border bg-card shadow-2xl shadow-black/20">
-        <CardContent className="p-8">
+        <CardContent className="p-5 sm:p-8">
           {/* Progress */}
           <div className="flex items-center justify-between mb-8">
             {steps.map((s, i) => (
@@ -140,8 +135,8 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
           </div>
 
           {step.id === "security" && (
-            <div className="mb-6 rounded-lg border border-phosphor/20 bg-phosphor/5 p-4 flex items-start gap-3">
-              <Shield className="h-5 w-5 text-phosphor mt-0.5 shrink-0" />
+            <div className="mb-6 rounded-lg border border-border bg-muted/40 p-4 flex items-start gap-3">
+              <Shield className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
               <p className="text-sm text-muted-foreground">
                 You can set up MFA from <strong>Settings → Security</strong> after you sign in. It&apos;s quick — we recommend doing it before your first scan.
               </p>
@@ -150,8 +145,8 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
 
           {step.id === "organization" && (
             <div className="mb-6 space-y-4">
-              <div className="rounded-lg border border-phosphor/20 bg-phosphor/5 p-4 flex items-start gap-3">
-                <Building className="h-5 w-5 text-phosphor mt-0.5 shrink-0" />
+              <div className="rounded-lg border border-border bg-muted/40 p-4 flex items-start gap-3">
+                <Building className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                 <p className="text-sm text-muted-foreground">
                   You&apos;ll be the <strong>Owner</strong> — full access to scans, settings, and team members.
                 </p>
@@ -177,8 +172,8 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
 
           {step.id === "scope" && (
             <div className="mb-6 space-y-4">
-              <div className="rounded-lg border border-phosphor/20 bg-phosphor/5 p-4 flex items-start gap-3">
-                <Globe className="h-5 w-5 text-phosphor mt-0.5 shrink-0" />
+              <div className="rounded-lg border border-border bg-muted/40 p-4 flex items-start gap-3">
+                <Globe className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                 <p className="text-sm text-muted-foreground">
                   CAZO works from the outside — no agents, no VPNs. Just point it at a domain.
                 </p>
@@ -197,7 +192,7 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
                 />
               </div>
 
-              <div className="rounded-lg border border-phosphor/20 bg-phosphor/5 p-3">
+              <div className="rounded-lg border border-border bg-muted/40 p-3">
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
                     type="checkbox"

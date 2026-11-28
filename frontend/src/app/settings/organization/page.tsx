@@ -1,5 +1,6 @@
 "use client";
 
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useEffect, useState, useCallback } from "react";
 import {
   Building,
@@ -69,7 +70,7 @@ const ROLE_LABELS: Record<OrgRole, string> = {
   viewer: "info",
 };
 
-export default function OrganizationSettingsPage() {
+function OrganizationSettingsContent() {
   const { user, refreshUser } = useAuth();
   const orgId = user?.organization_id;
 
@@ -631,5 +632,13 @@ export default function OrganizationSettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function OrganizationSettingsPage() {
+  return (
+    <ProtectedRoute>
+      <OrganizationSettingsContent />
+    </ProtectedRoute>
   );
 }

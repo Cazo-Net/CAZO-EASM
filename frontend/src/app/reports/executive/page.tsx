@@ -1,5 +1,6 @@
 "use client";
 
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import * as React from "react";
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
@@ -10,7 +11,7 @@ import { getExecutiveReport, generateExecutiveReport } from "@/lib/api-reports";
 import { getErrorMessage } from "@/lib/api";
 import type { ExecutiveReport } from "@/types/report";
 
-export default function ExecutiveReportPage() {
+function ExecutiveReportContent() {
   const [report, setReport] = React.useState<ExecutiveReport | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [generating, setGenerating] = React.useState(false);
@@ -120,5 +121,13 @@ export default function ExecutiveReportPage() {
         <EmptyState title="No report data" description="Unable to load the executive report." />
       )}
     </div>
+  );
+}
+
+export default function ExecutiveReportPage() {
+  return (
+    <ProtectedRoute>
+      <ExecutiveReportContent />
+    </ProtectedRoute>
   );
 }

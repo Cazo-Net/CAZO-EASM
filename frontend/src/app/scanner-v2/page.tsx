@@ -168,15 +168,15 @@ function ScannerV2Content() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <Input
                   placeholder="example.com"
                   value={store.domain}
                   onChange={(e) => store.setDomain(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleWebSocketScan()}
-                  className="flex-1"
+                  className="min-w-[12rem] flex-1"
                 />
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant={store.scanType === "full" ? "default" : "outline"}
                     size="sm"
@@ -373,8 +373,8 @@ function ScannerV2Content() {
                       {store.health.registered_scanners.map((s) => (
                         <div key={s.name} className="flex items-center gap-2 text-xs">
                           <CheckCircle className="h-3 w-3 text-success" />
-                          <span>{s.name}</span>
-                          <Badge variant="outline" className="ml-auto">
+                          <span className="min-w-0 truncate">{s.name}</span>
+                          <Badge variant="outline" className="ml-auto shrink-0">
                             {s.category}
                           </Badge>
                         </div>

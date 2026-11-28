@@ -21,7 +21,7 @@ export default function DocsIndexPage() {
       </div>
 
       {/* Quick start */}
-      <div className="mt-10 rounded-xl border border-phosphor/20 bg-phosphor/5 p-5">
+      <div className="mt-10 rounded-xl border border-border bg-muted/40 p-5">
         <h2 className="text-sm font-semibold text-phosphor mb-2">New to CAZO?</h2>
         <p className="text-xs text-muted-foreground mb-3">
           Start here to run your first scan and understand your results.

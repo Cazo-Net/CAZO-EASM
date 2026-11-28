@@ -472,6 +472,9 @@ app.include_router(auth_google.router, prefix="/api/v1/auth", tags=["Google OAut
 app.include_router(users.router, prefix="/api/v1/users", tags=["Users"])
 app.include_router(scan.router, prefix="/api/v1/scans", tags=["Scans"])
 app.include_router(assets.router, prefix="/api/v1/assets", tags=["Assets"])
+# Registered before the generic reports router: its `/{report_id}` route would
+# otherwise capture `/reports/executive` and answer 404.
+app.include_router(reports_v2.router, prefix="/api/v1/reports/executive", tags=["Executive Reports"])
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["Reports"])
 app.include_router(organizations.router, prefix="/api/v1/organizations", tags=["Organizations"])
 app.include_router(projects.router, prefix="/api/v1/projects", tags=["Projects"])
@@ -493,7 +496,6 @@ app.include_router(replay.router, prefix="/api/v1/replay", tags=["Exposure Repla
 app.include_router(asset_360.router, prefix="/api/v1/asset360", tags=["Asset 360"])
 app.include_router(change_feed.router, prefix="/api/v1/changefeed", tags=["Change Feed"])
 app.include_router(collaboration.router, prefix="/api/v1/collaboration", tags=["Collaboration"])
-app.include_router(reports_v2.router, prefix="/api/v1/reports/executive", tags=["Executive Reports"])
 app.include_router(evidence.router, prefix="/api/v1/findings", tags=["Evidence Center"])
 app.include_router(shadow.router, prefix="/api/v1/shadow-assets", tags=["Shadow Assets"])
 app.include_router(search.router, prefix="/api/v1/search", tags=["Search"])

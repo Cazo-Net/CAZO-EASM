@@ -319,8 +319,8 @@ function VulnContent() {
               })}
             </div>
 
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={scanFilter}
                   onChange={(e) => setScanFilter(e.target.value)}
@@ -393,8 +393,8 @@ function VulnContent() {
                 </div>
                 <h3 className="text-lg font-semibold mb-1">
                   {searchQuery || severityFilter !== "all"
-                    ? "No matching vulnerabilities"
-                    : "No vulnerabilities found"}
+                    ? "No matching findings"
+                    : "No findings yet"}
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-sm">
                   {searchQuery || severityFilter !== "all"

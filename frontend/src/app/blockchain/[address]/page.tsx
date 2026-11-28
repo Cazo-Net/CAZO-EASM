@@ -1,5 +1,6 @@
 "use client";
 
+import { authFetch } from "@/lib/api";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import {
@@ -78,12 +79,12 @@ function AddressDetailContent() {
       setLoading(true);
       try {
         const [walletRes, clusterRes, bridgesRes, graphRes, anomalyRes, intelRes] = await Promise.allSettled([
-          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}?chain=${chain}`),
-          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/cluster?chain=${chain}`),
-          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/bridges?chain=${chain}`),
-          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/graph?chain=${chain}&depth=1`),
-          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/anomaly?chain=${chain}`),
-          fetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/intel?chain=${chain}`),
+          authFetch(`${API_BASE}/api/v1/blockchain/wallet/${address}?chain=${chain}`),
+          authFetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/cluster?chain=${chain}`),
+          authFetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/bridges?chain=${chain}`),
+          authFetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/graph?chain=${chain}&depth=1`),
+          authFetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/anomaly?chain=${chain}`),
+          authFetch(`${API_BASE}/api/v1/blockchain/wallet/${address}/intel?chain=${chain}`),
         ]);
 
         if (walletRes.status === "fulfilled" && walletRes.value.ok) {
@@ -122,7 +123,7 @@ function AddressDetailContent() {
       setTxLoading(true);
       setTxPage(page);
       try {
-        const res = await fetch(
+        const res = await authFetch(
           `${API_BASE}/api/v1/blockchain/wallet/${address}/transactions?chain=${chain}&page=${page}&page_size=20`
         );
         if (res.ok) {
