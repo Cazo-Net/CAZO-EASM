@@ -234,7 +234,8 @@ def transform_pipeline_results(pipeline_result: Any, domain: str) -> Dict[str, A
             _merge_techs(transformed["technologies"], host, techs)
 
     transformed["subdomains"] = sorted(set(transformed["subdomains"]))
-    transformed["vulnerabilities"] = _dedupe_findings(findings)
+    from app.scanners.finding_catalog import polish_findings
+    transformed["vulnerabilities"] = polish_findings(_dedupe_findings(findings))
     return transformed
 
 

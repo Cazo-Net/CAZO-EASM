@@ -74,6 +74,14 @@ class EnhancedScanRunner:
         # Transform pipeline results into expected format
         all_data = self._transform_pipeline_results(pipeline_result, domain)
 
+        # Mark CVEs that are exploited in the wild (CISA KEV) or likely to be
+        # (FIRST EPSS) before scoring, so risk reflects real-world exploitation.
+        from app.scanners.exploit_intel import enrich_with_exploit_intel
+        exploit_status = None
+        if cfg.get("exploit_intel", True):
+            exploit_status = await enrich_with_exploit_intel(all_data.get("vulnerabilities") or [])
+        all_data["exploit_intel_status"] = exploit_status
+
         # Calculate risk score
         risk_result = risk_engine.calculate(all_data)
 
