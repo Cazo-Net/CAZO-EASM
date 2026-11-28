@@ -291,6 +291,15 @@ def dispatch_notification(
                 related_entity_type=related_entity_type,
                 related_entity_id=related_entity_id,
             )
+            # The organization's own Slack / Teams / Jira / SIEM integrations.
+            event_type = NOTIFICATION_EVENT_TYPES.get(notification_type)
+            if event_type:
+                from app.services.integration_delivery import dispatch_integrations
+
+                dispatch_integrations(
+                    db, organization_id, event_type, title, message, priority, data,
+                    related_entity_type, related_entity_id,
+                )
 
         if notification:
             db.commit()
@@ -365,6 +374,25 @@ def _send_notification_email(
         logger.error(f"Failed to send notification email ({notification_type} to {user_id}): {e}")
 
 
+# Notification type → outbound event name (webhooks and integrations).
+NOTIFICATION_EVENT_TYPES = {
+    "scan_completed": "scan.completed",
+    "scan_failed": "scan.failed",
+    "new_shadow_asset": "asset.shadow_asset",
+    "new_finding_critical": "finding.critical",
+    "new_finding_high": "finding.high",
+    "new_finding_medium": "finding.medium",
+    "ssl_expiring": "ssl.certificate_expiring",
+    "new_cve_match": "cve.new_match",
+    "inventory_new_asset": "asset.new_subdomain",
+    "inventory_new_service": "asset.new_port",
+    "inventory_new_finding": "finding.critical",
+    "inventory_cert_expiring": "ssl.certificate_expiring",
+    "inventory_cert_changed": "ssl.certificate_changed",
+    "inventory_asset_missing": "asset.disappeared",
+}
+
+
 def _dispatch_webhook_async(
     db: Session,
     organization_id: str,
@@ -383,23 +411,7 @@ def _dispatch_webhook_async(
     try:
         from app.models.webhook import Webhook
 
-        # Map notification types to webhook event types
-        event_type_map = {
-            "scan_completed": "scan.completed",
-            "scan_failed": "scan.failed",
-            "new_shadow_asset": "asset.shadow_asset",
-            "new_finding_critical": "finding.critical",
-            "new_finding_high": "finding.high",
-            "new_finding_medium": "finding.medium",
-            "ssl_expiring": "ssl.certificate_expiring",
-            "new_cve_match": "cve.new_match",
-            "inventory_new_asset": "asset.new_subdomain",
-            "inventory_new_service": "asset.new_port",
-            "inventory_new_finding": "finding.critical",
-            "inventory_cert_expiring": "ssl.certificate_expiring",
-            "inventory_cert_changed": "ssl.certificate_changed",
-            "inventory_asset_missing": "asset.disappeared",
-        }
+        event_type_map = NOTIFICATION_EVENT_TYPES
 
         event_type = event_type_map.get(notification_type)
         if not event_type:

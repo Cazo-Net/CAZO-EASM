@@ -2,312 +2,453 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  Server,
-  Database,
-  Cloud,
-  Ticket,
-  MessageSquare,
-  ExternalLink,
+  Plug,
+  Plus,
+  Trash2,
   Loader2,
   Check,
   X,
-  RefreshCw,
+  Pencil,
+  Send,
+  MessageSquare,
+  Users,
+  Ticket,
+  Server,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 
-const API_BASE = "";
-
-interface IntegrationStatus {
-  name: string;
-  configured: boolean;
-  env_var: string;
-  description: string;
-  icon: any;
-  color: string;
-  docs_url: string;
-  endpoint_preview?: string;
+interface FieldSpec {
+  key: string;
+  label: string;
+  secret?: boolean;
+  required?: boolean;
+  placeholder?: string;
+  help?: string;
 }
 
-const INTEGRATIONS: Omit<IntegrationStatus, "configured" | "endpoint_preview">[] = [
-  {
-    name: "Splunk HEC",
-    env_var: "SPLUNK_HEC_URL",
-    description:
-      "Send CEF-formatted security events to your Splunk instance via HTTP Event Collector.",
-    icon: Server,
-    color: "bg-green-500",
-    docs_url: "https://docs.splunk.com/s/cloud/splexploreHEC",
-  },
-  {
-    name: "Elastic Security",
-    env_var: "ELASTIC_URL",
-    description:
-      "Index findings and alerts to Elasticsearch or Elastic Security for SIEM analysis.",
-    icon: Database,
-    color: "bg-yellow-500",
-    docs_url: "https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html",
-  },
-  {
-    name: "Microsoft Sentinel",
-    env_var: "SENTINEL_WORKSPACE_ID",
-    description:
-      "Forward security events to Azure Sentinel via the Log Analytics Data Collector API.",
-    icon: Cloud,
-    color: "bg-blue-500",
-    docs_url: "https://learn.microsoft.com/en-us/azure/sentinel/",
-  },
-  {
-    name: "Jira",
-    env_var: "JIRA_URL",
-    description:
-      "Automatically create Jira tickets for critical findings and scan summaries.",
-    icon: Ticket,
-    color: "bg-blue-400",
-    docs_url: "https://developer.atlassian.com/cloud/jira/platform/",
-  },
-  {
-    name: "Slack",
-    env_var: "SLACK_WEBHOOK_URL",
-    description:
-      "Post security alerts and scan completion notifications to Slack channels.",
-    icon: MessageSquare,
-    color: "bg-purple-500",
-    docs_url: "https://api.slack.com/messaging/webhooks",
-  },
-  {
-    name: "Microsoft Teams",
-    env_var: "TEAMS_WEBHOOK_URL",
-    description:
-      "Send security notifications and alerts to Microsoft Teams channels.",
-    icon: MessageSquare,
-    color: "bg-indigo-500",
-    docs_url: "https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/what-are-webhooks-and-connectors",
-  },
-];
+interface KindSpec {
+  kind: string;
+  label: string;
+  description: string;
+  fields: FieldSpec[];
+  default_events: string[];
+}
+
+interface EventSpec {
+  type: string;
+  label: string;
+}
+
+interface Integration {
+  id: string;
+  kind: string;
+  name: string;
+  enabled: boolean;
+  settings: Record<string, string>;
+  has_secret: boolean;
+  credentials_readable: boolean;
+  destination: string;
+  event_types: string[];
+  failure_count: number;
+  last_success_at: string | null;
+  last_failure_at: string | null;
+  last_error: string | null;
+}
+
+const ICONS: Record<string, any> = { slack: MessageSquare, teams: Users, jira: Ticket, splunk: Server };
+
+function token(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || "";
+}
+
+async function api(path: string, init: RequestInit = {}) {
+  const res = await fetch(`/api/v1/integrations${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token()}`,
+      ...(init.headers || {}),
+    },
+  });
+  let data: any = null;
+  if (res.status !== 204) {
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+  }
+  return { ok: res.ok, status: res.status, data };
+}
+
+function errorText(data: any, fallback: string): string {
+  return typeof data?.detail === "string" ? data.detail : fallback;
+}
+
+function statusOf(i: Integration): { label: string; dot: string } {
+  if (!i.credentials_readable) return { label: "Needs credentials", dot: "bg-red-400" };
+  if (!i.enabled) return { label: "Off", dot: "bg-muted-foreground/40" };
+  if (i.failure_count > 0) return { label: "Failing", dot: "bg-yellow-400" };
+  if (i.last_success_at) return { label: "Working", dot: "bg-green-400" };
+  return { label: "Not used yet", dot: "bg-muted-foreground/40" };
+}
 
 export function IntegrationsPanel() {
-  const [statuses, setStatuses] = useState<Record<string, boolean>>({});
-  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [kinds, setKinds] = useState<KindSpec[]>([]);
+  const [events, setEvents] = useState<EventSpec[]>([]);
+  const [items, setItems] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
-  const [testing, setTesting] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<
-    Record<string, { success: boolean; error?: string }>
-  >({});
+  const [pageError, setPageError] = useState<string | null>(null);
 
-  const fetchStatus = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/api/v1/integrations/status`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setStatuses(data.configured || {});
-        setPreviews(data.previews || {});
-      }
-    } catch {
-      // If endpoint doesn't exist yet, default all to not configured
-      const fallback: Record<string, boolean> = {};
-      INTEGRATIONS.forEach((i) => {
-        fallback[i.env_var] = false;
-      });
-      setStatuses(fallback);
-    } finally {
-      setLoading(false);
+  // Form: adding (kind set, editing null) or editing an existing integration.
+  const [formKind, setFormKind] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Integration | null>(null);
+  const [name, setName] = useState("");
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const [busy, setBusy] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{ id: string; ok: boolean; text: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const [cat, list] = await Promise.all([api("/catalog"), api("")]);
+    if (cat.status === 403 || list.status === 403) {
+      setPageError("Only owners and administrators can manage integrations.");
+    } else if (list.status === 404) {
+      setPageError("Create or join an organization to set up integrations.");
+    } else if (!cat.ok || !list.ok) {
+      setPageError("Integrations could not be loaded. Please try again.");
+    } else {
+      setPageError(null);
+      setKinds(cat.data.kinds || []);
+      setEvents(cat.data.events || []);
+      setItems(list.data || []);
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchStatus();
-  }, [fetchStatus]);
-
-  const handleTest = useCallback(async (integration: { env_var: string; name: string }) => {
-    setTesting(integration.env_var);
-    setTestResults((prev) => {
-      const next = { ...prev };
-      delete next[integration.env_var];
-      return next;
+    load().catch(() => {
+      setPageError("Integrations could not be loaded. Please try again.");
+      setLoading(false);
     });
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/v1/integrations/${integration.name.toLowerCase().replace(/\s+/g, "-")}/test`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
-          },
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setTestResults((prev) => ({
-          ...prev,
-          [integration.env_var]: { success: data.success, error: data.error },
-        }));
-      } else {
-        setTestResults((prev) => ({
-          ...prev,
-          [integration.env_var]: { success: false, error: "Endpoint not available" },
-        }));
-      }
-    } catch {
-      setTestResults((prev) => ({
-        ...prev,
-        [integration.env_var]: { success: false, error: "Connection failed" },
-      }));
-    } finally {
-      setTesting(null);
+  }, [load]);
+
+  const spec = kinds.find((k) => k.kind === formKind) || null;
+
+  const openAdd = (kind: KindSpec) => {
+    setEditing(null);
+    setFormKind(kind.kind);
+    setName("");
+    setValues({});
+    setSelected(kind.default_events);
+    setFormError(null);
+  };
+
+  const openEdit = (i: Integration) => {
+    setEditing(i);
+    setFormKind(i.kind);
+    setName(i.name);
+    setValues({ ...i.settings });
+    setSelected(i.event_types);
+    setFormError(null);
+  };
+
+  const closeForm = () => {
+    setFormKind(null);
+    setEditing(null);
+    setFormError(null);
+  };
+
+  const save = async () => {
+    if (!spec) return;
+    if (selected.length === 0) {
+      setFormError("Choose at least one event to send.");
+      return;
     }
-  }, []);
+    setSaving(true);
+    setFormError(null);
+    try {
+      const body = { name, settings: values, event_types: selected };
+      const res = editing
+        ? await api(`/${editing.id}`, { method: "PUT", body: JSON.stringify(body) })
+        : await api("", { method: "POST", body: JSON.stringify({ ...body, kind: spec.kind }) });
+      if (!res.ok) {
+        setFormError(errorText(res.data, "Could not save. Please check the details and try again."));
+        return;
+      }
+      closeForm();
+      await load();
+    } catch {
+      setFormError("Could not save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const test = async (i: Integration) => {
+    setBusy(i.id);
+    setTestResult(null);
+    try {
+      const res = await api(`/${i.id}/test`, { method: "POST" });
+      const ok = res.ok && res.data?.success;
+      setTestResult({
+        id: i.id,
+        ok,
+        text: ok
+          ? i.kind === "jira"
+            ? "Connected. The account can reach the project (no issue was created)."
+            : "Test sent. Check the destination."
+          : res.data?.error || errorText(res.data, "The test failed."),
+      });
+      await load();
+    } catch {
+      setTestResult({ id: i.id, ok: false, text: "The test failed." });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggle = async (i: Integration) => {
+    setBusy(i.id);
+    try {
+      await api(`/${i.id}`, { method: "PUT", body: JSON.stringify({ enabled: !i.enabled }) });
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const remove = async (i: Integration) => {
+    setBusy(i.id);
+    try {
+      await api(`/${i.id}`, { method: "DELETE" });
+      setConfirmDelete(null);
+      await load();
+    } finally {
+      setBusy(null);
+    }
+  };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-400/10 text-sky-400">
-            <ExternalLink className="h-4 w-4" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Integrations</h2>
-            <p className="text-xs text-muted-foreground">
-              Connect with third-party SIEM and notification services.
-            </p>
-          </div>
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Plug className="h-4 w-4" />
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs"
-          onClick={fetchStatus}
-        >
-          <RefreshCw className="h-3 w-3 mr-1.5" />
-          Refresh
-        </Button>
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Integrations</h2>
+          <p className="text-xs text-muted-foreground">
+            Send new findings and alerts to the tools your team already uses. Credentials are stored encrypted and are
+            never shown again.
+          </p>
+        </div>
       </div>
 
-      {/* Integration cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {INTEGRATIONS.map((integration) => {
-          const isConfigured = statuses[integration.env_var] || false;
-          const Icon = integration.icon;
-          const testResult = testResults[integration.env_var];
-
-          return (
-            <div
-              key={integration.env_var}
-              className={`border rounded-lg p-4 transition-colors ${
-                isConfigured
-                  ? "border-border bg-muted/5"
-                  : "border-border bg-muted/20"
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${integration.color}/10`}
+      {pageError ? (
+        <div role="alert" className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-sm text-muted-foreground">
+          {pageError}
+        </div>
+      ) : (
+        <>
+          {/* Add */}
+          {!formKind && (
+            <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {kinds.map((k) => {
+                const Icon = ICONS[k.kind] || Plug;
+                return (
+                  <button
+                    key={k.kind}
+                    type="button"
+                    onClick={() => openAdd(k)}
+                    className="flex items-start gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/20"
                   >
-                    <Icon className={`h-4 w-4 ${integration.color.replace("bg-", "text-")}`} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium">{integration.name}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5 max-w-[250px]">
-                      {integration.description}
-                    </p>
-                  </div>
-                </div>
-                <Badge
-                  variant={isConfigured ? "default" : "secondary"}
-                  className={`text-[10px] shrink-0 ${
-                    isConfigured
-                      ? "bg-success/10 text-success border-green-500/20"
-                      : "text-muted-foreground"
-                  }`}
-                >
-                  {isConfigured ? (
-                    <span className="flex items-center gap-1">
-                      <Check className="h-2.5 w-2.5" /> Configured
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1">
-                      <X className="h-2.5 w-2.5" /> Not configured
-                    </span>
-                  )}
-                </Badge>
-              </div>
-
-              {/* Endpoint preview */}
-              {isConfigured && previews[integration.env_var] && (
-                <div className="mt-3 font-mono text-[10px] text-muted-foreground bg-muted/30 rounded px-2 py-1 truncate">
-                  {previews[integration.env_var]}
-                </div>
-              )}
-
-              {/* Setup instructions */}
-              {!isConfigured && (
-                <div className="mt-3 text-xs text-muted-foreground bg-muted/30 rounded px-3 py-2">
-                  Set <code className="text-foreground/70">{integration.env_var}</code> in your
-                  Railway dashboard environment variables.
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="mt-3 flex items-center gap-2">
-                {isConfigured && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-[10px]"
-                    onClick={() => handleTest(integration)}
-                    disabled={testing === integration.env_var}
-                  >
-                    {testing === integration.env_var ? (
-                      <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" />
-                    ) : null}
-                    Test Connection
-                  </Button>
-                )}
-                <a
-                  href={integration.docs_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1"
-                >
-                  <ExternalLink className="h-2.5 w-2.5" />
-                  Docs
-                </a>
-              </div>
-
-              {/* Test result */}
-              {testResult && (
-                <div
-                  className={`mt-2 text-[10px] p-1.5 rounded border ${
-                    testResult.success
-                      ? "border-green-500/20 bg-green-500/5 text-success"
-                      : "border-red-500/20 bg-red-500/5 text-destructive"
-                  }`}
-                >
-                  {testResult.success
-                    ? "Connection successful"
-                    : testResult.error || "Connection failed"}
-                </div>
-              )}
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted/40 text-foreground">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-foreground">{k.label}</div>
+                      <div className="text-xs text-muted-foreground">{k.description}</div>
+                    </div>
+                    <Plus className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+          )}
+
+          {/* Form */}
+          {spec && (
+            <div className="mb-6 rounded-lg border border-border bg-muted/20 p-4">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-sm font-medium">
+                  {editing ? `Edit ${editing.name}` : `Connect ${spec.label}`}
+                </h3>
+                <button type="button" onClick={closeForm} aria-label="Close" className="text-muted-foreground hover:text-foreground">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="int-name" className="mb-1 block text-xs text-muted-foreground">Name (optional)</label>
+                  <Input id="int-name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)}
+                    placeholder={`e.g. ${spec.label} for the security team`} className="h-9 text-sm" />
+                </div>
+                {spec.fields.map((f) => (
+                  <div key={f.key}>
+                    <label htmlFor={`int-${f.key}`} className="mb-1 block text-xs text-muted-foreground">
+                      {f.label}
+                      {!f.required && " (optional)"}
+                    </label>
+                    <Input
+                      id={`int-${f.key}`}
+                      type={f.secret ? "password" : "text"}
+                      autoComplete={f.secret ? "new-password" : "off"}
+                      value={values[f.key] || ""}
+                      onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                      placeholder={f.secret && editing ? "Leave blank to keep the current one" : f.placeholder}
+                      className="h-9 text-sm"
+                    />
+                    {f.help && <p className="mt-1 text-[11px] text-muted-foreground">{f.help}</p>}
+                  </div>
+                ))}
+                <fieldset>
+                  <legend className="mb-1.5 text-xs text-muted-foreground">Send these events</legend>
+                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                    {events.map((ev) => (
+                      <label key={ev.type} className="flex cursor-pointer items-center gap-2 text-xs text-foreground">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 accent-[hsl(var(--primary))]"
+                          checked={selected.includes(ev.type)}
+                          onChange={() =>
+                            setSelected((s) => (s.includes(ev.type) ? s.filter((x) => x !== ev.type) : [...s, ev.type]))
+                          }
+                        />
+                        {ev.label}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                {formError && (
+                  <div role="alert" className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-foreground">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-destructive" />
+                    {formError}
+                  </div>
+                )}
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button size="sm" variant="outline" className="h-8 text-xs" onClick={closeForm} disabled={saving}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" className="h-8 text-xs" onClick={save} disabled={saving}>
+                    {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                    {editing ? "Save changes" : "Connect"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* List */}
+          {items.length === 0 ? (
+            !formKind && (
+              <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+                Nothing connected yet. Pick a tool above to start.
+              </p>
+            )
+          ) : (
+            <ul className="space-y-3">
+              {items.map((i) => {
+                const Icon = ICONS[i.kind] || Plug;
+                const st = statusOf(i);
+                const kindLabel = kinds.find((k) => k.kind === i.kind)?.label || i.kind;
+                return (
+                  <li key={i.id} className="rounded-lg border border-border p-3">
+                    <div className="flex flex-wrap items-start gap-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted/40 text-foreground">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">{i.name}</span>
+                          {i.name !== kindLabel && <Badge variant="outline" className="text-[10px]">{kindLabel}</Badge>}
+                          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
+                            {st.label}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 break-all font-mono text-[11px] text-muted-foreground">{i.destination}</div>
+                        <div className="mt-1 text-[11px] text-muted-foreground">
+                          {i.event_types.length} {i.event_types.length === 1 ? "event" : "events"}
+                          {i.last_success_at && ` · last delivered ${new Date(i.last_success_at).toLocaleString()}`}
+                        </div>
+                        {i.last_error && testResult?.id !== i.id && (
+                          <div className="mt-1.5 flex items-start gap-1.5 text-[11px] text-yellow-500">
+                            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                            <span>{i.last_error}</span>
+                          </div>
+                        )}
+                        {testResult?.id === i.id && (
+                          <div role="status" className={`mt-1.5 flex items-start gap-1.5 text-[11px] ${testResult.ok ? "text-green-500" : "text-destructive"}`}>
+                            {testResult.ok ? <Check className="mt-0.5 h-3 w-3 shrink-0" /> : <X className="mt-0.5 h-3 w-3 shrink-0" />}
+                            <span>{testResult.text}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" disabled={busy === i.id || !i.credentials_readable}
+                          onClick={() => test(i)}>
+                          {busy === i.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Send className="mr-1 h-3 w-3" />}
+                          Test
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" disabled={busy === i.id} onClick={() => toggle(i)}>
+                          {i.enabled ? "Turn off" : "Turn on"}
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 px-2" aria-label={`Edit ${i.name}`} onClick={() => openEdit(i)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        {confirmDelete === i.id ? (
+                          <>
+                            <Button size="sm" variant="destructive" className="h-7 px-2 text-[11px]" disabled={busy === i.id} onClick={() => remove(i)}>
+                              Remove
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={() => setConfirmDelete(null)}>
+                              Keep
+                            </Button>
+                          </>
+                        ) : (
+                          <Button size="sm" variant="outline" className="h-7 px-2" aria-label={`Remove ${i.name}`} onClick={() => setConfirmDelete(i.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          <p className="mt-6 text-[11px] text-muted-foreground">
+            Using another SIEM or your own system? Add a signed webhook under Webhooks and point it at your collector.
+          </p>
+        </>
+      )}
     </div>
   );
 }

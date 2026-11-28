@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # Changing either one makes older audit entries fail verification, so set
     # it once and keep it.
     AUDIT_LOG_KEY: str = os.getenv("AUDIT_LOG_KEY", "")
+    # Key that encrypts customers' integration credentials (Slack, Jira,
+    # SIEM tokens). Empty = derived from SECRET_KEY. Changing it makes stored
+    # credentials unreadable, and customers must enter them again.
+    INTEGRATIONS_ENCRYPTION_KEY: str = os.getenv("INTEGRATIONS_ENCRYPTION_KEY", "")
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
