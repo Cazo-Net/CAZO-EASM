@@ -143,6 +143,76 @@ _ERROR_PAGE_SIGNATURES: list[dict[str, Any]] = [
 ]
 
 
+class TakeoverSignature:
+    """How to confirm a dangling CNAME at one service is really claimable."""
+
+    def __init__(self, service: str, suffixes: tuple, fingerprints: tuple = (),
+                 nxdomain_means_unclaimed: bool = False, severity: str = "high"):
+        self.service = service
+        self.suffixes = suffixes
+        self.fingerprints = fingerprints
+        self.nxdomain_means_unclaimed = nxdomain_means_unclaimed
+        self.severity = severity
+
+
+# Signals per service follow the community-maintained "can-i-take-over-xyz"
+# list. Services whose takeover is no longer possible (CloudFront, generic
+# AWS hostnames) or that give no reliable signal are left out on purpose.
+TAKEOVER_SIGNATURES: list[TakeoverSignature] = [
+    TakeoverSignature("GitHub Pages", ("github.io",), ("there isn't a github pages site here",)),
+    TakeoverSignature("Heroku", ("herokuapp.com", "herokudns.com", "herokussl.com"),
+                      ("no such app", "herokucdn.com/error-pages/no-such-app.html")),
+    TakeoverSignature("AWS S3", ("s3.amazonaws.com", ".s3-website", ".s3."),
+                      ("nosuchbucket", "the specified bucket does not exist")),
+    TakeoverSignature("Azure", ("azurewebsites.net", "cloudapp.net", "cloudapp.azure.com",
+                                "trafficmanager.net", "blob.core.windows.net", "azure-api.net",
+                                "azureedge.net", "azurecontainer.io", "azurefd.net", "azurestaticapps.net"),
+                      nxdomain_means_unclaimed=True),
+    TakeoverSignature("Fastly", ("fastly.net",), ("fastly error: unknown domain",), severity="medium"),
+    TakeoverSignature("Shopify", ("myshopify.com", "shops.myshopify.com"),
+                      ("sorry, this shop is currently unavailable",), severity="medium"),
+    TakeoverSignature("Ghost", ("ghost.io",), ("the thing you were looking for is no longer here",)),
+    TakeoverSignature("Surge.sh", ("surge.sh",), ("project not found",), severity="medium"),
+    TakeoverSignature("Bitbucket", ("bitbucket.io",), ("repository not found",)),
+    TakeoverSignature("Pantheon", ("pantheonsite.io",),
+                      ("the gods are wise, but do not know of the site which you seek",)),
+    TakeoverSignature("Help Juice", ("helpjuice.com",), ("we could not find what you're looking for",),
+                      severity="medium"),
+    TakeoverSignature("Help Scout", ("helpscoutdocs.com",), ("no settings were found for this company",),
+                      severity="medium"),
+    TakeoverSignature("ReadMe", ("readme.io",), ("project doesnt exist... yet!",), severity="medium"),
+    TakeoverSignature("Tumblr", ("domains.tumblr.com",),
+                      ("whatever you were looking for doesn't currently exist at this address",),
+                      severity="medium"),
+    TakeoverSignature("WordPress.com", ("wordpress.com",), ("do you want to register",), severity="medium"),
+    TakeoverSignature("Webflow", ("proxy.webflow.com", "proxy-ssl.webflow.com"),
+                      ("the page you are looking for doesn't exist or has been moved",), severity="medium"),
+    TakeoverSignature("ngrok", ("ngrok.io", "ngrok.app", "ngrok-free.app"),
+                      ("err_ngrok_3200",), severity="high"),
+    TakeoverSignature("Uberflip", ("read.uberflip.com",), ("non-hub domain, the url you've accessed",),
+                      severity="medium"),
+    TakeoverSignature("Agile CRM", ("agilecrm.com",), ("sorry, this page is no longer available",),
+                      severity="medium"),
+]
+
+
+def takeover_signature_for(cname: str) -> "TakeoverSignature | None":
+    """The service a CNAME target belongs to, if takeovers there are checkable.
+
+    A suffix starting with "." matches anywhere in the name (regional S3
+    endpoints); any other suffix must match whole labels at the end.
+    """
+    c = (cname or "").lower().rstrip(".")
+    for sig in TAKEOVER_SIGNATURES:
+        for suf in sig.suffixes:
+            if suf.startswith("."):
+                if suf in c:
+                    return sig
+            elif c == suf or c.endswith("." + suf):
+                return sig
+    return None
+
+
 @register_scanner(
     name="exposure-validation",
     category=ScannerCategory.VULNERABILITY_ASSESSMENT,
@@ -698,70 +768,15 @@ class ExposureValidator(EnhancedBaseScanner):
     async def _check_subdomain_takeover(
         self, subdomains: list[str]
     ) -> list[dict[str, Any]]:
-        """Detect dangling CNAMEs pointing to unclaimed cloud services.
+        """Detect dangling CNAMEs pointing to unclaimed third-party services.
 
-        Checks CNAME records against known vulnerable services (GitHub Pages,
-        Heroku, AWS S3, Azure, Fastly, etc.).
+        A CNAME to a hosting service is only reported when the takeover is
+        confirmed by that service's own "unclaimed" signal: its specific
+        error page, or (for services that hand out names on request) the
+        CNAME target no longer existing. A generic 404 is not evidence; the
+        old check treated any "404 not found" or "page not found" text as
+        proof, which flagged ordinary CDN 404s as high-severity takeovers.
         """
-        findings: list[dict[str, Any]] = []
-
-        # Known vulnerable CNAME patterns → service → takeover instructions
-        vulnerable_cnames: dict[str, dict[str, str]] = {
-            "github.io": {"service": "GitHub Pages", "severity": "high"},
-            "githubapp.com": {"service": "GitHub Apps", "severity": "high"},
-            "herokudns.com": {"service": "Heroku", "severity": "high"},
-            "herokuapp.com": {"service": "Heroku", "severity": "high"},
-            "amazonaws.com": {"service": "AWS S3/CloudFront", "severity": "high"},
-            "cloudfront.net": {"service": "AWS CloudFront", "severity": "high"},
-            "azurewebsites.net": {"service": "Azure Web Apps", "severity": "high"},
-            "trafficmanager.net": {"service": "Azure Traffic Manager", "severity": "high"},
-            "blob.core.windows.net": {"service": "Azure Blob Storage", "severity": "high"},
-            "azure-api.net": {"service": "Azure API Management", "severity": "high"},
-            "azureedge.net": {"service": "Azure CDN", "severity": "high"},
-            "azurefd.net": {"service": "Azure Front Door", "severity": "high"},
-            "fastly.net": {"service": "Fastly", "severity": "high"},
-            "ghost.io": {"service": "Ghost", "severity": "high"},
-            "shopify.com": {"service": "Shopify", "severity": "high"},
-            "surge.sh": {"service": "Surge.sh", "severity": "medium"},
-            "bitbucket.io": {"service": "Bitbucket", "severity": "high"},
-            "readme.io": {"service": "ReadMe", "severity": "medium"},
-            "pantheon.io": {"service": "Pantheon", "severity": "high"},
-            "helpjuice.com": {"service": "Helpjuice", "severity": "medium"},
-            "helpscoutdocs.com": {"service": "HelpScout", "severity": "medium"},
-            "cargocollective.com": {"service": "Cargo Collective", "severity": "medium"},
-            "feedpress.me": {"service": "FeedPress", "severity": "medium"},
-            "ghost.io": {"service": "Ghost", "severity": "high"},
-            "helpjuice.com": {"service": "Helpjuice", "severity": "medium"},
-            "helpscoutdocs.com": {"service": "HelpScout", "severity": "medium"},
-            "heroku.com": {"service": "Heroku", "severity": "high"},
-            "instapage.com": {"service": "Instapage", "severity": "medium"},
-            "landingi.com": {"service": "Landingi", "severity": "medium"},
-            "launchrock.com": {"service": "LaunchRock", "severity": "medium"},
-            "mashery.com": {"service": "Mashery", "severity": "medium"},
-            "ngrok.io": {"service": "ngrok", "severity": "critical"},
-            "pingdom.com": {"service": "Pingdom", "severity": "medium"},
-            "proposify.biz": {"service": "Proposify", "severity": "medium"},
-            "readme.io": {"service": "ReadMe", "severity": "medium"},
-            "s3.amazonaws.com": {"service": "AWS S3", "severity": "high"},
-            "squarespace.com": {"service": "Squarespace", "severity": "medium"},
-            "strikingly.com": {"service": "Strikingly", "severity": "medium"},
-            "surge.sh": {"service": "Surge.sh", "severity": "medium"},
-            "tave.com": {"service": "Tave", "severity": "medium"},
-            "teamwork.com": {"service": "Teamwork", "severity": "medium"},
-            "thinkific.com": {"service": "Thinkific", "severity": "medium"},
-            "tictail.com": {"service": "Tictail", "severity": "medium"},
-            "tumblr.com": {"service": "Tumblr", "severity": "medium"},
-            "uberflip.com": {"service": "Uberflip", "severity": "medium"},
-            "uservoice.com": {"service": "UserVoice", "severity": "medium"},
-            "vero.co": {"service": "Vero", "severity": "medium"},
-            "visualstudio.com": {"service": "Visual Studio", "severity": "medium"},
-            "webflow.com": {"service": "Webflow", "severity": "medium"},
-            "wishpond.com": {"service": "Wishpond", "severity": "medium"},
-            "wordpress.com": {"service": "WordPress.com", "severity": "high"},
-            "zendesk.com": {"service": "Zendesk", "severity": "medium"},
-            "zendesk.com": {"service": "Zendesk", "severity": "medium"},
-        }
-
         import dns.resolver
 
         def _resolve_cname(s: str) -> str | None:
@@ -772,6 +787,15 @@ class ExposureValidator(EnhancedBaseScanner):
             except Exception:
                 pass
             return None
+
+        def _target_missing(name: str) -> bool:
+            try:
+                dns.resolver.resolve(name, "A", lifetime=4.0)
+                return False
+            except dns.resolver.NXDOMAIN:
+                return True
+            except Exception:
+                return False  # timeouts etc. are not proof
 
         # Look the names up together (bounded), not one after another: with
         # 200 names and slow authoritative servers the serial loop alone
@@ -784,60 +808,60 @@ class ExposureValidator(EnhancedBaseScanner):
                     cname = await asyncio.to_thread(_resolve_cname, sub)
                     if not cname:
                         return None
-                    for pattern, info in vulnerable_cnames.items():
-                        if cname.endswith(pattern):
-                            # Try to connect to verify it's actually unclaimed
-                            if not await self._verify_unclaimed(sub):
-                                return None
-                            return {
-                                "found": True,
-                                "category": "subdomain_takeover",
-                                "severity": info["severity"],
-                                "description": f"Dangling CNAME: {sub} → {cname} ({info['service']}) — potentially takeoverable",
-                                "details": {
-                                    "subdomain": sub,
-                                    "cname": cname,
-                                    "service": info["service"],
-                                    "unclaimed": True,
-                                },
-                            }
+                    sig = takeover_signature_for(cname)
+                    if sig is None:
+                        return None
+                    evidence: list[str] = [f"{sub} CNAME {cname} ({sig.service})"]
+                    confirmed = False
+                    if sig.nxdomain_means_unclaimed and await asyncio.to_thread(_target_missing, cname):
+                        confirmed = True
+                        evidence.append(f"{cname} does not exist (NXDOMAIN), so the name can be registered by anyone")
+                    if not confirmed and sig.fingerprints:
+                        page = await self._fetch_takeover_page(sub)
+                        hit = next((fp for fp in sig.fingerprints if page and fp.lower() in page), None)
+                        if hit:
+                            confirmed = True
+                            evidence.append(f"https://{sub} shows the {sig.service} 'unclaimed' page: \"{hit}\"")
+                    if not confirmed:
+                        return None
+                    return {
+                        "found": True,
+                        "category": "subdomain_takeover",
+                        "severity": sig.severity,
+                        "url": f"https://{sub}",
+                        "description": (
+                            f"Subdomain takeover possible: {sub} points to {sig.service} ({cname}), "
+                            f"but nothing is claimed there. Anyone who registers it on {sig.service} "
+                            "can serve content (phishing, cookie theft) on your domain. "
+                            f"Fix: remove the DNS record for {sub}, or claim the resource on {sig.service}."
+                        ),
+                        "details": {
+                            "subdomain": sub,
+                            "cname": cname,
+                            "service": sig.service,
+                            "unclaimed": True,
+                            "evidence": evidence,
+                        },
+                    }
                 except Exception as e:
                     logger.debug("Takeover check failed for %s: %s", sub, e)
                 return None
 
-        for item in await asyncio.gather(*(_one(sub) for sub in subdomains)):
-            if item:
-                findings.append(item)
+        return [f for f in await asyncio.gather(*(_one(sub) for sub in subdomains)) if f]
 
-        return findings
-
-    async def _verify_unclaimed(self, hostname: str) -> bool:
-        """Check if a hostname returns an error page indicating it's unclaimed."""
-        try:
-            async with httpx.AsyncClient(
-                timeout=10, follow_redirects=True, event_hooks=GUARDED_HOOKS, verify=False,
-                headers={"User-Agent": "CAZO-EASM/2.0"},
-            ) as client:
-                resp = await client.get(f"https://{hostname}", timeout=8)
-                body = resp.text[:3000].lower()
-                # Common "not claimed" indicators
-                indicators = [
-                    "no such app",
-                    "there isn't a github pages site here",
-                    "heroku | no such app",
-                    " NoSuchBucket",
-                    "The specified bucket does not exist",
-                    "404 not found",
-                    "page not found",
-                    "no site is configured",
-                    "this domain is not yet configured",
-                    "claim this domain",
-                    "domain has been claimed",
-                    "site not found",
-                ]
-                return any(ind in body for ind in indicators)
-        except Exception:
-            return False
+    async def _fetch_takeover_page(self, hostname: str) -> str:
+        """Lower-cased start of the page served on ``hostname`` ('' on failure)."""
+        for scheme in ("https", "http"):
+            try:
+                async with httpx.AsyncClient(
+                    timeout=8, follow_redirects=True, event_hooks=GUARDED_HOOKS, verify=False,
+                    headers={"User-Agent": "CAZO-EASM/2.0"},
+                ) as client:
+                    resp = await client.get(f"{scheme}://{hostname}")
+                    return resp.text[:5000].lower()
+            except Exception:  # noqa: BLE001
+                continue
+        return ""
 
     # ── SSRF surface mapping ─────────────────────────────────────────────────
 

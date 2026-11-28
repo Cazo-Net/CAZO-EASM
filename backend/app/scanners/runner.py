@@ -472,7 +472,14 @@ class ScanRunner:
                 merged_vulns.extend(findings_list)
             if isinstance(cve_list, list):
                 merged_vulns.extend(cve_list)
-            results["vulnerabilities"] = merged_vulns
+            # One vocabulary for findings (same ids, titles and severities as
+            # Scanner v2), duplicates merged, then exploited CVEs flagged.
+            from app.scanners.finding_catalog import polish_findings
+            from app.scanners.exploit_intel import enrich_with_exploit_intel
+            results["vulnerabilities"] = polish_findings(merged_vulns)
+            if options.get("exploit_intel", True):
+                results["scanner_status"]["exploit-intel"] = await enrich_with_exploit_intel(
+                    results["vulnerabilities"])
 
             # ── Step 5: Risk score ──
             if progress_callback:
