@@ -2,6 +2,7 @@
 
 import { CazoMark } from "@/components/CazoMark";
 import { SupportInbox } from "@/components/SupportInbox";
+import { TeamChat } from "@/components/TeamChat";
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api, { getErrorMessage } from "@/lib/api";
@@ -11,11 +12,11 @@ import {
   RefreshCw, BarChart3, HardDrive, Cpu, MemoryStick, CheckCircle,
   XCircle, Loader2, LogOut, Globe, Bell, FileText, Fingerprint,
   Flag, Lock, Clock, Terminal, Eye, Mail, Zap, Settings, Shield, GitBranch, List,
-  MessageSquare,
+  MessageSquare, MessagesSquare,
 } from "lucide-react";
 
 
-type Tab = "overview" | "users" | "orgs" | "scans" | "vulns" | "assets" | "sessions" | "audit" | "logs" | "notifications" | "apikeys" | "flags" | "database" | "system" | "blockchain" | "support";
+type Tab = "overview" | "users" | "orgs" | "scans" | "vulns" | "assets" | "sessions" | "audit" | "logs" | "notifications" | "apikeys" | "flags" | "database" | "system" | "blockchain" | "support" | "team";
 
 const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "overview", label: "Overview", icon: BarChart3 },
@@ -33,6 +34,7 @@ const tabs: { id: Tab; label: string; icon: any }[] = [
   { id: "database", label: "Database", icon: Database },
   { id: "blockchain", label: "Blockchain", icon: Zap },
   { id: "support", label: "Support", icon: MessageSquare },
+  { id: "team", label: "Team Chat", icon: MessagesSquare },
   { id: "system", label: "System", icon: Server },
 ];
 
@@ -261,6 +263,19 @@ export default function AdminPage() {
     return () => clearInterval(t);
   }, [authenticated, fetchSupportUnread]);
 
+  // Team chat: messages from other admins you have not read yet
+  const [teamUnread, setTeamUnread] = useState(0);
+  const fetchTeamUnread = useCallback(async () => {
+    try { setTeamUnread((await api.get("/team-chat/unread")).data.count || 0); }
+    catch { /* the badge is a hint; the chat reports its own errors */ }
+  }, []);
+  useEffect(() => {
+    if (!authenticated) return;
+    fetchTeamUnread();
+    const t = setInterval(() => !document.hidden && fetchTeamUnread(), 15000);
+    return () => clearInterval(t);
+  }, [authenticated, fetchTeamUnread]);
+
   const openUserDetail = async (user: any) => {
     setSelectedUser(user);
     setUserMsg("");
@@ -412,6 +427,9 @@ export default function AdminPage() {
             <t.icon className="h-4 w-4" /> {t.label}
             {t.id === "support" && supportUnread > 0 && (
               <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-white text-[11px] font-semibold">{supportUnread}</span>
+            )}
+            {t.id === "team" && teamUnread > 0 && (
+              <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-white text-[11px] font-semibold">{teamUnread}</span>
             )}
           </button>
         ))}
@@ -1863,6 +1881,7 @@ export default function AdminPage() {
 
       {/* ── SUPPORT TAB ──────────────────────────────────────── */}
       {tab === "support" && <SupportInbox onUnreadChange={fetchSupportUnread} />}
+      {tab === "team" && <TeamChat onUnreadChange={fetchTeamUnread} />}
 
       {/* ── USER DETAIL MODAL ─────────────────────────────────── */}
       {selectedUser && (
