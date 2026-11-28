@@ -54,7 +54,7 @@ function SuccessInner() {
       )}
       {paid && (
         <>
-          <CheckCircle2 className="h-10 w-10 text-phosphor" />
+          <CheckCircle2 className="h-10 w-10 text-primary" />
           <h1 className="mt-4 text-2xl font-semibold">You&apos;re all set</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {status?.amount_total != null && status.currency

@@ -38,7 +38,7 @@ export function IntervalToggle({
           className={cn(
             "rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
             value === i.id
-              ? "bg-phosphor text-void"
+              ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
@@ -114,11 +114,11 @@ export function PlanCard({
     <div
       className={cn(
         "relative flex flex-col rounded-xl border bg-card p-6",
-        plan.highlight ? "border-phosphor/60" : "border-border"
+        plan.highlight ? "border-primary/60" : "border-border"
       )}
     >
       {plan.highlight && (
-        <span className="absolute -top-3 left-6 rounded-full bg-phosphor px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-void">
+        <span className="absolute -top-3 left-6 rounded-full bg-primary px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
           Most popular
         </span>
       )}
@@ -156,26 +156,26 @@ export function PlanCard({
 
       <ul className="mt-5 space-y-2 text-sm">
         <li className="flex gap-2">
-          <Check className="mt-0.5 h-4 w-4 shrink-0 text-phosphor" />
+          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           {limitText(plan.limits.root_domains, "root domains", plan.per_client)}
         </li>
         <li className="flex gap-2">
-          <Check className="mt-0.5 h-4 w-4 shrink-0 text-phosphor" />
+          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           {limitText(plan.limits.hosts, "hosts monitored", plan.per_client)}
         </li>
         <li className="flex gap-2">
-          <Check className="mt-0.5 h-4 w-4 shrink-0 text-phosphor" />
+          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           <span>
             <span className="capitalize">{plan.scan_frequency}</span> scheduled scans
           </span>
         </li>
         <li className="flex gap-2">
-          <Check className="mt-0.5 h-4 w-4 shrink-0 text-phosphor" />
+          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
           {plan.limits.users == null ? "Unlimited users" : `${plan.limits.users} user seats`}
         </li>
         {plan.features.map((f) => (
           <li key={f} className="flex gap-2">
-            <Check className="mt-0.5 h-4 w-4 shrink-0 text-phosphor" />
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             {f}
           </li>
         ))}

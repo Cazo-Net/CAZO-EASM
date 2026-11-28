@@ -138,7 +138,7 @@ function CheckoutInner() {
       {!user?.organization_id && (
         <div className="mb-4 rounded-xl border border-border bg-card p-3 text-sm">
           Create your organization first in{" "}
-          <Link className="text-phosphor underline" href="/settings/organization">Organization settings</Link>.
+          <Link className="text-primary underline" href="/settings/organization">Organization settings</Link>.
         </div>
       )}
 
@@ -152,7 +152,7 @@ function CheckoutInner() {
                   onClick={() => setPlanId(p.id)}
                   className={cn(
                     "rounded-xl border p-4 text-left transition",
-                    p.id === planId ? "border-phosphor/70 bg-phosphor/5" : "border-border hover:border-border"
+                    p.id === planId ? "border-phosphor/70 bg-primary/5" : "border-border hover:border-border"
                   )}
                 >
                   <div className="flex items-center justify-between">
@@ -207,7 +207,7 @@ function CheckoutInner() {
                   key={o.id}
                   className={cn(
                     "flex cursor-pointer gap-3 rounded-xl border p-4 transition",
-                    payment === o.id ? "border-phosphor/70 bg-phosphor/5" : "border-border hover:border-border"
+                    payment === o.id ? "border-phosphor/70 bg-primary/5" : "border-border hover:border-border"
                   )}
                 >
                   <input

@@ -61,7 +61,7 @@ export default function PricingPage() {
       <LandingNav scrolled />
 
       <section className="mx-auto max-w-6xl px-6 pb-10 pt-16 text-center">
-        <span className=" text-[11px] uppercase tracking-wide text-phosphor">Pricing</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Pricing</span>
         <h1 className="mt-4 text-4xl font-semibold leading-[1.05] md:text-5xl">
           Priced by root domain. No surprise bills.
         </h1>
@@ -103,8 +103,8 @@ export default function PricingPage() {
                     href={checkoutHref(plan.id)}
                     className={
                       plan.highlight
-                        ? "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-phosphor px-4 py-2.5 text-sm font-semibold text-void transition hover:"
-                        : "inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium transition hover:border-phosphor/60"
+                        ? "inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                        : "inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-card px-4 py-2.5 text-sm font-medium transition hover:border-primary/60"
                     }
                   >
                     Choose {plan.name} <ArrowRight className="h-4 w-4" />
@@ -146,7 +146,7 @@ export default function PricingPage() {
           </div>
           <a
             href={`mailto:${process.env.NEXT_PUBLIC_SALES_EMAIL || "sales@cazo.io"}?subject=CAZO%20EASM%20pricing`}
-            className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium transition hover:border-phosphor/60"
+            className="inline-flex items-center gap-2 rounded-md border border-input bg-card px-4 py-2 text-sm font-medium transition hover:border-primary/60"
           >
             Contact sales
           </a>
