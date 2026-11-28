@@ -351,7 +351,11 @@ async def get_organization_stats(
         .filter(User.organization_id == org_id, Scan.status == "running")
         .count()
     )
-    asset_count = db.query(Asset).filter(Asset.organization_id == org_id).count()
+    asset_count = (
+        db.query(Asset)
+        .filter(Asset.organization_id == org_id, Asset.asset_type.in_(("host", "ip", "certificate")))
+        .count()
+    )
     invitation_count = (
         db.query(Invitation)
         .filter(Invitation.organization_id == org_id, Invitation.status == "pending")

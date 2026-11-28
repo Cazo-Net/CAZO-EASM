@@ -336,6 +336,7 @@ async def rate_limit_middleware(request: Request, call_next):
     path = request.url.path
     is_polling = request.method == "GET" and (
         path.startswith("/api/v1/assets")
+        or path.startswith("/api/v1/inventory")
         or path.startswith("/api/v1/scans")
         or path.startswith("/api/v1/notifications")
     )
@@ -465,7 +466,7 @@ async def readiness_check():
 from fastapi import Depends  # noqa: E402
 from app.api.deps import get_current_user  # noqa: E402
 # blockchain and darkweb have no per-route auth, so the whole router requires a login.
-from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2, logs, blockchain, darkweb, webhooks, integrations, support  # noqa: E402
+from app.api.v1 import scan, auth, assets, reports, organizations, projects, users, api_keys, compare, notifications, notification_preferences, tags, canvas, sessions, invitations, admin, security, scopes, api_keys_v2, security_center, passkeys, replay, asset_360, change_feed, collaboration, reports_v2, auth_google, evidence, shadow, search, osint, scanner_v2, logs, blockchain, darkweb, webhooks, integrations, support, inventory  # noqa: E402
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(auth_google.router, prefix="/api/v1/auth", tags=["Google OAuth"])
@@ -495,6 +496,7 @@ app.include_router(passkeys.router, prefix="/api/v1/passkeys", tags=["Passkeys"]
 app.include_router(replay.router, prefix="/api/v1/replay", tags=["Exposure Replay"])
 app.include_router(asset_360.router, prefix="/api/v1/asset360", tags=["Asset 360"])
 app.include_router(change_feed.router, prefix="/api/v1/changefeed", tags=["Change Feed"])
+app.include_router(inventory.router, prefix="/api/v1/inventory", tags=["Asset Inventory"])
 app.include_router(collaboration.router, prefix="/api/v1/collaboration", tags=["Collaboration"])
 app.include_router(evidence.router, prefix="/api/v1/findings", tags=["Evidence Center"])
 app.include_router(shadow.router, prefix="/api/v1/shadow-assets", tags=["Shadow Assets"])

@@ -66,12 +66,13 @@ const EVENT_CATEGORIES = [
       "asset.new_port",
       "asset.new_technology",
       "asset.shadow_asset",
+      "asset.disappeared",
     ],
   },
   {
     label: "SSL Events",
     icon: Lock,
-    events: ["ssl.certificate_expiring", "ssl.certificate_expired"],
+    events: ["ssl.certificate_expiring", "ssl.certificate_expired", "ssl.certificate_changed"],
   },
   {
     label: "Supply Chain",
