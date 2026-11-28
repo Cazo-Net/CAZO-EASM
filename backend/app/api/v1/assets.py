@@ -437,8 +437,9 @@ async def list_vulnerabilities(
     else:
         query = (
             db.query(Vulnerability)
-            .join(Subdomain, Vulnerability.subdomain_id == Subdomain.id)
-            .join(Scan, Subdomain.scan_id == Scan.id)
+            # Join through scan_id: findings on a host that is not one of the
+            # scan's subdomains have no subdomain_id and were left out.
+            .join(Scan, Vulnerability.scan_id == Scan.id)
             .filter(Scan.organization_id == current_user.organization_id)
         )
 
@@ -487,8 +488,9 @@ async def get_vulnerability_summary(
     else:
         query = (
             db.query(Vulnerability)
-            .join(Subdomain, Vulnerability.subdomain_id == Subdomain.id)
-            .join(Scan, Subdomain.scan_id == Scan.id)
+            # Join through scan_id: findings on a host that is not one of the
+            # scan's subdomains have no subdomain_id and were left out.
+            .join(Scan, Vulnerability.scan_id == Scan.id)
             .filter(Scan.organization_id == current_user.organization_id)
         )
 
