@@ -18,7 +18,7 @@ Severity is one scale everywhere: critical red, high orange, medium amber,
 low blue, info grey (`--sev-*`, Tailwind `severity-*`). Success stays green.
 
 To re-brand, change `--brand`, `--primary` and `--ring` in both blocks, and the
-two gradient stops in `components/marketing/CazoLogo.tsx` and `public/logo.svg`.
+two gradient stops in `components/marketing/CazoLogo.tsx` and `public/logo.svg` (then regenerate `public/favicon.ico`).
 
 Legacy colour names (`phosphor`, `cyan-signal`, `signal-red`, `amber`,
 `neon-violet`) now point at tokens, so older pages pick up the palette without

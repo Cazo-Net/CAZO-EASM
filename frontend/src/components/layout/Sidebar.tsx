@@ -201,12 +201,9 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
           <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
             <CazoMark className="h-7 w-7 shrink-0" />
             {!collapsed && (
-              <div className="flex items-baseline gap-1.5 min-w-0">
-                <span className="text-[15px] font-semibold tracking-tight text-foreground">CAZO</span>
-                <span className="rounded border border-border px-1 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                  EASM
-                </span>
-              </div>
+              <span className="truncate text-[15px] font-semibold tracking-tight text-foreground">
+                CAZO <span className="font-medium text-muted-foreground">EASM</span>
+              </span>
             )}
           </Link>
         </div>

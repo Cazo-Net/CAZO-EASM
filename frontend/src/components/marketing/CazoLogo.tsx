@@ -1,10 +1,9 @@
 import Link from "next/link";
 
 /**
- * CAZO logo mark.
- *
- * New design: a teal "C" shape (open perimeter ring) with a small
- * scan node circle on the right opening. Clean, minimal, technical.
+ * CAZO EASM logo mark: an open perimeter. A hexagon with one edge missing
+ * reads as a "C"; the dot is the asset inside it. The gap is the exposure
+ * the product exists to find.
  */
 
 export function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
@@ -17,22 +16,19 @@ export function CazoMark({ className = "h-7 w-7" }: { className?: string }) {
       role="img"
     >
       <defs>
-        <linearGradient id="cazo-gradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#3B82F6" />
-          <stop offset="1" stopColor="#22D3EE" />
+        <linearGradient id="cazo-gradient" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#5B9BFF" />
+          <stop offset="1" stopColor="#2563EB" />
         </linearGradient>
       </defs>
-      {/* Main "C" shape - open circle */}
       <path
-        d="M44.5 12.8A22 22 0 1 0 52 32"
+        d="M52.78 44.00 L32.00 56.00 L11.22 44.00 L11.22 20.00 L32.00 8.00 L52.78 20.00"
         stroke="url(#cazo-gradient)"
-        strokeWidth="7"
+        strokeWidth="6"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
-      {/* Small circle on the right */}
-      <circle cx="50" cy="28" r="5" fill="url(#cazo-gradient)" />
-      {/* Tiny inner dot */}
-      <circle cx="50" cy="28" r="2" fill="#09090B" />
+      <circle cx="32" cy="32" r="5.5" fill="url(#cazo-gradient)" />
     </svg>
   );
 }
@@ -49,9 +45,13 @@ export function CazoLogo({
   showWord?: boolean;
 }) {
   return (
-    <Link href={href} className="flex items-center gap-2" aria-label="CAZO home">
+    <Link href={href} className="flex items-center gap-2" aria-label="CAZO EASM home">
       <CazoMark className={markClassName} />
-      {showWord && <span className={wordClassName}>CAZO</span>}
+      {showWord && (
+        <span className={wordClassName}>
+          CAZO <span className="font-medium text-muted-foreground">EASM</span>
+        </span>
+      )}
     </Link>
   );
 }

@@ -150,7 +150,7 @@ function ProductFrame() {
           <div className="hidden w-48 shrink-0 border-r border-white/[0.06] p-3 md:block">
             <div className="mb-4 flex items-center gap-2 px-1.5">
               <CazoMark className="h-5 w-5" />
-              <span className="text-[13px] font-semibold text-white">CAZO</span>
+              <span className="text-[13px] font-semibold text-white">CAZO <span className="font-medium text-slate-400">EASM</span></span>
             </div>
             {[
               { i: LayoutDashboard, l: "Dashboard", a: true },
