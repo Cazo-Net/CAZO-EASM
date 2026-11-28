@@ -56,6 +56,7 @@ ADMIN_JWT_SECRET=your-jwt-secret
 | **API Keys** | API key list with prefix display, revoke |
 | **Feature Flags** | Feature flag cards with ON/OFF toggle, plan restrictions |
 | **Database** | Table row counts sorted by size |
+| **Team Chat** | Internal room for platform admins only (not customers): plain text, history, unread badge, delete your own messages |
 | **System** | 8 system metrics, top 30 processes by memory, configuration |
 
 ## User Management
@@ -129,6 +130,12 @@ Click any user row to open the detail modal with:
 | `/system/processes` | GET | Running processes |
 | `/database/stats` | GET | Table row counts |
 | `/database/table/{name}` | GET | Table schema |
+| `/team-chat/messages` | GET | Team chat history, newest page first (`before=<id>` for older) |
+| `/team-chat/messages` | POST | Post to the team chat (plain text, 4,000 chars, 20/min per admin) |
+| `/team-chat/messages/{id}` | DELETE | Delete your own team chat message |
+| `/team-chat/unread` | GET | Unread team chat messages for the signed-in admin |
+| `/team-chat/read` | POST | Mark the team chat read |
+| `/team-chat/members` | GET | Admins who can read the team chat |
 
 ## Tech Stack
 

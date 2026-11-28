@@ -2048,6 +2048,242 @@ async def admin_delete_conversation(
     return {"status": "deleted", "conversation_id": conversation_id}
 
 
+# ── Team Chat (admins only) ───────────────────────────────────────────
+#
+# An internal room where platform admins talk to each other. It is separate
+# from the customer support chat: customers never see it, and nothing here is
+# reachable from the main API. Same rules as support replies: plain text only
+# (the UI renders it as text, never HTML), no uploads, control and invisible
+# characters stripped, 4,000 characters, and a per-admin send rate limit.
+# Tables are created by the backend (model app/models/admin_chat.py).
+
+TEAM_CHAT_MAX_MESSAGE_LENGTH = 4000
+TEAM_CHAT_RATE_LIMIT = 20          # messages per admin ...
+TEAM_CHAT_RATE_WINDOW = 60         # ... per this many seconds
+TEAM_CHAT_PAGE_MAX = 100
+_TEAM_CHAT_SENDS: Dict[str, list] = {}
+
+
+class TeamChatMessageIn(BaseModel):
+    message: str
+
+
+def _team_chat_tables(db):
+    tables = _table_names(db)
+    if "admin_chat_messages" not in tables or "admin_chat_reads" not in tables:
+        return None, None
+    return _get_table("admin_chat_messages"), _get_table("admin_chat_reads")
+
+
+def _team_chat_require_tables(db):
+    msg_t, read_t = _team_chat_tables(db)
+    if msg_t is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Team chat is not set up yet. Run the backend database migration (python -m app.db_migrate).",
+        )
+    return msg_t, read_t
+
+
+def _team_chat_display_name(db, email: str) -> str:
+    try:
+        row = db.execute(
+            text("SELECT full_name FROM users WHERE lower(email) = :email"), {"email": email}
+        ).first()
+        if row and row.full_name and row.full_name.strip():
+            return row.full_name.strip()[:255]
+    except Exception:  # noqa: BLE001
+        db.rollback()
+    return email
+
+
+def _team_chat_row(m, me: str) -> dict:
+    return {
+        "id": m.id,
+        "author_email": m.author_email,
+        "author_name": m.author_name or m.author_email,
+        "message": m.message,
+        "created_at": _support_ts(getattr(m, "created_at", None)),
+        "mine": (m.author_email or "").lower() == me,
+    }
+
+
+def _team_chat_last_read(db, read_t, me: str):
+    row = db.query(read_t).filter(read_t.c.admin_email == me).first()
+    return row.last_read_at if row else None
+
+
+@app.get("/team-chat/messages")
+async def team_chat_messages(
+    before: Optional[str] = Query(None, description="Message id; returns older messages"),
+    limit: int = Query(50, ge=1, le=TEAM_CHAT_PAGE_MAX),
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    """Newest messages (or the page before `before`), returned oldest first."""
+    me = admin.strip().lower()
+    msg_t, read_t = _team_chat_tables(db)
+    if msg_t is None:
+        return {"messages": [], "has_more": False, "me": me, "last_read_at": None}
+    q = db.query(msg_t)
+    if before:
+        anchor = db.query(msg_t).filter(msg_t.c.id == before).first()
+        if not anchor:
+            raise HTTPException(status_code=404, detail="Message not found")
+        q = q.filter(
+            (msg_t.c.created_at < anchor.created_at)
+            | ((msg_t.c.created_at == anchor.created_at) & (msg_t.c.id < anchor.id))
+        )
+    rows = q.order_by(desc(msg_t.c.created_at), desc(msg_t.c.id)).limit(limit + 1).all()
+    has_more = len(rows) > limit
+    rows = list(reversed(rows[:limit]))
+    return {
+        "messages": [_team_chat_row(m, me) for m in rows],
+        "has_more": has_more,
+        "me": me,
+        "last_read_at": _support_ts(_team_chat_last_read(db, read_t, me)),
+    }
+
+
+@app.post("/team-chat/messages")
+async def team_chat_send(
+    body: TeamChatMessageIn,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    me = admin.strip().lower()
+    message = _SUPPORT_UNSAFE_CHARS.sub(
+        "", (body.message or "").replace("\r\n", "\n").replace("\r", "\n")
+    ).strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    if len(message) > TEAM_CHAT_MAX_MESSAGE_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Message is too long (max {TEAM_CHAT_MAX_MESSAGE_LENGTH} characters)",
+        )
+
+    now_ts = time.time()
+    recent = [t for t in _TEAM_CHAT_SENDS.get(me, []) if now_ts - t < TEAM_CHAT_RATE_WINDOW]
+    if len(recent) >= TEAM_CHAT_RATE_LIMIT:
+        _TEAM_CHAT_SENDS[me] = recent
+        raise HTTPException(status_code=429, detail="You are sending messages too quickly. Wait a moment.")
+    recent.append(now_ts)
+    _TEAM_CHAT_SENDS[me] = recent
+
+    msg_t, read_t = _team_chat_require_tables(db)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    msg_id = str(uuid.uuid4())
+    values = {
+        "id": msg_id,
+        "author_email": me[:255],
+        "author_name": _team_chat_display_name(db, me),
+        "message": message,
+        "created_at": now,
+    }
+    db.execute(msg_t.insert().values(**values))
+    # Your own message never counts as unread for you.
+    _team_chat_mark_read(db, read_t, me, now)
+    db.commit()
+    return {
+        "id": msg_id,
+        "author_email": values["author_email"],
+        "author_name": values["author_name"],
+        "message": message,
+        "created_at": _support_ts(now),
+        "mine": True,
+    }
+
+
+def _team_chat_mark_read(db, read_t, me: str, when) -> None:
+    row = db.query(read_t).filter(read_t.c.admin_email == me).first()
+    if row is None:
+        db.execute(read_t.insert().values(admin_email=me, last_read_at=when))
+    elif row.last_read_at is None or row.last_read_at < when:
+        db.execute(read_t.update().where(read_t.c.admin_email == me).values(last_read_at=when))
+
+
+@app.post("/team-chat/read")
+async def team_chat_mark_read(
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    """Mark everything posted so far as read for the signed-in admin."""
+    me = admin.strip().lower()
+    msg_t, read_t = _team_chat_tables(db)
+    if msg_t is None:
+        return {"count": 0}
+    latest = db.query(func.max(msg_t.c.created_at)).scalar()
+    if latest is not None:
+        _team_chat_mark_read(db, read_t, me, latest)
+        db.commit()
+    return {"count": 0}
+
+
+@app.get("/team-chat/unread")
+async def team_chat_unread(
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    """Messages from other admins posted after you last read the room."""
+    me = admin.strip().lower()
+    msg_t, read_t = _team_chat_tables(db)
+    if msg_t is None:
+        return {"count": 0}
+    q = db.query(func.count(msg_t.c.id)).filter(func.lower(msg_t.c.author_email) != me)
+    last = _team_chat_last_read(db, read_t, me)
+    if last is not None:
+        q = q.filter(msg_t.c.created_at > last)
+    return {"count": q.scalar() or 0}
+
+
+@app.delete("/team-chat/messages/{message_id}")
+async def team_chat_delete(
+    message_id: str,
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    """Admins can delete their own messages only."""
+    me = admin.strip().lower()
+    msg_t, _ = _team_chat_require_tables(db)
+    row = db.query(msg_t).filter(msg_t.c.id == message_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Message not found")
+    if (row.author_email or "").lower() != me:
+        raise HTTPException(status_code=403, detail="You can only delete your own messages")
+    db.execute(msg_t.delete().where(msg_t.c.id == message_id))
+    db.commit()
+    return {"status": "deleted", "id": message_id}
+
+
+@app.get("/team-chat/members")
+async def team_chat_members(
+    db: DBSession = Depends(get_db),
+    admin: str = Depends(require_admin),
+):
+    """Everyone who can read the team chat: active superusers (plus the env fallback admin)."""
+    members = []
+    try:
+        rows = db.execute(
+            text(
+                "SELECT email, full_name FROM users "
+                "WHERE role = 'superuser' AND is_active = :active ORDER BY email"
+            ),
+            {"active": True},
+        ).all()
+        members = [
+            {"email": r.email.lower(), "name": (r.full_name or "").strip() or r.email.lower()}
+            for r in rows
+        ]
+    except Exception:  # noqa: BLE001
+        db.rollback()
+    if _env_fallback_enabled():
+        env_email = settings.ADMIN_EMAIL.strip().lower()
+        if all(m["email"] != env_email for m in members):
+            members.append({"email": env_email, "name": env_email})
+    return {"members": members, "me": admin.strip().lower()}
+
+
 # ── Client diagnostics ─────────────────────────────────────────────────
 from app.diagnostics import build_router as _build_diagnostics_router  # noqa: E402
 
