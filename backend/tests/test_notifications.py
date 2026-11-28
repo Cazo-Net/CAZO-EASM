@@ -278,6 +278,25 @@ class TestNotificationPreferencesAPI:
         assert resp.json()["in_app_enabled"] is False
         assert resp.json()["email_enabled"] is True
 
+    def test_update_single_preference_one_channel(self, client, auth_headers):
+        # The settings page sends only the channel that was toggled.
+        resp = client.put(
+            "/api/v1/notification-preferences/scan_failed",
+            json={"email_enabled": False},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["email_enabled"] is False
+        in_app = resp.json()["in_app_enabled"]
+        resp = client.put(
+            "/api/v1/notification-preferences/scan_failed",
+            json={"in_app_enabled": not in_app},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["in_app_enabled"] is (not in_app)
+        assert resp.json()["email_enabled"] is False
+
     def test_update_single_not_found(self, client, auth_headers):
         resp = client.put(
             "/api/v1/notification-preferences/nonexistent_type",

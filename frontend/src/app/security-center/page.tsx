@@ -149,7 +149,7 @@ function SecurityCenterContent() {
                   >
                     <div>
                       <p className="text-sm font-medium text-foreground">
-                        {session.device_name || "Unknown Device"}
+                        {session.device_name || [session.browser, session.os].filter(Boolean).join(" on ") || "Unknown device"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {session.browser} on {session.os}
@@ -157,7 +157,7 @@ function SecurityCenterContent() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Started {session.created_at ? new Date(session.created_at).toLocaleDateString() : "Unknown"}
-                        {session.last_active && ` • Last active ${new Date(session.last_active).toLocaleDateString()}`}
+                        {(session.last_activity || session.last_active) && ` • Last active ${new Date(session.last_activity || session.last_active).toLocaleString()}`}
                       </p>
                     </div>
                     <Button

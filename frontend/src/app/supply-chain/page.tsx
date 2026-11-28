@@ -13,6 +13,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { listScans, listTechnologies } from "@/lib/api";
 import { PageHeader } from "@/components/common/PageHeader";
 import { SectionCard } from "@/components/common/SectionCard";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -23,7 +24,6 @@ import { RiskSummary } from "@/components/supply-chain/RiskSummary";
 import { VendorGrid } from "@/components/supply-chain/VendorGrid";
 import { DataFlowDiagram } from "@/components/supply-chain/DataFlowDiagram";
 
-const API_BASE = "";
 
 interface Technology {
   name: string;
@@ -36,8 +36,9 @@ interface Technology {
 
 interface ScanOption {
   id: string;
-  target: string;
+  domain: string;
   created_at: string;
+  completed_at?: string | null;
   status: string;
 }
 
@@ -54,20 +55,12 @@ function SupplyChainContent() {
   // Fetch recent scans
   const fetchScans = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/scans/?limit=20`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const scanList = (data.scans || data.items || []).filter(
-          (s: any) => s.status === "completed"
-        );
-        setScans(scanList);
-        if (scanList.length > 0 && !selectedScanId) {
-          setSelectedScanId(scanList[0].id);
-        }
+      const scanList = (await listScans({ limit: 50 })).filter(
+        (s: any) => s.status === "completed"
+      ) as unknown as ScanOption[];
+      setScans(scanList);
+      if (scanList.length > 0 && !selectedScanId) {
+        setSelectedScanId(scanList[0].id);
       }
     } catch {
       // ignore
@@ -81,20 +74,14 @@ function SupplyChainContent() {
     if (!selectedScanId) return;
     setScanLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/scans/${selectedScanId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("access_token") || sessionStorage.getItem("access_token") || ""}`,
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const techs =
-          data.results?.technologies ||
-          data.technologies ||
-          data.data?.technologies ||
-          [];
-        setTechnologies(techs);
-      }
+      const techs = await listTechnologies(selectedScanId);
+      setTechnologies(
+        (techs || []).map((t: any) => ({
+          ...t,
+          name: t.name || "",
+          category: t.category || "Other",
+        })) as Technology[]
+      );
     } catch {
       // ignore
     } finally {
@@ -191,7 +178,7 @@ function SupplyChainContent() {
               ) : (
                 scans.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.target} — {new Date(s.created_at).toLocaleDateString()}
+                    {s.domain} — {new Date(s.completed_at || s.created_at).toLocaleDateString()}
                   </option>
                 ))
               )}

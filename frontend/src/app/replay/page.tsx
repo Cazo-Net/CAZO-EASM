@@ -34,6 +34,7 @@ import {
 import type { HistoricalSnapshot, TimelineEvent, ExposureEvolution as ExposureEvolutionType } from "@/types/replay";
 import type { ReplaySnapshot } from "@/types/replay2";
 import { getReplayTimeline } from "@/lib/api-replay";
+import { exportToCSV } from "@/lib/api";
 
 function mapSnapshotToHistorical(s: ReplaySnapshot, index: number): HistoricalSnapshot {
   const ts = s.completed_at || s.started_at || new Date().toISOString();
@@ -181,7 +182,25 @@ function ReplayContent() {
         icon={<History className="h-5 w-5" />}
         actions={
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-card transition-colors">
+            <button
+              type="button"
+              onClick={() =>
+                exportToCSV(
+                  state.scans.map((s) => ({
+                    completed_at: s.timestamp,
+                    domain: s.domain,
+                    subdomains: s.total_subdomains,
+                    ports: s.total_ports,
+                    risk_score: s.risk_score,
+                    critical: s.critical_count,
+                    high: s.high_count,
+                    medium: s.medium_count,
+                    low: s.low_count,
+                  })),
+                  "exposure-timeline"
+                )
+              }
+              className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-card transition-colors">
               <Download className="h-3.5 w-3.5" />
               Export
             </button>
