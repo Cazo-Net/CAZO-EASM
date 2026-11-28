@@ -101,7 +101,9 @@ class ZoneTransferScanner(EnhancedBaseScanner):
                     ns_ips.extend(ips)
         except Exception as e:
             logger.warning("Failed to query NS records for %s: %s", target, e)
-        return ns_ips
+        from app.core.target_guard import is_blocked_ip
+
+        return [ip for ip in ns_ips if not is_blocked_ip(ip)]
 
     async def _attempt_transfer(self, ns_ip: str, target: str):
         def _do():

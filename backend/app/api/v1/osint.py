@@ -10,6 +10,8 @@ from app.database import get_db
 from app.models.user import User
 from app.models.osint_cache import OsintCache
 from app.api.deps import get_current_user
+from app.core.permissions import Permission, require_any_permission
+from app.core.scope import authorize_scan_target
 from app.services import osint
 from app.services.osint_import import import_osint_findings
 from fastapi.concurrency import run_in_threadpool
@@ -50,6 +52,14 @@ def _set_cache(domain: str, result: dict, db: Session, ttl: int = DEFAULT_TTL) -
     db.flush()
 
 
+def _authorize(db: Session, user: User, raw: str) -> str:
+    """OSINT lookups connect to the target (ports, TLS), so they follow scan scope rules."""
+    auth = authorize_scan_target(db, user.organization_id, raw, actor_id=user.id, auto_register=False)
+    if not auth.authorized:
+        raise HTTPException(status_code=403, detail=auth.as_error_detail())
+    return auth.target
+
+
 @router.get("")
 async def osint_lookup(
     q: str = Query(..., description="Domain or company to investigate (e.g. example.com)"),
@@ -64,7 +74,7 @@ async def osint_lookup(
     if not q or not q.strip():
         raise HTTPException(status_code=400, detail="Query parameter 'q' is required")
 
-    domain = q.strip().lower()
+    domain = await run_in_threadpool(_authorize, db, current_user, q)
 
     # Check cache first
     cached = _get_cached(domain, db)
@@ -104,7 +114,7 @@ async def osint_lookup(
 async def osint_import(
     q: str = Query(..., description="Domain to import OSINT findings for"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any_permission(Permission.MANAGE_ASSETS, Permission.CREATE_SCAN)),
 ):
     """Run OSINT lookup and import findings into the Asset Inventory.
 
@@ -118,7 +128,7 @@ async def osint_import(
     if not current_user.organization_id:
         raise HTTPException(status_code=400, detail="No organization linked to your account")
 
-    domain = q.strip().lower()
+    domain = await run_in_threadpool(_authorize, db, current_user, q)
 
     # Check cache first (import uses cached result if available)
     cached = _get_cached(domain, db)

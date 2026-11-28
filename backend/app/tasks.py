@@ -46,7 +46,13 @@ def execute_scan_task_v2(self, scan_id: str):
 
 @celery_app.task(name="app.tasks.check_ssl_expiry")
 def check_ssl_expiry():
-    """Check all monitored hosts for SSL certificates expiring within 30 days."""
+    """Notify organizations about certificates expiring within 30 days.
+
+    Looks at certificates found by scans completed in the last 14 days and
+    sends one notification per organization and hostname to the user who ran
+    the scan (the notification service de-duplicates repeats).
+    """
+    from app.models.asset import Subdomain
     from app.models.ssl import SSLCertificate
     from app.models.scan import Scan
     from app.services.notification_service import dispatch_notification
@@ -56,44 +62,47 @@ def check_ssl_expiry():
     try:
         now = datetime.now(timezone.utc)
         threshold = now + timedelta(days=30)
-        expiring = (
-            db.query(SSLCertificate)
+        recent = now - timedelta(days=14)
+        rows = (
+            db.query(SSLCertificate, Subdomain.hostname, Scan.organization_id, Scan.created_by, Scan.id)
+            .join(Subdomain, SSLCertificate.subdomain_id == Subdomain.id)
+            .join(Scan, Subdomain.scan_id == Scan.id)
             .filter(
+                Scan.status == "completed",
+                Scan.completed_at >= recent,
+                Scan.organization_id.isnot(None),
                 SSLCertificate.not_after.isnot(None),
                 SSLCertificate.not_after <= threshold,
                 SSLCertificate.not_after > now,
             )
+            .order_by(Scan.completed_at.desc())
             .all()
         )
+        seen = set()
         sent = 0
-        for cert in expiring:
-            hostname = cert.common_name or cert.hostname or "unknown"
-            days_left = (cert.not_after - now).days
-            scan = (
-                db.query(Scan)
-                .filter(Scan.organization_id == cert.organization_id, Scan.status == "completed")
-                .order_by(Scan.created_at.desc())
-                .first()
-            )
+        for cert, hostname, org_id, user_id, scan_id in rows:
+            key = (org_id, hostname)
+            if key in seen or not user_id:
+                continue
+            seen.add(key)
+            not_after = cert.not_after if cert.not_after.tzinfo else cert.not_after.replace(tzinfo=timezone.utc)
+            days_left = (not_after - now).days
             try:
                 dispatch_notification(
                     db=db,
-                    organization_id=cert.organization_id,
+                    organization_id=org_id,
+                    user_id=user_id,
                     notification_type="ssl_expiring",
                     title=f"SSL certificate expiring: {hostname}",
-                    message=f"SSL certificate for {hostname} expires in {days_left} days.",
+                    message=f"The SSL certificate for {hostname} expires in {days_left} days.",
                     related_entity_type="certificate",
                     related_entity_id=cert.id,
-                    data={
-                        "hostname": hostname,
-                        "days_left": days_left,
-                        "scan_id": scan.id if scan else None,
-                    },
+                    data={"hostname": hostname, "days_left": days_left, "scan_id": scan_id},
                 )
                 sent += 1
-            except Exception as e:
-                logger.error(f"Failed to send SSL expiry notification for {hostname}: {e}")
-        logger.info(f"SSL expiry check complete. Sent {sent} notifications for {len(expiring)} expiring certs.")
+            except Exception as e:  # noqa: BLE001
+                logger.error("Failed to send SSL expiry notification for %s: %s", hostname, e)
+        logger.info("SSL expiry check complete. Sent %d notifications.", sent)
     finally:
         db.close()
 

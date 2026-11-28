@@ -11,6 +11,19 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: easm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -22,8 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install ruff
+          pip install -r requirements-dev.txt
 
       - name: Lint (ruff)
         run: ruff check app tests
@@ -32,7 +44,31 @@ jobs:
         env:
           RATE_LIMIT_ENABLED: "false"
           USE_SQLITE: "true"
+          PYTHONPATH: "."
+          # Enables the Postgres-only queue concurrency tests.
+          TEST_POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/easm_test
         run: pytest -q
+
+      - name: Migrations apply to an empty Postgres
+        env:
+          USE_SQLITE: "false"
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/easm_migrate
+          PYTHONPATH: "."
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE easm_migrate"
+          python -m app.db_migrate
+          python -m app.db_migrate   # second run must be a no-op
+
+      - name: Migrations apply to a database stamped at an older revision
+        env:
+          USE_SQLITE: "false"
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/easm_mixed
+          PYTHONPATH: "."
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE easm_mixed"
+          alembic upgrade j3k4l5m6n7o8
+          python -c "from app.database import Base, write_engine; from app import models; Base.metadata.create_all(write_engine)"
+          python -m app.db_migrate
 
   frontend:
     runs-on: ubuntu-latest

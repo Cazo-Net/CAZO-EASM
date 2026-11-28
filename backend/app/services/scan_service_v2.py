@@ -16,6 +16,7 @@ from app.database import SessionLocal
 from app.services.audit import log_event
 from app.services.notification_service import dispatch_notification
 from app.config import settings
+from app.services.scan_context import ScanCancelled, queue_managed
 from datetime import datetime, timezone
 from typing import Dict, Any
 import asyncio
@@ -58,6 +59,8 @@ class ScanServiceV2:
                     await asyncio.sleep(0.1)
                 if not scan:
                     raise ValueError(f"Scan not found: {scan_id}")
+                if scan.status == "cancelled":
+                    raise ScanCancelled(scan_id)
 
                 scan.status = "running"
                 scan.started_at = datetime.now(timezone.utc)
@@ -99,6 +102,11 @@ class ScanServiceV2:
                 except Exception as e:
                     logger.warning("Failed to record scan_history: %s", e)
 
+                # A user may have cancelled while the scan ran: keep that.
+                db.refresh(scan)
+                if scan.status == "cancelled":
+                    return scan
+
                 scan.status = "completed"
                 scan.progress = 100
                 scan.completed_at = datetime.now(timezone.utc)
@@ -113,8 +121,13 @@ class ScanServiceV2:
 
                 return scan
 
+            except ScanCancelled:
+                raise
             except Exception as e:
                 logger.error(f"Scan v2 failed: {e}")
+                if queue_managed.get():
+                    db.rollback()
+                    raise
                 try:
                     scan = db.query(Scan).filter(Scan.id == scan_id).first()
                     if scan:

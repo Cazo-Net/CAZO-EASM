@@ -59,4 +59,6 @@ ENV BACKEND_DIR="/app/backend"
 EXPOSE 8000
 
 # Start the scan engine service
-CMD ["python", "-m", "uvicorn", "scan_engine.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Serves /health and runs the queue worker. A plain worker without HTTP:
+#   python -m app.workers.scan_worker
+CMD ["sh", "-c", "python -m uvicorn scan_engine.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

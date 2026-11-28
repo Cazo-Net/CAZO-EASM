@@ -69,10 +69,11 @@ class ContinuousMonitor:
         self,
         db: Session,
         domain: str,
-        user_id: int,
-        organization_id: Optional[int] = None,
-        project_id: Optional[int] = None,
+        user_id: str,
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
         schedule: Optional[MonitorScheduleData] = None,
+        scan_type: str = "quick",
     ) -> dict:
         """Create a monitor schedule in the database."""
         from app.models.v2_scanner import MonitorSchedule
@@ -95,7 +96,7 @@ class ContinuousMonitor:
             id=str(uuid.uuid4())[:36],
             domain=domain,
             interval_hours=sched.interval_hours,
-            scan_type="quick",
+            scan_type=scan_type if scan_type in ("quick", "full") else "quick",
             enabled=sched.enabled,
             created_by=user_id,
             organization_id=organization_id,
@@ -107,11 +108,14 @@ class ContinuousMonitor:
         logger.info("Added monitor schedule %s for %s (every %dh)", row.id, domain, sched.interval_hours)
         return {"id": row.id, "domain": domain, "interval_hours": sched.interval_hours}
 
-    def remove_target(self, db: Session, schedule_id: str) -> bool:
-        """Delete a monitor schedule from the database."""
+    def remove_target(self, db: Session, schedule_id: str, organization_id: Optional[str] = None) -> bool:
+        """Delete a monitor schedule (only within ``organization_id`` when given)."""
         from app.models.v2_scanner import MonitorSchedule
 
-        row = db.query(MonitorSchedule).filter(MonitorSchedule.id == schedule_id).first()
+        q = db.query(MonitorSchedule).filter(MonitorSchedule.id == schedule_id)
+        if organization_id is not None:
+            q = q.filter(MonitorSchedule.organization_id == organization_id)
+        row = q.first()
         if row:
             db.delete(row)
             db.flush()
@@ -119,7 +123,7 @@ class ContinuousMonitor:
             return True
         return False
 
-    def list_targets(self, db: Session, organization_id: Optional[int] = None) -> List[dict]:
+    def list_targets(self, db: Session, organization_id: Optional[str] = None) -> List[dict]:
         """List all monitor schedules, optionally filtered by org."""
         from app.models.v2_scanner import MonitorSchedule
 
@@ -185,8 +189,8 @@ class ContinuousMonitor:
         scan_type: str,
         status: str,
         user_id: Optional[int] = None,
-        organization_id: Optional[int] = None,
-        project_id: Optional[int] = None,
+        organization_id: Optional[str] = None,
+        project_id: Optional[str] = None,
         monitor_schedule_id: Optional[str] = None,
         triggered_by: str = "manual",
         results: Optional[Dict[str, Any]] = None,
@@ -257,7 +261,7 @@ class ContinuousMonitor:
         domain: str,
         assets: List[Dict[str, Any]],
         scan_history_id: Optional[str] = None,
-        organization_id: Optional[int] = None,
+        organization_id: Optional[str] = None,
     ) -> int:
         """Update asset_lifecycle table with discovered assets. Returns count of new/updated."""
         from app.models.v2_scanner import AssetLifecycle
@@ -429,7 +433,7 @@ class ContinuousMonitor:
         db: Session,
         domain: str,
         event_type: str,
-        organization_id: Optional[int] = None,
+        organization_id: Optional[str] = None,
     ) -> List[dict]:
         """Check if any notification triggers match the event. Returns triggered rules."""
         from app.models.v2_scanner import NotificationTrigger

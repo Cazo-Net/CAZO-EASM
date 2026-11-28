@@ -232,6 +232,8 @@ class ScanPipeline:
 
             # Post-stage hook: update context with stage results
             self._update_context(stage, stage_result, context)
+            if stage == PipelineStage.ASSET_DISCOVERY:
+                await self._gate_discovered_assets(target, context)
 
         result.total_duration_ms = (time.monotonic() - pipeline_start) * 1000
 
@@ -341,6 +343,30 @@ class ScanPipeline:
             elif stage == PipelineStage.VULNERABILITY_ASSESSMENT:
                 if "findings" in sr.data:
                     context.findings.extend(sr.data["findings"])
+
+    async def _gate_discovered_assets(self, target: str, context: PipelineContext) -> None:
+        """Keep only hosts later stages may connect to.
+
+        Discovery sources return whatever they find, including other companies'
+        hosts and names that resolve to internal addresses. Those stay in the
+        stage results as discoveries, but active stages must not probe them.
+        """
+        from app.core.target_guard import filter_probe_targets
+
+        names = [a.get("hostname") for a in context.discovered_assets if a.get("hostname")]
+        if not names:
+            return
+        allowed = set(await filter_probe_targets(names, target))
+        skipped = [n for n in names if n not in allowed]
+        context.discovered_assets = [
+            a for a in context.discovered_assets if a.get("hostname") in allowed
+        ]
+        if skipped:
+            context.metadata["skipped_out_of_scope"] = len(skipped)
+            logger.info(
+                "Scan of %s: %d discovered host(s) recorded but not probed (out of scope or internal)",
+                target, len(skipped),
+            )
 
     def cancel(self) -> None:
         """Signal pipeline to stop after current stage."""

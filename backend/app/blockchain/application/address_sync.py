@@ -5,7 +5,7 @@ import logging
 from app.blockchain.domain.contracts.chain_connector import ChainConnector, Collector, Normalizer
 from app.blockchain.domain.entities.address import Address
 from app.blockchain.domain.entities.transaction import Transaction
-from app.blockchain.domain.entities.token import Contract
+from app.blockchain.domain.entities.token import Contract, TokenBalance
 from app.blockchain.domain.value_objects.chain import Chain
 from app.blockchain.infrastructure.graph.address_store import (
     Neo4jAddressStore,

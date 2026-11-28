@@ -9,7 +9,10 @@ from app.models.user import User
 from app.api.deps import get_current_user
 from app.core.permissions import require_permission, Permission
 from app.services.report_service import ReportService
+import logging
 import os
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 

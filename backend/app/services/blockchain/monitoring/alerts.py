@@ -16,6 +16,7 @@ from app.schemas.blockchain import (
     BlockchainWatch,
     Chain,
     Evidence,
+    EvidenceType,
     RiskBand,
 )
 

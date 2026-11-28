@@ -746,6 +746,12 @@ export async function deleteScope(scopeId: string): Promise<void> {
   await api.delete(`/scopes/${scopeId}`);
 }
 
+/** Check the scope's DNS TXT record now; resolves to the verified scope. */
+export async function verifyScope(scopeId: string): Promise<AuthorizedScope> {
+  const res = await api.post(`/scopes/${scopeId}/verify`);
+  return res.data;
+}
+
 export async function checkScope(value: string): Promise<ScopeCheckResult> {
   const res = await api.post("/scopes/check", { scope_type: "domain", value });
   return res.data;

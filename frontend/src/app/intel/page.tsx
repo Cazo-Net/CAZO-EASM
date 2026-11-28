@@ -34,7 +34,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { osintImport, type OsintResult } from "@/lib/api";
+import { getErrorMessage, osintImport, type OsintResult } from "@/lib/api";
 import { useIntelStore } from "@/lib/intelStore";
 
 function sevVariant(sev: string | null): "destructive" | "warning" | "secondary" {
@@ -64,8 +64,7 @@ function IntelContent() {
       const total = Object.values(counts).reduce((a, b) => a + b, 0);
       setImportResult(`Imported ${total} records: ${counts.subdomains} subdomains, ${counts.cert_assets} certs, ${counts.vulnerabilities} CVEs`);
     } catch (e: any) {
-      const detail = e?.response?.data?.detail;
-      setImportResult(`Import failed: ${typeof detail === "string" ? detail : "Unknown error"}`);
+      setImportResult(`Import failed: ${getErrorMessage(e, "Unknown error")}`);
     } finally {
       setImporting(false);
     }
