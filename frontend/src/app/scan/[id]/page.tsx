@@ -60,6 +60,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PageHeader } from "@/components/common/PageHeader";
+import { ScanTerminal } from "@/components/scan/ScanTerminal";
 import type {
   ScanDetail,
   Subdomain,
@@ -300,7 +301,17 @@ function ScanDetailContent() {
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10">
+                <ScanTerminal
+                  queued={isQueued}
+                  hosts={subdomains.map((s) => ({ name: s.hostname, ip: s.ip_addresses?.[0] }))}
+                  ports={ports.map((p) => ({
+                    port: p.port_number,
+                    service: p.service,
+                    host: subdomains.find((s) => s.id === p.subdomain_id)?.hostname,
+                  }))}
+                  className="hidden sm:block"
+                />
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 sm:hidden">
                   <Loader2 className="h-5 w-5 text-brand animate-spin" />
                 </div>
                 <div>
