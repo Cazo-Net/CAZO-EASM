@@ -185,8 +185,10 @@ class AnomalyScorer:
             feature_importances: dict of feature -> contribution to anomaly
         """
         if self._model is None or self._scaler is None:
+            # No trained model: say so instead of reporting a "0% anomalous"
+            # score that was never computed.
             return {
-                "anomaly_score": 0.0,
+                "anomaly_score": None,
                 "feature_importances": {},
                 "model_version": None,
                 "status": "no_model",

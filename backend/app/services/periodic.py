@@ -258,12 +258,24 @@ def _inventory_cert_expiry():
         db.close()
 
 
+def _blockchain_watches():
+    from app.database import SessionLocal
+    from app.services.blockchain.watch_engine import run_due_watches
+
+    db = SessionLocal()
+    try:
+        run_due_watches(db)
+    finally:
+        db.close()
+
+
 MAINTENANCE_JOBS: List[PeriodicJob] = [
     PeriodicJob("support_reply_emails", timedelta(minutes=2), _support_reply_emails),
     # Replaces the old "check_ssl_expiry" job, which mailed the person who ran
     # the scan; the inventory check follows the organization's alert settings.
     PeriodicJob("inventory_cert_expiry", timedelta(days=1), _inventory_cert_expiry),
     PeriodicJob("threat_intel_monitors", timedelta(hours=1), _threat_intel_monitors),
+    PeriodicJob("blockchain_watches", timedelta(minutes=10), _blockchain_watches),
     PeriodicJob("send_weekly_digest", timedelta(days=7), _weekly_digest),
     PeriodicJob("sync_cve_database", timedelta(days=7), _cve_sync),
 ]

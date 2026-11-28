@@ -1,4 +1,5 @@
 """Blockchain provider package."""
+from app.config import settings
 from app.services.blockchain.providers.base import ChainProvider, ProviderRegistry, registry
 from app.services.blockchain.providers.ethereum import EthereumProvider
 from app.services.blockchain.providers.bitcoin import BitcoinProvider
@@ -21,7 +22,7 @@ registry.register(ArbitrumProvider())
 registry.register(OptimismProvider())
 registry.register(BaseProvider())
 registry.register(AvalancheProvider())
-registry.register(TronProvider())
+registry.register(TronProvider(api_key=settings.TRONGRID_API_KEY))
 
 __all__ = [
     "ChainProvider",

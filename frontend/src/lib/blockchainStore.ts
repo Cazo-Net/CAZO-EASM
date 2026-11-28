@@ -25,6 +25,9 @@ interface BlockchainState {
   walletData: WalletResult | null;
   walletLoading: boolean;
   walletError: string;
+  // Set when live data for the chain is not connected (e.g. "ETHERSCAN_API_KEY").
+  walletErrorSetting: string | null;
+  walletErrorCode: string | null;
   txPage: number;
   txData: TxListResult | null;
   txLoading: boolean;
@@ -59,6 +62,8 @@ let _state: BlockchainState = {
   walletData: null,
   walletLoading: false,
   walletError: "",
+  walletErrorSetting: null,
+  walletErrorCode: null,
   txPage: 1,
   txData: null,
   txLoading: false,
@@ -98,6 +103,8 @@ export function useBlockchainStore() {
       chain,
       walletLoading: true,
       walletError: "",
+      walletErrorSetting: null,
+      walletErrorCode: null,
       walletData: null,
       txData: null,
       tokens: [],
@@ -126,7 +133,17 @@ export function useBlockchainStore() {
         _state = { ..._state, walletData: data };
       } else if (walletRes.status === "fulfilled") {
         const err = await walletRes.value.json().catch(() => ({ detail: "Request failed" }));
-        throw new Error(err.detail || `HTTP ${walletRes.value.status}`);
+        const detail = err.detail;
+        if (detail && typeof detail === "object") {
+          // A data source that is not connected or is down: say so plainly.
+          _state = {
+            ..._state,
+            walletErrorSetting: detail.setting || null,
+            walletErrorCode: detail.code || null,
+          };
+          throw new Error(detail.message || `HTTP ${walletRes.value.status}`);
+        }
+        throw new Error(detail || `HTTP ${walletRes.value.status}`);
       } else {
         throw walletRes.reason;
       }
@@ -220,6 +237,8 @@ export function useBlockchainStore() {
       walletData: null,
       walletLoading: false,
       walletError: "",
+      walletErrorSetting: null,
+      walletErrorCode: null,
       txPage: 1,
       txData: null,
       txLoading: false,

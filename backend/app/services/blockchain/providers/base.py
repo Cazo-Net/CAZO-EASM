@@ -23,6 +23,30 @@ from app.schemas.blockchain import (
 logger = logging.getLogger(__name__)
 
 
+class DataSourceUnavailable(Exception):
+    """Raised when live chain data cannot be fetched.
+
+    The platform never substitutes made-up numbers. ``reason`` is
+    ``"not_configured"`` (an API key the operator must add) or
+    ``"upstream_error"`` (the public source did not answer).
+    """
+
+    def __init__(self, chain: Chain, reason: str, message: str, setting: str | None = None) -> None:
+        super().__init__(message)
+        self.chain = chain
+        self.reason = reason
+        self.message = message
+        self.setting = setting
+
+    def to_detail(self) -> dict[str, Any]:
+        return {
+            "code": f"data_source_{self.reason}",
+            "chain": self.chain.value,
+            "message": self.message,
+            "setting": self.setting,
+        }
+
+
 # ── Abstract Base ────────────────────────────────────────────────────────────
 
 class ChainProvider(abc.ABC):

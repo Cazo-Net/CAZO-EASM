@@ -68,7 +68,7 @@ function AddressDetailContent() {
   const [graph, setGraph] = useState<any>(null);
   const [anomaly, setAnomaly] = useState<any>(null);
   const [intel, setIntel] = useState<any>(null);
-  const [mockMode, setMockMode] = useState(false);
+  const [loadError, setLoadError] = useState<string>("");
   const [txPage, setTxPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [txLoading, setTxLoading] = useState(false);
@@ -92,7 +92,14 @@ function AddressDetailContent() {
           setWallet(data.wallet);
           setAttribution(data.attribution);
           setRisk(data.risk);
-          setMockMode(data.mock_mode || false);
+        } else if (walletRes.status === "fulfilled") {
+          const err = await walletRes.value.json().catch(() => ({}));
+          const d = err.detail;
+          setLoadError(
+            d && typeof d === "object"
+              ? `${d.message || "Live data is not available."}${d.setting ? ` (needs ${d.setting})` : ""}`
+              : d || "Wallet not found"
+          );
         }
         if (clusterRes.status === "fulfilled" && clusterRes.value.ok) {
           setCluster(await clusterRes.value.json());
@@ -160,7 +167,7 @@ function AddressDetailContent() {
   if (!wallet) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <p className="text-muted-foreground">Wallet not found</p>
+        <p className="text-muted-foreground max-w-lg text-center">{loadError || "Wallet not found"}</p>
         <Link href="/blockchain">
           <Button variant="outline">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -187,18 +194,6 @@ function AddressDetailContent() {
           description={address}
           icon={<Wallet className="h-5 w-5" />}
         />
-
-        {mockMode && (
-          <div className="mt-4 border border-yellow-500/30 bg-yellow-500/5 rounded-lg p-4 flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-yellow-300">Simulated Data</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                No Etherscan API key configured. Showing simulated data. Add <code>ETHERSCAN_API_KEY</code> to your environment for live data.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Wallet Header Card */}
         <div className="mt-6 border border-border rounded-lg p-6">
@@ -254,7 +249,7 @@ function AddressDetailContent() {
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Transactions</div>
-              <div className="text-sm font-medium mt-1">{wallet.tx_count?.toLocaleString()}</div>
+              <div className="text-sm font-medium mt-1">{wallet.tx_count != null ? wallet.tx_count.toLocaleString() : "\u2014"}</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Type</div>
@@ -535,26 +530,22 @@ function AddressDetailContent() {
 
             {/* Phase 2: External Intel */}
             {intel && (
-              <SectionCard title="External Intelligence" icon={<AlertTriangle className="h-4 w-4" />}>
+              <SectionCard title="Sanctions screening" icon={<AlertTriangle className="h-4 w-4" />}>
                 <div className="space-y-2">
-                  {intel.sanctioned && (
+                  {intel.sanctioned === true && (
                     <div className="text-xs bg-destructive/10 border border-red-500/20 rounded p-2 font-medium text-destructive">
-                      OFAC SANCTIONS MATCH: {intel.ofac?.entity_name}
+                      On the OFAC SDN sanctions list
                     </div>
                   )}
-                  {intel.ofac && !intel.sanctioned && (
-                    <div className="text-xs text-muted-foreground">
-                      OFAC: Not sanctioned
+                  {intel.sanctioned === false && (
+                    <div className="text-xs text-muted-foreground">Not on the OFAC SDN sanctions list</div>
+                  )}
+                  {intel.sanctioned == null && (
+                    <div className="text-xs text-yellow-400">
+                      Not screened: {intel.ofac?.message || "the sanctions list could not be read right now."}
                     </div>
                   )}
-                  {intel.etherscan_labels?.length > 0 && (
-                    <div className="text-xs">
-                      <div className="text-muted-foreground">Labels:</div>
-                      {intel.etherscan_labels.map((l: any, i: number) => (
-                        <div key={i} className="font-mono">{l.label} ({l.address?.slice(0, 10)}...)</div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="text-[11px] text-muted-foreground">Source: {intel.ofac?.source || "OFAC SDN list"}</div>
                 </div>
               </SectionCard>
             )}
