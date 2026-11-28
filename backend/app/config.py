@@ -192,6 +192,17 @@ class Settings(BaseSettings):
     IPINFO_TOKEN: str = os.getenv("IPINFO_TOKEN", "")
     # abuse.ch Auth-Key (https://auth.abuse.ch/) — URLhaus and ThreatFox.
     ABUSECH_AUTH_KEY: str = os.getenv("ABUSECH_AUTH_KEY", "")
+    # OSINT lookup page (all optional; a source without its key is shown as
+    # "needs key", never filled in with guesses).
+    # AbuseIPDB (https://www.abuseipdb.com/account/api, free 1k checks/day):
+    # IP abuse reports. Required for that source.
+    ABUSEIPDB_API_KEY: str = os.getenv("ABUSEIPDB_API_KEY", "")
+    # GreyNoise (https://viz.greynoise.io/account/api-key): works without a
+    # key at a low daily limit; a free community key raises it.
+    GREYNOISE_API_KEY: str = os.getenv("GREYNOISE_API_KEY", "")
+    # AlienVault OTX (https://otx.alienvault.com/api): passive DNS works
+    # without a key but is heavily rate limited.
+    OTX_API_KEY: str = os.getenv("OTX_API_KEY", "")
     # How often saved monitors are re-checked by the worker.
     THREAT_INTEL_CHECK_HOURS: int = int(os.getenv("THREAT_INTEL_CHECK_HOURS", "24"))
 
