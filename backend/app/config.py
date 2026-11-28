@@ -94,6 +94,12 @@ class Settings(BaseSettings):
     # app/core/client_ip.py). 0 = legacy: trust the left-most (spoofable) entry.
     TRUSTED_PROXY_HOPS: int = int(os.getenv("TRUSTED_PROXY_HOPS", "0"))
 
+    # Read approximate location from Cloudflare's CF-IPCountry / CF-IPCity
+    # headers for the admin diagnostics view (app/core/client_info.py). Only
+    # turn on when every request reaches the backend through Cloudflare;
+    # otherwise a client could type these headers itself.
+    TRUST_EDGE_GEO_HEADERS: bool = os.getenv("TRUST_EDGE_GEO_HEADERS", "false").lower() in ("1", "true", "yes")
+
     # Authorized-scope enforcement.
     # When True, an organization must have at least one matching AuthorizedScope
     # row before any discovery target is scanned. When False (dev default), orgs

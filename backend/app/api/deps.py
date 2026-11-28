@@ -1,3 +1,4 @@
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -131,7 +132,43 @@ async def get_current_user(
         raise _unauthorized("Session invalidated. Please log in again.")
 
     request.state.auth_method = "jwt"
+    _note_activity(request, user, payload.get("sid"), db)
     return user
+
+
+# Session last-activity is refreshed at most this often per session, so busy
+# dashboards don't turn every API call into a write.
+_ACTIVITY_INTERVAL_SECONDS = 300
+_ACTIVITY_SEEN: dict[str, float] = {}
+_ACTIVITY_SEEN_MAX = 50_000
+
+
+def _note_activity(request: Request, user: User, sid: Optional[str], db: Session) -> None:
+    """Record who made this request, for support diagnostics.
+
+    Tags the request so failed calls in the platform log carry the user and
+    organization, and bumps the session's last_activity (throttled). Only the
+    time is stored: no URLs, payloads or page content. Never fails the request.
+    """
+    request.state.user_id = user.id
+    request.state.organization_id = user.organization_id
+    if not sid or not isinstance(sid, str):
+        return
+    now = time.monotonic()
+    last = _ACTIVITY_SEEN.get(sid)
+    if last is not None and now - last < _ACTIVITY_INTERVAL_SECONDS:
+        return
+    if len(_ACTIVITY_SEEN) >= _ACTIVITY_SEEN_MAX:
+        _ACTIVITY_SEEN.clear()
+    _ACTIVITY_SEEN[sid] = now
+    try:
+        from app.models.auth_models import UserSession
+        db.query(UserSession).filter(
+            UserSession.id == sid, UserSession.user_id == user.id, UserSession.is_active.is_(True),
+        ).update({"last_activity": datetime.now(timezone.utc)}, synchronize_session=False)
+        db.commit()
+    except Exception:  # noqa: BLE001 - diagnostics must never break a request
+        db.rollback()
 
 
 async def get_current_active_user(

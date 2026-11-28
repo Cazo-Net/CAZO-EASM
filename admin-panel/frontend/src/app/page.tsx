@@ -2,6 +2,7 @@
 
 import { CazoMark } from "@/components/CazoMark";
 import { SupportInbox } from "@/components/SupportInbox";
+import { ClientDiagnostics, DiagnosticsTarget } from "@/components/ClientDiagnostics";
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import api, { getErrorMessage } from "@/lib/api";
@@ -11,7 +12,7 @@ import {
   RefreshCw, BarChart3, HardDrive, Cpu, MemoryStick, CheckCircle,
   XCircle, Loader2, LogOut, Globe, Bell, FileText, Fingerprint,
   Flag, Lock, Clock, Terminal, Eye, Mail, Zap, Settings, Shield, GitBranch, List,
-  MessageSquare,
+  MessageSquare, Stethoscope,
 } from "lucide-react";
 
 
@@ -75,6 +76,9 @@ export default function AdminPage() {
   const [newPassword, setNewPassword] = useState("");
   const [userSaving, setUserSaving] = useState(false);
   const [userMsg, setUserMsg] = useState("");
+
+  // Client diagnostics drawer (browser, device, IP, errors) for a user or session
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsTarget | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("admin_token");
@@ -562,7 +566,9 @@ export default function AdminPage() {
                     <td className="px-4 py-3 text-xs text-zinc-500">{fmtDate(u.last_login)}</td>
                     <td className="px-4 py-3 text-xs text-zinc-500">{fmtDate(u.created_at)}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => setDiagnostics({ kind: "user", id: u.id })}
+                          className="p-1.5 rounded hover:bg-zinc-700 text-blue-400" title="Diagnostics: browser, device, IP and errors"><Stethoscope className="h-3.5 w-3.5" /></button>
                         <button onClick={() => doAction(`t-${u.id}`, () => api.put(`/users/${u.id}/${u.is_active ? "disable" : "enable"}`), fetchUsers)}
                           className="p-1.5 rounded hover:bg-zinc-700" title={u.is_active ? "Disable" : "Enable"}>
                           {u.is_active ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
@@ -827,13 +833,15 @@ export default function AdminPage() {
               <tbody>
                 {sessions.map((s) => (
                   <tr key={s.id} className="border-t border-zinc-800 hover:bg-zinc-800/30">
-                    <td className="px-4 py-3 text-xs font-mono">{s.user_id.slice(0, 8)}...</td>
+                    <td className="px-4 py-3 text-xs">{s.user_email || <span className="font-mono">{s.user_id.slice(0, 8)}...</span>}</td>
                     <td className="px-4 py-3"><div className="text-xs">{s.browser || "—"}</div><div className="text-xs text-zinc-500">{s.os || "—"}</div></td>
                     <td className="px-4 py-3 font-mono text-xs">{s.ip_address || "—"}</td>
                     <td className="px-4 py-3 text-xs">{[s.location_city, s.location_country].filter(Boolean).join(", ") || "—"}</td>
                     <td className="px-4 py-3">{s.is_trusted ? <CheckCircle className="h-3.5 w-3.5 text-green-400" /> : <span className="text-xs text-zinc-500">No</span>}</td>
                     <td className="px-4 py-3 text-xs text-zinc-500">{fmtDate(s.last_activity)}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <button onClick={() => setDiagnostics({ kind: "session", id: s.id })}
+                        className="p-1.5 rounded hover:bg-zinc-700 text-blue-400" title="Session diagnostics"><Stethoscope className="h-3.5 w-3.5" /></button>
                       <button onClick={() => doAction(`rs-${s.id}`, () => api.delete(`/sessions/${s.id}`), fetchSessions)}
                         className="p-1.5 rounded hover:bg-red-500/20 text-red-400" title="Revoke"><Trash2 className="h-3.5 w-3.5" /></button>
                     </td>
@@ -1865,6 +1873,8 @@ export default function AdminPage() {
       {tab === "support" && <SupportInbox onUnreadChange={fetchSupportUnread} />}
 
       {/* ── USER DETAIL MODAL ─────────────────────────────────── */}
+      {diagnostics && <ClientDiagnostics target={diagnostics} onClose={() => setDiagnostics(null)} />}
+
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSelectedUser(null)}>
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
@@ -1878,7 +1888,13 @@ export default function AdminPage() {
                   <p className="text-xs text-zinc-500">{selectedUser.email}</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedUser(null)} className="p-2 rounded-lg hover:bg-zinc-800"><XCircle className="h-5 w-5" /></button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setDiagnostics({ kind: "user", id: selectedUser.id }); setSelectedUser(null); }}
+                  className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs hover:bg-blue-500/20 flex items-center gap-1.5">
+                  <Stethoscope className="h-3.5 w-3.5" /> Diagnostics
+                </button>
+                <button onClick={() => setSelectedUser(null)} className="p-2 rounded-lg hover:bg-zinc-800"><XCircle className="h-5 w-5" /></button>
+              </div>
             </div>
 
             {userMsg && (

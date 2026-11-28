@@ -259,6 +259,7 @@ class AuditEventRow(BaseModel):
 class SessionRow(BaseModel):
     id: str
     user_id: str
+    user_email: Optional[str] = None
     browser: Optional[str]
     os: Optional[str]
     ip_address: Optional[str]
@@ -966,8 +967,14 @@ async def list_sessions(
     if active_only:
         q = q.filter(t.c.is_active == True)
     rows = q.order_by(t.c.last_activity.desc()).offset(skip).limit(limit).all()
+    emails = {}
+    user_ids = {r.user_id for r in rows}
+    if user_ids and "users" in _table_names(db):
+        ut = _get_table("users")
+        emails = {u.id: u.email for u in db.query(ut.c.id, ut.c.email).filter(ut.c.id.in_(user_ids)).all()}
     return [SessionRow(
         id=r.id, user_id=r.user_id,
+        user_email=emails.get(r.user_id),
         browser=getattr(r, 'browser', None),
         os=getattr(r, 'os', None),
         ip_address=getattr(r, 'ip_address', None),
@@ -2039,6 +2046,12 @@ async def admin_delete_conversation(
     db.execute(conv_t.delete().where(conv_t.c.id == conversation_id))
     db.commit()
     return {"status": "deleted", "conversation_id": conversation_id}
+
+
+# ── Client diagnostics ─────────────────────────────────────────────────
+from app.diagnostics import build_router as _build_diagnostics_router  # noqa: E402
+
+app.include_router(_build_diagnostics_router(require_admin, _get_table, _table_names))
 
 
 # ── Helpers ────────────────────────────────────────────────────────────

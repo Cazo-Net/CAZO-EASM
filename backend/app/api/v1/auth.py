@@ -21,6 +21,7 @@ from app.api.deps import get_current_user
 from app.services.audit import log_auth_event
 from app.services.email import get_email_service
 from app.services.email import templates
+from app.core.client_info import MAX_UA_LENGTH, browser_label, edge_geo, os_label, parse_user_agent
 from datetime import datetime, timezone, timedelta
 import logging
 
@@ -126,33 +127,40 @@ def issue_session_tokens(db: Session, user: User, request: Request, method: str 
     get_failure_limiter().clear(_ip_fail_key(user, request))
 
     token_version = user.token_version or 0
-    access_token = create_access_token(
-        data={"sub": user.id, "role": user.role, "tv": token_version}
-    )
     refresh_token = create_refresh_token(
         data={"sub": user.id, "tv": token_version}
     )
 
     client_ip = _client_ip(request)
-    ua = request.headers.get("user-agent", "")
+    ua = (request.headers.get("user-agent") or "")[:MAX_UA_LENGTH]
+    ua_info = parse_user_agent(ua)
+    city, country = edge_geo(request)
     session = UserSession(
         user_id=user.id,
         refresh_token_hash=hash_api_key(refresh_token),
         ip_address=client_ip,
         user_agent=ua,
-        browser=ua[:50] if ua else "Unknown",
-        os=ua[50:100] if len(ua) > 50 else "Unknown",
+        browser=browser_label(ua_info),
+        os=os_label(ua_info),
+        location_city=city,
+        location_country=country,
     )
     db.add(session)
     db.commit()
+    # "sid" lets authenticated requests keep this session's last-activity
+    # time current for the admin diagnostics view (see app/api/deps.py).
+    access_token = create_access_token(
+        data={"sub": user.id, "role": user.role, "tv": token_version, "sid": session.id}
+    )
 
     try:
         email_service = get_email_service()
         subject, html = templates.new_login(
             user.full_name or user.email,
             client_ip,
-            ua[:50] or "Unknown",
-            "Unknown",
+            browser_label(ua_info),
+            os_label(ua_info),
+            ", ".join(p for p in (city, country) if p),
         )
         email_service.send_async(to=user.email, subject=subject, html_body=html)
     except Exception as e:
@@ -168,7 +176,7 @@ def issue_session_tokens(db: Session, user: User, request: Request, method: str 
             user_id=user.id,
             notification_type="new_login",
             title="New login detected",
-            message=f"New login from {client_ip} ({ua[:60] or 'Unknown device'})",
+            message=f"New login from {client_ip} ({browser_label(ua_info)} on {os_label(ua_info)})",
             related_entity_type="user",
             related_entity_id=user.id,
             data={
@@ -347,7 +355,7 @@ def _validate_token_version(user: User, payload: dict) -> None:
 
 
 @router.post("/refresh", response_model=Token)
-async def refresh_token(token_data: TokenRefresh, db: Session = Depends(get_db)):
+async def refresh_token(token_data: TokenRefresh, request: Request, db: Session = Depends(get_db)):
     """Refresh access token with rotation.
 
     SECURITY: On each refresh, the old refresh token is invalidated and a new
@@ -397,25 +405,32 @@ async def refresh_token(token_data: TokenRefresh, db: Session = Depends(get_db))
 
     # Issue new token pair
     token_version = user.token_version or 0
-    new_access = create_access_token(
-        data={"sub": user.id, "role": user.role, "tv": token_version}
-    )
     new_refresh = create_refresh_token(
         data={"sub": user.id, "tv": token_version}
     )
 
-    # Create new session with the new refresh token
+    # Create new session with the new refresh token. It records where the
+    # refresh came from now (network or browser may have changed since login).
+    ua = (request.headers.get("user-agent") or "")[:MAX_UA_LENGTH] or session.user_agent
+    ua_info = parse_user_agent(ua)
+    city, country = edge_geo(request)
     new_session = UserSession(
         user_id=user.id,
         refresh_token_hash=hash_api_key(new_refresh),
-        ip_address=session.ip_address,
-        user_agent=session.user_agent,
-        browser=session.browser,
-        os=session.os,
+        ip_address=_client_ip(request) or session.ip_address,
+        user_agent=ua,
+        browser=browser_label(ua_info),
+        os=os_label(ua_info),
+        location_city=city or session.location_city,
+        location_country=country or session.location_country,
+        is_trusted=session.is_trusted,
         is_active=True,
     )
     db.add(new_session)
     db.commit()
+    new_access = create_access_token(
+        data={"sub": user.id, "role": user.role, "tv": token_version, "sid": new_session.id}
+    )
 
     return {
         "access_token": new_access,

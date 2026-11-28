@@ -2,8 +2,9 @@
 
 The read endpoints are restricted to platform admins (role == "admin" or "superuser")
 and provide the data for the admin panel Logs tab.  The client-error endpoint is
-public (no auth) so the frontend ErrorBoundary can POST errors without needing to
-pass a token — the endpoint is intentionally open but rate-limited by the existing
+public so the frontend ErrorBoundary can always POST errors; a sign-in token is
+optional and, when sent, links the error to the user for the admin diagnostics
+view. The endpoint is intentionally open but rate-limited by the existing
 middleware.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -16,7 +17,7 @@ from datetime import datetime, timezone
 from app.database import get_db
 from app.models.user import User
 from app.models.platform_log import PlatformLog
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_optional_user
 from app.services.platform_log import log_client_error
 
 router = APIRouter()
@@ -244,11 +245,17 @@ async def get_platform_log(
 async def ingest_client_error(
     body: ClientErrorRequest,
     request: Request,
+    user: Optional[User] = Depends(get_optional_user),
 ):
-    forwarded = request.headers.get("x-forwarded-for")
-    client_ip = forwarded.split(",")[0].strip() if forwarded else (
-        request.client.host if request.client else "unknown"
-    )
+    from app.core.client_ip import get_client_ip
+    from app.core.client_info import MAX_UA_LENGTH, browser_label, os_label, parse_user_agent
+
+    # Signed-in users send their token so support can find the error from the
+    # customer's diagnostics page. Only the page path is kept: query strings
+    # and fragments can carry tokens or search terms.
+    page = (body.url or "").split("?", 1)[0].split("#", 1)[0][:300] or None
+    ua = (body.user_agent or request.headers.get("user-agent") or "")[:MAX_UA_LENGTH]
+    ua_info = parse_user_agent(ua)
 
     log_client_error(
         message=body.message[:500],
@@ -256,9 +263,13 @@ async def ingest_client_error(
             "source": "client",
             "stack": body.stack,
             "component_stack": body.component_stack,
-            "url": body.url,
-            "user_agent": body.user_agent,
+            "url": page,
+            "user_agent": ua or None,
+            "browser": browser_label(ua_info),
+            "os": os_label(ua_info),
         },
-        client_ip=client_ip,
+        client_ip=get_client_ip(request),
+        user_id=user.id if user else None,
+        organization_id=user.organization_id if user else None,
     )
     return {"ok": True}

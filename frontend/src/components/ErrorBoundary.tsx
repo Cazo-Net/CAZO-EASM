@@ -24,15 +24,26 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Fire-and-forget: POST sanitized error to backend — no stack traces, no URLs, no user-agent
+    // Fire-and-forget: POST the error to the backend so support can see it on
+    // the customer's diagnostics page. Sends the error message and the page
+    // path only (no query string, stack trace or page content). The sign-in
+    // token, when present, links the error to the account.
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL;
       if (!apiUrl) return;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      try {
+        const token = localStorage.getItem("access_token") || sessionStorage.getItem("access_token");
+        if (token) headers.Authorization = `Bearer ${token}`;
+      } catch {
+        // Storage can be blocked; report the error anonymously.
+      }
       fetch(`${apiUrl}/api/v1/logs/client-error`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           message: `${error.name}: ${error.message}`.slice(0, 2000),
+          url: window.location.pathname.slice(0, 300),
         }),
       }).catch(() => {});
     } catch {
