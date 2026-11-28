@@ -236,7 +236,19 @@ def _threat_intel_monitors():
         db.close()
 
 
+def _support_reply_emails():
+    from app.api.v1.support import send_reply_notifications
+    from app.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        send_reply_notifications(db)
+    finally:
+        db.close()
+
+
 MAINTENANCE_JOBS: List[PeriodicJob] = [
+    PeriodicJob("support_reply_emails", timedelta(minutes=2), _support_reply_emails),
     PeriodicJob("threat_intel_monitors", timedelta(hours=1), _threat_intel_monitors),
     PeriodicJob("check_ssl_expiry", timedelta(days=1), _ssl_expiry),
     PeriodicJob("send_weekly_digest", timedelta(days=7), _weekly_digest),

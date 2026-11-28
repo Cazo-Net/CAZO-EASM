@@ -139,6 +139,10 @@ class Settings(BaseSettings):
     # Email
     EMAIL_PROVIDER: str = os.getenv("EMAIL_PROVIDER", "log")  # log | smtp | resend
     EMAIL_FROM: str = os.getenv("EMAIL_FROM", "noreply@cazo.io")
+    # Support chat: where the team is told about new customer messages
+    # (comma-separated addresses). Empty = no email, messages still reach the
+    # admin panel inbox.
+    SUPPORT_NOTIFY_EMAIL: str = os.getenv("SUPPORT_NOTIFY_EMAIL", "")
     SMTP_HOST: str = os.getenv("SMTP_HOST", "localhost")
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
     SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")

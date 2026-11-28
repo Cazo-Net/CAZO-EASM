@@ -60,7 +60,7 @@ easm-platform/
   - **Enterprise Hardening**: Per-endpoint rate limiting, RBAC (admin/analyst/viewer), audit logging
   - **30+ API endpoints** covering all capabilities
 - **Dark Web Intelligence** — Dark web monitoring framework with domain models for mentions, onion services, credential exposures, threat actors, and monitoring targets. Frontend search UI with threat-level badges, source icons, and fuzzy matching across 18+ threat categories.
-- **Support Chat Widget** — Floating chat button (CAZO logo + green dot indicator) with real-time messaging between users and admins. User creates conversations, admin replies from admin panel Support tab. Polls for new messages every 10 seconds.
+- **Support Chat** — Chat button in the dashboard and on the public site. Signed-in users write from their account; website visitors leave an email and a message. The team answers from the admin panel Support tab. No automatic replies. Set `SUPPORT_NOTIFY_EMAIL` to be emailed about new messages; customers are emailed a reply they have not read after 3 minutes (needs `EMAIL_PROVIDER`).
 - **Collapsible Sidebar** — Sections (DISCOVERY, OUTPUT, RESOURCES, COLLABORATION) are collapsible with chevron toggle. Active pages auto-expand their section.
 - **WebAuthn Passkeys** — Passwordless authentication support
 - **REST API** — Full API with JWT + API key authentication
@@ -279,6 +279,8 @@ docker-compose up -d
 | `GET /support/conversations/{id}/messages` | Get messages (marks admin messages as read) |
 | `POST /support/conversations/{id}/messages` | Send message in conversation |
 | `GET /support/unread` | Get total unread admin messages |
+| `POST /support/guest/conversations` | Website visitor starts a conversation (name, email, message); returns a token |
+| `GET/POST /support/guest/conversations/{id}/messages` | Visitor reads or writes, with the `X-Support-Token` header |
 
 ### Admin Panel API (port 9000)
 
