@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Shield } from "lucide-react";
+import { CazoMark } from "@/components/marketing/CazoLogo";
 
 export function ErrorFooter() {
   return (
@@ -9,10 +9,10 @@ export function ErrorFooter() {
       <div className="mx-auto max-w-4xl px-6 py-8">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-background border border-border">
-              <Shield className="h-3.5 w-3.5 text-brand" />
-            </div>
-            <span className="text-sm font-semibold tracking-tight gradient-text">CAZO EASM</span>
+            <CazoMark className="h-8 w-8" />
+            <span className="text-sm font-semibold tracking-tight text-foreground">
+              CAZO <span className="font-medium text-muted-foreground">EASM</span>
+            </span>
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">

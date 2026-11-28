@@ -305,6 +305,32 @@ export async function listDNSRecords(scanId?: string): Promise<any[]> {
   return data;
 }
 
+export interface DomainHostLocation {
+  ip: string;
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  provider: string | null;
+  asn: string | null;
+  anycast: boolean;
+  private: boolean;
+  error: string | null;
+}
+
+export interface DomainLocation {
+  domain: string;
+  registrant_country: string | null;
+  provider: string;
+  token_configured: boolean;
+  scanned_at: string | null;
+  locations: DomainHostLocation[];
+}
+
+export async function getDomainLocation(domain: string): Promise<DomainLocation> {
+  const { data } = await api.get("/assets/whois/location", { params: { domain } });
+  return data;
+}
+
 export async function listWhoisRecords(scanId?: string): Promise<any[]> {
   const { data } = await api.get("/assets/whois", {
     params: scanId ? { scan_id: scanId } : {},

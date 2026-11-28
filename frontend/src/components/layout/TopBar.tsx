@@ -46,6 +46,7 @@ const routeTitles: Record<string, string> = {
   "/canvas": "Intelligence Canvas",
   "/blockchain": "Blockchain Intelligence",
   "/darkweb": "Dark Web & Threat Intel",
+  "/intel": "OSINT Lookup",
 };
 
 interface TopBarProps {

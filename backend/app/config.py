@@ -181,6 +181,9 @@ class Settings(BaseSettings):
     # accounts and domain search. Domain search also needs the domain verified
     # in the HIBP dashboard.
     HIBP_API_KEY: str = os.getenv("HIBP_API_KEY", "")
+    # ipinfo.io token (https://ipinfo.io/signup, free 50k lookups/month) for
+    # the hosting location of a domain's IPs. Works without one at low volume.
+    IPINFO_TOKEN: str = os.getenv("IPINFO_TOKEN", "")
     # abuse.ch Auth-Key (https://auth.abuse.ch/) — URLhaus and ThreatFox.
     ABUSECH_AUTH_KEY: str = os.getenv("ABUSECH_AUTH_KEY", "")
     # How often saved monitors are re-checked by the worker.

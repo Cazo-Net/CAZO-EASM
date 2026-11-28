@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { listWhoisRecords } from "@/lib/api";
+import { DomainLocationDialog } from "@/components/whois/DomainLocationDialog";
+import { countryFlag, countryName } from "@/lib/country";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,6 +80,7 @@ function WhoisContent() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const [locationDomain, setLocationDomain] = useState<string | null>(null);
 
   useEffect(() => {
     listWhoisRecords()
@@ -322,7 +325,14 @@ function WhoisContent() {
                         </div>
                         <div className="min-w-0">
                           <h3 className="font-semibold text-foreground truncate group-hover:text-brand transition-colors">
-                            {record.domain}
+                            <button
+                              type="button"
+                              onClick={() => setLocationDomain(record.domain)}
+                              className="truncate text-left hover:underline underline-offset-4"
+                              title="Show where this domain is located"
+                            >
+                              {record.domain}
+                            </button>
                           </h3>
                           {record.registrar && (
                             <p className="text-xs text-muted-foreground truncate">
@@ -451,7 +461,7 @@ function WhoisContent() {
                             <div className="flex items-center gap-2 text-xs">
                               <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                               <span className="text-muted-foreground">
-                                {record.registrant_country}
+                                {countryFlag(record.registrant_country)} {countryName(record.registrant_country)}
                               </span>
                             </div>
                           )}
@@ -524,9 +534,14 @@ function WhoisContent() {
                         <TableCell>
                           <div className="flex items-center gap-2.5">
                             <Globe className="h-4 w-4 text-brand shrink-0" />
-                            <span className="font-medium font-mono text-sm">
+                            <button
+                              type="button"
+                              onClick={() => setLocationDomain(record.domain)}
+                              className="font-medium font-mono text-sm hover:underline underline-offset-4"
+                              title="Show where this domain is located"
+                            >
                               {record.domain}
-                            </span>
+                            </button>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -626,6 +641,7 @@ function WhoisContent() {
         </AnimatePresence>
       </div>
       </div>
+      <DomainLocationDialog domain={locationDomain} onOpenChange={(open) => !open && setLocationDomain(null)} />
     </div>
   );
 }
