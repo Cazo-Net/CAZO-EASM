@@ -1543,7 +1543,6 @@ const FOOTER_COLS: { title: string; links: { label: string; href: string }[] }[]
     {
       title: "Company",
       links: [
-        { label: "About", href: "/about" },
         { label: "Contact", href: "mailto:hello@cazo.io" },
       ],
     },

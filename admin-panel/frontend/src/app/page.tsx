@@ -351,6 +351,17 @@ export default function AdminPage() {
     if (tab === "system") fetchProcesses();
   }, [tab, authenticated]);
 
+  // The filter dropdowns (role, scan status, severity, asset type) apply as soon
+  // as they change; before, they only took effect after pressing refresh.
+  useEffect(() => {
+    if (!authenticated) return;
+    if (tab === "users") fetchUsers();
+    if (tab === "scans") fetchScans();
+    if (tab === "vulns") fetchVulns();
+    if (tab === "assets") fetchAssets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
   const doAction = async (key: string, fn: () => Promise<any>, refresh?: () => void) => {
     setActionLoading(key);
     try {
