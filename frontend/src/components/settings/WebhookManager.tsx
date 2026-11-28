@@ -92,9 +92,9 @@ const EVENT_CATEGORIES = [
 
 function getStatusColor(webhook: WebhookItem): string {
   if (!webhook.is_active) return "text-muted-foreground";
-  if (webhook.failure_count >= 5) return "text-red-400";
+  if (webhook.failure_count >= 5) return "text-destructive";
   if (webhook.failure_count >= 1) return "text-yellow-400";
-  return "text-green-400";
+  return "text-success";
 }
 
 function getStatusDot(webhook: WebhookItem): string {
@@ -291,7 +291,7 @@ export function WebhookManager() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#10B981]/10 text-[#10B981]">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <Webhook className="h-4 w-4" />
           </div>
           <div>
@@ -383,7 +383,7 @@ export function WebhookManager() {
                           onClick={() => toggleEvent(event)}
                           className={`text-xs px-2 py-1 rounded border transition-colors ${
                             formEvents.includes(event)
-                              ? "border-[#10B981]/40 bg-[#10B981]/10 text-[#10B981]"
+                              ? "border-primary/40 bg-primary/10 text-primary"
                               : "border-border text-muted-foreground hover:text-foreground"
                           }`}
                         >
@@ -510,7 +510,7 @@ export function WebhookManager() {
                     {toggling === webhook.id ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     ) : webhook.is_active ? (
-                      <Zap className="h-3 w-3 text-green-400" />
+                      <Zap className="h-3 w-3 text-success" />
                     ) : (
                       <X className="h-3 w-3 text-muted-foreground" />
                     )}
@@ -541,7 +541,7 @@ export function WebhookManager() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 w-7 p-0 hover:text-red-400"
+                    className="h-7 w-7 p-0 hover:text-destructive"
                     onClick={() => handleDelete(webhook.id)}
                     disabled={deleting === webhook.id}
                     title="Delete"
@@ -560,8 +560,8 @@ export function WebhookManager() {
                 <div
                   className={`mt-3 text-xs p-2 rounded border ${
                     testResult.success
-                      ? "border-green-500/20 bg-green-500/5 text-green-400"
-                      : "border-red-500/20 bg-red-500/5 text-red-400"
+                      ? "border-green-500/20 bg-green-500/5 text-success"
+                      : "border-red-500/20 bg-red-500/5 text-destructive"
                   }`}
                 >
                   {testResult.success ? (

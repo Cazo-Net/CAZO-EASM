@@ -82,7 +82,7 @@ export default function PricingPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-6 pb-16">
-        {error && <p className="text-center text-sm text-red-400">{error}</p>}
+        {error && <p className="text-center text-sm text-destructive">{error}</p>}
         {!catalog && !error && (
           <div className="flex justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

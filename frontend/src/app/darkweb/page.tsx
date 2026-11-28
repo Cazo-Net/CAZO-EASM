@@ -38,11 +38,11 @@ const SOURCE_ICONS: Record<string, any> = {
 };
 
 const THREAT_COLORS: Record<string, string> = {
-  critical: "text-red-400 bg-red-500/10 border-red-500/20",
+  critical: "text-destructive bg-destructive/10 border-red-500/20",
   high: "text-orange-400 bg-orange-500/10 border-orange-500/20",
   medium: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
   low: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  info: "text-green-400 bg-green-500/10 border-green-500/20",
+  info: "text-success bg-success/10 border-green-500/20",
 };
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
@@ -132,7 +132,7 @@ function DarkWebContent() {
 
         {/* Error */}
         {searchError && (
-          <div className="mt-4 p-4 border border-red-500/20 bg-red-500/5 rounded-lg text-red-400 text-sm flex items-center gap-2">
+          <div className="mt-4 p-4 border border-red-500/20 bg-red-500/5 rounded-lg text-destructive text-sm flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             {searchError}
           </div>
@@ -229,8 +229,8 @@ function DarkWebContent() {
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-red-500/10 rounded-lg">
-                    <Shield className="w-5 h-5 text-red-400" />
+                  <div className="p-2 bg-destructive/10 rounded-lg">
+                    <Shield className="w-5 h-5 text-destructive" />
                   </div>
                   <div>
                     <h3 className="text-sm font-medium">Credential Monitoring</h3>

@@ -232,7 +232,7 @@ export function IntegrationsPanel() {
                   variant={isConfigured ? "default" : "secondary"}
                   className={`text-[10px] shrink-0 ${
                     isConfigured
-                      ? "bg-green-500/10 text-green-400 border-green-500/20"
+                      ? "bg-success/10 text-success border-green-500/20"
                       : "text-muted-foreground"
                   }`}
                 >
@@ -295,8 +295,8 @@ export function IntegrationsPanel() {
                 <div
                   className={`mt-2 text-[10px] p-1.5 rounded border ${
                     testResult.success
-                      ? "border-green-500/20 bg-green-500/5 text-green-400"
-                      : "border-red-500/20 bg-red-500/5 text-red-400"
+                      ? "border-green-500/20 bg-green-500/5 text-success"
+                      : "border-red-500/20 bg-red-500/5 text-destructive"
                   }`}
                 >
                   {testResult.success

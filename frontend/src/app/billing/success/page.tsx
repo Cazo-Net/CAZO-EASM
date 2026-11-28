@@ -47,7 +47,7 @@ function SuccessInner() {
       {!status && !error && <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />}
       {error && (
         <>
-          <XCircle className="h-10 w-10 text-red-400" />
+          <XCircle className="h-10 w-10 text-destructive" />
           <h1 className="mt-4 text-2xl font-semibold">Payment not confirmed</h1>
           <p className="mt-2 text-sm text-muted-foreground">{error}</p>
         </>
@@ -75,7 +75,7 @@ function SuccessInner() {
       )}
       {status && !paid && !pending && (
         <>
-          <XCircle className="h-10 w-10 text-red-400" />
+          <XCircle className="h-10 w-10 text-destructive" />
           <h1 className="mt-4 text-2xl font-semibold">Checkout not finished</h1>
           <p className="mt-2 text-sm text-muted-foreground">Nothing was charged. You can try again.</p>
         </>

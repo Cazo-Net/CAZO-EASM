@@ -39,11 +39,11 @@ interface Notification {
 }
 
 const typeConfig: Record<string, { icon: any; color: string; bg: string; priority?: string; badge?: string }> = {
-  scan_completed: { icon: Check, color: "text-emerald-400", bg: "bg-emerald-500/10", badge: "Scan" },
-  scan_failed: { icon: X, color: "text-red-400", bg: "bg-red-500/10", priority: "high", badge: "Scan" },
+  scan_completed: { icon: Check, color: "text-success", bg: "bg-success/10", badge: "Scan" },
+  scan_failed: { icon: X, color: "text-destructive", bg: "bg-destructive/10", priority: "high", badge: "Scan" },
   ssl_expiring: { icon: Lock, color: "text-amber-400", bg: "bg-amber-500/10", priority: "normal", badge: "Cert" },
   new_shadow_asset: { icon: Globe, color: "text-blue-400", bg: "bg-blue-500/10", badge: "Asset" },
-  new_finding_critical: { icon: AlertTriangle, color: "text-red-400", bg: "bg-red-500/10", priority: "critical", badge: "Critical" },
+  new_finding_critical: { icon: AlertTriangle, color: "text-destructive", bg: "bg-destructive/10", priority: "critical", badge: "Critical" },
   new_finding_high: { icon: AlertTriangle, color: "text-orange-400", bg: "bg-orange-500/10", priority: "high", badge: "High" },
   new_finding_medium: { icon: AlertTriangle, color: "text-amber-400", bg: "bg-amber-500/10", priority: "normal", badge: "Medium" },
   new_cve_match: { icon: Shield, color: "text-rose-400", bg: "bg-rose-500/10", priority: "high", badge: "CVE" },
@@ -262,7 +262,7 @@ export function NotificationCenter() {
                                 {config.badge && (
                                   <span className={cn(
                                     "rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
-                                    config.priority === "critical" ? "bg-red-500/20 text-red-400" :
+                                    config.priority === "critical" ? "bg-red-500/20 text-destructive" :
                                     config.priority === "high" ? "bg-orange-500/20 text-orange-400" :
                                     "bg-muted text-muted-foreground"
                                   )}>

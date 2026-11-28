@@ -57,7 +57,7 @@ function scoreDisplay(value: number | null | undefined): string {
 function changeIcon(type: string) {
   switch (type) {
     case "added":
-      return <PlusCircle className="h-4 w-4 text-emerald-500" />;
+      return <PlusCircle className="h-4 w-4 text-success" />;
     case "removed":
       return <MinusCircle className="h-4 w-4 text-destructive" />;
     case "modified":

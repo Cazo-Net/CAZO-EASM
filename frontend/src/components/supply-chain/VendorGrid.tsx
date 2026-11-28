@@ -22,7 +22,7 @@ const VENDOR_TYPE_COLORS: Record<string, string> = {
 const VENDOR_TYPE_BADGE: Record<string, string> = {
   third_party_service: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   saas_platform: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-  first_party_infra: "bg-green-500/10 text-green-400 border-green-500/20",
+  first_party_infra: "bg-success/10 text-success border-green-500/20",
   security_tool: "bg-orange-500/10 text-orange-400 border-orange-500/20",
   cloud_provider: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
   devops_tool: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
@@ -38,9 +38,9 @@ const VENDOR_TYPE_LABELS: Record<string, string> = {
 };
 
 function getRiskLevel(confidence: number): { label: string; color: string } {
-  if (confidence >= 80) return { label: "High", color: "text-red-400" };
+  if (confidence >= 80) return { label: "High", color: "text-destructive" };
   if (confidence >= 50) return { label: "Medium", color: "text-yellow-400" };
-  return { label: "Low", color: "text-green-400" };
+  return { label: "Low", color: "text-success" };
 }
 
 interface VendorGridProps {

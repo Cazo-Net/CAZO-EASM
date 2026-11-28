@@ -49,7 +49,7 @@ function severityConfig(points: number) {
     };
   return {
     icon: CheckCircle,
-    iconColor: "text-emerald-500",
+    iconColor: "text-success",
     badge: "success" as const,
   };
 }
@@ -60,8 +60,8 @@ export function FindingsTable({ findings }: FindingsTableProps) {
   if (findings.length === 0) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center shadow-sm">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
-          <CheckCircle className="h-6 w-6 text-emerald-500" />
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
+          <CheckCircle className="h-6 w-6 text-success" />
         </div>
         <p className="font-medium">No issues found</p>
         <p className="text-sm text-muted-foreground">

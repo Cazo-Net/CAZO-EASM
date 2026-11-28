@@ -99,7 +99,7 @@ function CheckoutInner() {
   if (!catalog) {
     return (
       <div className="flex justify-center py-24">
-        {error ? <p className="text-sm text-red-400">{error}</p> : <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
+        {error ? <p className="text-sm text-destructive">{error}</p> : <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
       </div>
     );
   }
@@ -269,7 +269,7 @@ function CheckoutInner() {
               </dl>
             )}
 
-            {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+            {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
             {!canManage && (
               <p className="mt-4 text-sm text-muted-foreground">
                 Only an organization owner or admin can change the plan.

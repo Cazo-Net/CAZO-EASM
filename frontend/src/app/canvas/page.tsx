@@ -71,7 +71,7 @@ const NODE_CATEGORIES = [
   {
     label: "Data",
     nodes: [
-      { type: "domain", icon: Globe, color: "#10B981", label: "Domain", inputs: ["Flow"], outputs: ["Flow", "Data"] },
+      { type: "domain", icon: Globe, color: "#4A82F5", label: "Domain", inputs: ["Flow"], outputs: ["Flow", "Data"] },
       { type: "subdomain", icon: Server, color: "#06B6D4", label: "Subdomain", inputs: ["Flow"], outputs: ["Flow", "Data"] },
       { type: "ip_address", icon: Circle, color: "#818CF8", label: "IP Address", inputs: ["Flow"], outputs: ["Flow", "Data"] },
     ],
@@ -80,7 +80,7 @@ const NODE_CATEGORIES = [
     label: "Analysis",
     nodes: [
       { type: "port", icon: Server, color: "#EC4899", label: "Port Scan", inputs: ["Flow", "Target"], outputs: ["Flow", "Ports"] },
-      { type: "ssl_certificate", icon: LockIcon, color: "#10B981", label: "SSL Check", inputs: ["Flow", "Target"], outputs: ["Flow", "Cert"] },
+      { type: "ssl_certificate", icon: LockIcon, color: "#4A82F5", label: "SSL Check", inputs: ["Flow", "Target"], outputs: ["Flow", "Cert"] },
       { type: "dns_record", icon: Network, color: "#F59E0B", label: "DNS Lookup", inputs: ["Flow", "Target"], outputs: ["Flow", "Records"] },
       { type: "technology", icon: Cpu, color: "#818CF8", label: "Tech Detect", inputs: ["Flow", "Target"], outputs: ["Flow", "Tech"] },
     ],
@@ -89,7 +89,7 @@ const NODE_CATEGORIES = [
     label: "Security",
     nodes: [
       { type: "vulnerability", icon: Bug, color: "#FB7185", label: "Vuln Scan", inputs: ["Flow", "Target"], outputs: ["Flow", "Findings"] },
-      { type: "scan_network", icon: Network, color: "#10B981", label: "Scan Network", inputs: ["Flow"], outputs: ["Flow", "Devices"] },
+      { type: "scan_network", icon: Network, color: "#4A82F5", label: "Scan Network", inputs: ["Flow"], outputs: ["Flow", "Devices"] },
     ],
   },
   {
@@ -106,16 +106,16 @@ const NODE_CATEGORIES = [
 // ---------------------------------------------------------------------------
 
 const NODE_COLORS: Record<string, string> = {
-  domain: "#10B981", subdomain: "#06B6D4", ip_address: "#818CF8",
-  port: "#EC4899", ssl_certificate: "#10B981", dns_record: "#F59E0B",
+  domain: "#4A82F5", subdomain: "#06B6D4", ip_address: "#818CF8",
+  port: "#EC4899", ssl_certificate: "#4A82F5", dns_record: "#F59E0B",
   technology: "#818CF8", vulnerability: "#FB7185", organization: "#6366F1",
   email: "#EC4899", cloud_asset: "#06B6D4", web_application: "#3B82F6",
   external_service: "#F97316", note: "#6B7280", print: "#06B6D4",
-  scan_network: "#10B981",
+  scan_network: "#4A82F5",
 };
 
 function PortNode({ data, selected }: { data: any; selected?: boolean }) {
-  const color = NODE_COLORS[data.asset_type || data.nodeType] || "#10B981";
+  const color = NODE_COLORS[data.asset_type || data.nodeType] || "#4A82F5";
   const inputs: string[] = data.inputs || [];
   const outputs: string[] = data.outputs || [];
 
@@ -270,7 +270,7 @@ function CanvasContent() {
         label: e.label,
         type: "smoothstep",
         animated: e.animated,
-        style: { stroke: "#10B98166", strokeWidth: 1.5 },
+        style: { stroke: "#4A82F566", strokeWidth: 1.5 },
       }));
       setNodes(rfNodes);
       setEdges(rfEdges);
@@ -349,7 +349,7 @@ function CanvasContent() {
           label: "",
           edge_type: "default",
         });
-        setEdges((eds) => addEdge({ ...connection, id: edge.id, style: { stroke: "#10B98166", strokeWidth: 1.5 }, type: "smoothstep" }, eds));
+        setEdges((eds) => addEdge({ ...connection, id: edge.id, style: { stroke: "#4A82F566", strokeWidth: 1.5 }, type: "smoothstep" }, eds));
       } catch {}
     },
     [activeCanvas, setEdges]
@@ -423,7 +423,7 @@ function CanvasContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen" style={{ background: "#050608" }}>
-        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#10B981" }} />
+        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#4A82F5" }} />
       </div>
     );
   }
@@ -434,7 +434,7 @@ function CanvasContent() {
       <div className="w-56 border-r flex flex-col shrink-0" style={{ borderColor: "#161B26", background: "#0A0B0F" }}>
         {/* Header */}
         <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: "#161B26" }}>
-          <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#10B981" }}>
+          <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#4A82F5" }}>
             Node Editor
           </span>
           <span className="font-mono text-[9px] text-muted-foreground">*.gnt</span>
@@ -445,7 +445,7 @@ function CanvasContent() {
           <button
             onClick={handleCreateCanvas}
             className="flex items-center gap-1.5 w-full rounded px-2 py-1.5 text-[10px] font-mono transition-colors"
-            style={{ background: "#10B98111", color: "#10B981", border: "1px solid #10B98133" }}
+            style={{ background: "#4A82F511", color: "#4A82F5", border: "1px solid #4A82F533" }}
           >
             <Plus className="h-3 w-3" /> NEW
           </button>
@@ -475,13 +475,13 @@ function CanvasContent() {
         {/* Search */}
         <div className="px-3 py-2 border-b" style={{ borderColor: "#161B26" }}>
           <div className="flex items-center gap-1.5 rounded px-2 py-1" style={{ background: "#0D1117", border: "1px solid #161B26" }}>
-            <Search className="h-3 w-3" style={{ color: "#10B98166" }} />
+            <Search className="h-3 w-3" style={{ color: "#4A82F566" }} />
             <input
               value={paletteSearch}
               onChange={(e) => setPaletteSearch(e.target.value)}
               placeholder="print"
               className="flex-1 bg-transparent text-[10px] font-mono focus:outline-none"
-              style={{ color: "#10B981" }}
+              style={{ color: "#4A82F5" }}
             />
           </div>
         </div>
@@ -523,7 +523,7 @@ function CanvasContent() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Toolbar */}
         <div className="flex items-center gap-2 border-b px-4 py-1.5 shrink-0" style={{ borderColor: "#161B26", background: "#0A0B0Fee" }}>
-          <button onClick={handleCreateCanvas} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-mono hover:bg-white/5" style={{ color: "#10B981" }}>
+          <button onClick={handleCreateCanvas} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-mono hover:bg-white/5" style={{ color: "#4A82F5" }}>
             <Plus className="h-3 w-3" /> NEW
           </button>
           <button onClick={() => activeCanvas && loadCanvas(activeCanvas.id)} className="flex items-center gap-1 rounded px-2 py-1 text-[10px] font-mono hover:bg-white/5 text-muted-foreground">
@@ -580,7 +580,7 @@ function CanvasContent() {
                 <button
                   onClick={handleCreateCanvas}
                   className="font-mono text-[10px] px-3 py-1.5 rounded"
-                  style={{ background: "#10B98111", color: "#10B981", border: "1px solid #10B98133" }}
+                  style={{ background: "#4A82F511", color: "#4A82F5", border: "1px solid #4A82F533" }}
                 >
                   CREATE CANVAS
                 </button>
@@ -593,7 +593,7 @@ function CanvasContent() {
         {activeCanvas && (
           <div className="shrink-0 border-t" style={{ borderColor: "#161B26", background: "#0A0B0F" }}>
             <div className="flex items-center justify-between px-4 py-1.5 border-b" style={{ borderColor: "#161B26" }}>
-              <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#10B981" }}>
+              <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#4A82F5" }}>
                 Generated Code
               </span>
               <button
@@ -603,7 +603,7 @@ function CanvasContent() {
                 copy
               </button>
             </div>
-            <pre className="px-4 py-2 text-[10px] font-mono overflow-x-auto max-h-28" style={{ color: "#10B98188" }}>
+            <pre className="px-4 py-2 text-[10px] font-mono overflow-x-auto max-h-28" style={{ color: "#4A82F588" }}>
               {generatedCode}
             </pre>
           </div>
@@ -621,7 +621,7 @@ function CanvasContent() {
             style={{ borderColor: "#161B26", background: "#0A0B0F" }}
           >
             <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "#161B26" }}>
-              <span className=" text-[11px] font-semibold uppercase" style={{ color: "#10B981" }}>
+              <span className=" text-[11px] font-semibold uppercase" style={{ color: "#4A82F5" }}>
                 Properties
               </span>
               <button onClick={() => setSelectedNode(null)} className="text-muted-foreground hover:text-foreground">
@@ -643,12 +643,12 @@ function CanvasContent() {
                     }
                   }}
                   className="w-full rounded px-2 py-1.5 text-[10px] font-mono mt-1 focus:outline-none"
-                  style={{ background: "#0D1117", border: "1px solid #161B26", color: "#10B981" }}
+                  style={{ background: "#0D1117", border: "1px solid #161B26", color: "#4A82F5" }}
                 />
               </div>
               <div>
                 <label className=" text-[11px] text-muted-foreground uppercase">Type</label>
-                <p className="font-mono text-[10px] mt-1" style={{ color: NODE_COLORS[selectedNode.data.asset_type as string] || "#10B981" }}>
+                <p className="font-mono text-[10px] mt-1" style={{ color: NODE_COLORS[selectedNode.data.asset_type as string] || "#4A82F5" }}>
                   {(selectedNode.data.asset_type as string) || "unknown"}
                 </p>
               </div>
@@ -661,7 +661,7 @@ function CanvasContent() {
                     setNodes((nds) => nds.map((n) => n.id === selectedNode.id ? { ...n, data: { ...n.data, notes: val } } : n));
                   }}
                   className="w-full rounded px-2 py-1.5 text-[10px] font-mono mt-1 min-h-[60px] focus:outline-none"
-                  style={{ background: "#0D1117", border: "1px solid #161B26", color: "#10B98188" }}
+                  style={{ background: "#0D1117", border: "1px solid #161B26", color: "#4A82F588" }}
                 />
               </div>
               <button
@@ -722,7 +722,7 @@ function ImportModal({ onImport, onClose }: { onImport: (scanId: string, assetId
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#161B26" }}>
-          <span className=" text-[11px] font-semibold uppercase" style={{ color: "#10B981" }}>
+          <span className=" text-[11px] font-semibold uppercase" style={{ color: "#4A82F5" }}>
             Import Scan
           </span>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -731,7 +731,7 @@ function ImportModal({ onImport, onClose }: { onImport: (scanId: string, assetId
         </div>
         <div className="max-h-80 overflow-y-auto p-4 space-y-2">
           {loading ? (
-            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" style={{ color: "#10B981" }} /></div>
+            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" style={{ color: "#4A82F5" }} /></div>
           ) : scans.length === 0 ? (
             <p className="font-mono text-[10px] text-muted-foreground text-center py-8">No completed scans available.</p>
           ) : (
@@ -742,7 +742,7 @@ function ImportModal({ onImport, onClose }: { onImport: (scanId: string, assetId
                 className="flex items-center gap-3 w-full rounded px-3 py-2.5 text-left transition-colors hover:bg-white/5"
                 style={{ border: "1px solid #161B26" }}
               >
-                <Globe className="h-3.5 w-3.5 shrink-0" style={{ color: "#10B981" }} />
+                <Globe className="h-3.5 w-3.5 shrink-0" style={{ color: "#4A82F5" }} />
                 <div className="flex-1 min-w-0">
                   <p className="font-mono text-[10px] text-foreground">{scan.domain}</p>
                   <p className="font-mono text-[9px] text-muted-foreground">{scan.scan_type}</p>

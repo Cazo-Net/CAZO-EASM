@@ -190,7 +190,7 @@ function BillingInner() {
         <div className="rounded-xl border border-phosphor/40 bg-primary/10 p-3 text-sm">{notice}</div>
       )}
       {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm">{error}</div>
+        <div className="rounded-xl border border-red-500/40 bg-destructive/10 p-3 text-sm">{error}</div>
       )}
       {o?.last_payment_error && (
         <div className="flex gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">

@@ -44,9 +44,9 @@ import type { Scan } from "@/types";
 // ---------------------------------------------------------------------------
 
 const TYPE_META: Record<string, { icon: any; color: string; size: number; label: string }> = {
-  domain: { icon: Globe, color: "#10B981", size: 42, label: "Domain" },
+  domain: { icon: Globe, color: "#4A82F5", size: 42, label: "Domain" },
   subdomain: { icon: Server, color: "#06B6D4", size: 30, label: "Subdomain" },
-  port: { icon: null, color: "#10B981", size: 18, label: "Port" },
+  port: { icon: null, color: "#4A82F5", size: 18, label: "Port" },
   vulnerability: { icon: Bug, color: "#FB7185", size: 18, label: "Vulnerability" },
   certificate: { icon: ShieldAlert, color: "#F59E0B", size: 22, label: "Certificate" },
 };
@@ -157,7 +157,7 @@ function ZoneOverlay({ nodes }: { nodes: Node[] }) {
       const zone = (n.data as any)?.zone;
       if (!zone) continue;
       if (!groups[zone]) {
-        groups[zone] = { x: n.position.x - 80, y: n.position.y - 60, w: 160, h: 120, color: "#10B981", label: zone };
+        groups[zone] = { x: n.position.x - 80, y: n.position.y - 60, w: 160, h: 120, color: "#4A82F5", label: zone };
       }
       const g = groups[zone];
       g.x = Math.min(g.x, n.position.x - 80);
@@ -203,7 +203,7 @@ function ZoneOverlay({ nodes }: { nodes: Node[] }) {
 
 function HeatMeter({ vulnCount, criticalCount }: { vulnCount: number; criticalCount: number }) {
   const heat = Math.min(10, Math.floor(criticalCount * 3 + vulnCount * 0.5));
-  const heatColor = heat >= 7 ? "#FB7185" : heat >= 4 ? "#F59E0B" : "#10B981";
+  const heatColor = heat >= 7 ? "#FB7185" : heat >= 4 ? "#F59E0B" : "#4A82F5";
   const label = heat >= 7 ? "HIGH THREAT" : heat >= 4 ? "ELEVATED" : "SILENT";
 
   return (
@@ -250,7 +250,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: `${ringColor}22` }}>
         <div className="flex items-center gap-2">
-          <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#10B981" }}>
+          <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#4A82F5" }}>
             NODE INTEL
           </span>
         </div>
@@ -412,11 +412,11 @@ function GraphCanvas({
       type: "smoothstep",
       animated: e.label === "attack",
       style: {
-        stroke: edgeColors[e.label || ""] || "#10B98155",
+        stroke: edgeColors[e.label || ""] || "#4A82F555",
         strokeWidth: e.label === "attack" ? 2 : 1,
         strokeDasharray: e.label === "attack" ? "6 3" : undefined,
       },
-      markerEnd: { type: MarkerType.ArrowClosed, color: edgeColors[e.label || ""] || "#10B98155", width: 12, height: 12 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: edgeColors[e.label || ""] || "#4A82F555", width: 12, height: 12 },
     }));
 
     setNodes(flowNodes);
@@ -433,8 +433,8 @@ function GraphCanvas({
     return (
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#10B981" }} />
-          <p className="font-mono text-xs" style={{ color: "#10B98188" }}>Computing attack graph...</p>
+          <Loader2 className="h-6 w-6 animate-spin" style={{ color: "#4A82F5" }} />
+          <p className="font-mono text-xs" style={{ color: "#4A82F588" }}>Computing attack graph...</p>
         </div>
       </div>
     );
@@ -569,7 +569,7 @@ function GraphContent() {
             onChange={(e) => setSelectedScanId(e.target.value)}
             disabled={loadingScans}
             className="h-7 rounded border px-2 text-[11px] font-mono focus:outline-none"
-            style={{ borderColor: "#161B26", background: "#0D1117", color: "#10B981" }}
+            style={{ borderColor: "#161B26", background: "#0D1117", color: "#4A82F5" }}
           >
             {loadingScans && <option>Loading...</option>}
             {!loadingScans && scans.length === 0 && <option>No scans</option>}
@@ -583,9 +583,9 @@ function GraphContent() {
             <span
               className=" text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded"
               style={{
-                color: nodeStats.critical > 0 ? "#FB7185" : "#10B981",
-                background: nodeStats.critical > 0 ? "#FB718515" : "#10B98115",
-                border: `1px solid ${nodeStats.critical > 0 ? "#FB718533" : "#10B98133"}`,
+                color: nodeStats.critical > 0 ? "#FB7185" : "#4A82F5",
+                background: nodeStats.critical > 0 ? "#FB718515" : "#4A82F515",
+                border: `1px solid ${nodeStats.critical > 0 ? "#FB718533" : "#4A82F533"}`,
               }}
             >
               {nodeStats.critical > 0 ? "ALERT" : "SILENT"}
@@ -600,16 +600,16 @@ function GraphContent() {
           className="flex items-center gap-1.5 rounded border px-2 py-1"
           style={{ borderColor: "#161B26", background: "#0D1117" }}
         >
-          <Search className="h-3 w-3" style={{ color: "#10B98166" }} />
+          <Search className="h-3 w-3" style={{ color: "#4A82F566" }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search nodes..."
             className="h-5 w-32 bg-transparent text-[10px] font-mono focus:outline-none"
-            style={{ color: "#10B981" }}
+            style={{ color: "#4A82F5" }}
           />
           {search.trim() && (
-            <span className="font-mono text-[9px]" style={{ color: matchNode ? "#10B981" : "#FB718566" }}>
+            <span className="font-mono text-[9px]" style={{ color: matchNode ? "#4A82F5" : "#FB718566" }}>
               {matchNode ? "found" : "—"}
             </span>
           )}
@@ -656,7 +656,7 @@ function GraphContent() {
             <span className="font-mono text-[10px] text-muted-foreground">
               Nodes: <span className="text-foreground">{nodeStats.total}</span>
             </span>
-            <span className="font-mono text-[10px]" style={{ color: "#10B981" }}>
+            <span className="font-mono text-[10px]" style={{ color: "#4A82F5" }}>
               {nodeStats.domains} domains
             </span>
             <span className="font-mono text-[10px]" style={{ color: "#06B6D4" }}>

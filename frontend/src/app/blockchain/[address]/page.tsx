@@ -31,11 +31,11 @@ import { Button } from "@/components/ui/button";
 const API_BASE = "";
 
 function getRiskColor(score: number): string {
-  if (score >= 80) return "text-red-400 bg-red-500/10 border-red-500/20";
+  if (score >= 80) return "text-destructive bg-destructive/10 border-red-500/20";
   if (score >= 60) return "text-orange-400 bg-orange-500/10 border-orange-500/20";
   if (score >= 40) return "text-yellow-400 bg-yellow-500/10 border-yellow-500/20";
   if (score >= 20) return "text-blue-400 bg-blue-500/10 border-blue-500/20";
-  return "text-green-400 bg-green-500/10 border-green-500/20";
+  return "text-success bg-success/10 border-green-500/20";
 }
 
 function AddressDetailContent() {
@@ -220,7 +220,7 @@ function AddressDetailContent() {
                 </code>
                 <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground">
                   {copied ? (
-                    <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                    <CheckCircle className="w-3.5 h-3.5 text-success" />
                   ) : (
                     <Copy className="w-3.5 h-3.5" />
                   )}
@@ -291,9 +291,9 @@ function AddressDetailContent() {
                     >
                       <div className="flex items-center gap-3">
                         {tx.status === "success" ? (
-                          <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                          <CheckCircle className="w-4 h-4 text-success flex-shrink-0" />
                         ) : (
-                          <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+                          <XCircle className="w-4 h-4 text-destructive flex-shrink-0" />
                         )}
                         <div>
                           <div className="font-mono truncate max-w-[200px]" title={tx.hash}>
@@ -361,10 +361,10 @@ function AddressDetailContent() {
                       <span
                         className={
                           (f.contribution || f.score || 0) >= 70
-                            ? "text-red-400"
+                            ? "text-destructive"
                             : (f.contribution || f.score || 0) >= 40
                             ? "text-yellow-400"
-                            : "text-green-400"
+                            : "text-success"
                         }
                       >
                         {f.contribution || f.score || 0}
@@ -422,9 +422,9 @@ function AddressDetailContent() {
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">Anomaly Score</span>
                     <span className={`text-sm font-semibold ${
-                      anomaly.anomaly_score > 0.7 ? "text-red-400" :
+                      anomaly.anomaly_score > 0.7 ? "text-destructive" :
                       anomaly.anomaly_score > 0.4 ? "text-yellow-400" :
-                      "text-green-400"
+                      "text-success"
                     }`}>
                       {(anomaly.anomaly_score * 100).toFixed(1)}%
                     </span>
@@ -537,7 +537,7 @@ function AddressDetailContent() {
               <SectionCard title="External Intelligence" icon={<AlertTriangle className="h-4 w-4" />}>
                 <div className="space-y-2">
                   {intel.sanctioned && (
-                    <div className="text-xs bg-red-500/10 border border-red-500/20 rounded p-2 font-medium text-red-400">
+                    <div className="text-xs bg-destructive/10 border border-red-500/20 rounded p-2 font-medium text-destructive">
                       OFAC SANCTIONS MATCH: {intel.ofac?.entity_name}
                     </div>
                   )}

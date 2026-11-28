@@ -157,8 +157,8 @@ const config: Config = {
           "100%": { backgroundPosition: "200% 0" },
         },
         "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 0 0 rgba(16, 185, 129, 0)" },
-          "50%": { boxShadow: "0 0 20px 4px rgba(16, 185, 129, 0.15)" },
+          "0%, 100%": { boxShadow: "0 0 0 0 hsl(var(--brand) / 0)" },
+          "50%": { boxShadow: "0 0 20px 4px hsl(var(--brand) / 0.15)" },
         },
         "spin-slow": {
           from: { transform: "rotate(0deg)" },

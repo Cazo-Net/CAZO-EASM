@@ -14,9 +14,9 @@ const VENDOR_TYPE_RISKS: Record<string, { label: string; risk: "high" | "medium"
 };
 
 const RISK_COLORS = {
-  high: { bar: "bg-red-400", text: "text-red-400", border: "border-red-500/20" },
+  high: { bar: "bg-red-400", text: "text-destructive", border: "border-red-500/20" },
   medium: { bar: "bg-yellow-400", text: "text-yellow-400", border: "border-yellow-500/20" },
-  low: { bar: "bg-green-400", text: "text-green-400", border: "border-green-500/20" },
+  low: { bar: "bg-green-400", text: "text-success", border: "border-green-500/20" },
 };
 
 export function RiskSummary({ vendorTypeCounts }: RiskSummaryProps) {

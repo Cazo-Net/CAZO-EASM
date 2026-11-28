@@ -11,9 +11,9 @@ import {
 export type AssetStatus = "active" | "dormant" | "decommissioned" | "archived";
 
 const statusConfig: Record<AssetStatus, { label: string; icon: any; color: string; bg: string }> = {
-  active: { label: "Active", icon: Activity, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+  active: { label: "Active", icon: Activity, color: "text-success", bg: "bg-success/10" },
   dormant: { label: "Dormant", icon: Moon, color: "text-amber-400", bg: "bg-amber-500/10" },
-  decommissioned: { label: "Decommissioned", icon: Trash2, color: "text-red-400", bg: "bg-red-500/10" },
+  decommissioned: { label: "Decommissioned", icon: Trash2, color: "text-destructive", bg: "bg-destructive/10" },
   archived: { label: "Archived", icon: Archive, color: "text-muted-foreground", bg: "bg-muted/50" },
 };
 

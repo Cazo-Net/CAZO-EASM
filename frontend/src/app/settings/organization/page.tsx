@@ -429,7 +429,7 @@ export default function OrganizationSettingsPage() {
                     Save Changes
                   </Button>
                   {saveMsg === "success" && (
-                    <span className="flex items-center gap-1.5 text-sm text-emerald-400">
+                    <span className="flex items-center gap-1.5 text-sm text-success">
                       <CheckCircle2 className="h-4 w-4" /> Saved
                     </span>
                   )}

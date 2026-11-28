@@ -518,11 +518,11 @@ function IntelContent() {
               >
                 <div className="flex items-center gap-6">
                   <div className={`flex h-20 w-20 items-center justify-center rounded-xl text-2xl font-semibold ${
-                    data.risk_score.grade === "A" ? "bg-green-500/10 text-green-400" :
+                    data.risk_score.grade === "A" ? "bg-success/10 text-success" :
                     data.risk_score.grade === "B" ? "bg-blue-500/10 text-blue-400" :
                     data.risk_score.grade === "C" ? "bg-yellow-500/10 text-yellow-400" :
                     data.risk_score.grade === "D" ? "bg-orange-500/10 text-orange-400" :
-                    "bg-red-500/10 text-red-400"
+                    "bg-destructive/10 text-destructive"
                   }`}>
                     {data.risk_score.grade}
                   </div>
@@ -597,9 +597,9 @@ function IntelContent() {
                     <span className="text-muted-foreground">DMARC</span>
                     <p className="mt-0.5 font-mono text-foreground">
                       {data.email_security.dmarc_policy ? (
-                        <span className="text-green-400">v=DMARC1; p={data.email_security.dmarc_policy}</span>
+                        <span className="text-success">v=DMARC1; p={data.email_security.dmarc_policy}</span>
                       ) : (
-                        <span className="text-red-400">Not found</span>
+                        <span className="text-destructive">Not found</span>
                       )}
                     </p>
                   </div>
@@ -607,9 +607,9 @@ function IntelContent() {
                     <span className="text-muted-foreground">SPF</span>
                     <p className="mt-0.5 font-mono text-foreground">
                       {data.email_security.spf_record ? (
-                        <span className="text-green-400">Found</span>
+                        <span className="text-success">Found</span>
                       ) : (
-                        <span className="text-red-400">Not found</span>
+                        <span className="text-destructive">Not found</span>
                       )}
                     </p>
                   </div>
@@ -617,7 +617,7 @@ function IntelContent() {
                     <span className="text-muted-foreground">DKIM</span>
                     <p className="mt-0.5 font-mono text-foreground">
                       {data.email_security.dkim_found.length > 0 ? (
-                        <span className="text-green-400">{data.email_security.dkim_found.length} selectors</span>
+                        <span className="text-success">{data.email_security.dkim_found.length} selectors</span>
                       ) : (
                         <span className="text-yellow-400">None found</span>
                       )}
@@ -650,9 +650,9 @@ function IntelContent() {
               >
                 <div className="flex items-center gap-4 mb-3">
                   <div className={`flex h-12 w-12 items-center justify-center rounded-lg text-lg font-semibold ${
-                    data.security_headers.score >= 80 ? "bg-green-500/10 text-green-400" :
+                    data.security_headers.score >= 80 ? "bg-success/10 text-success" :
                     data.security_headers.score >= 50 ? "bg-yellow-500/10 text-yellow-400" :
-                    "bg-red-500/10 text-red-400"
+                    "bg-destructive/10 text-destructive"
                   }`}>
                     {data.security_headers.score}
                   </div>

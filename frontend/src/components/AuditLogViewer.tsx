@@ -20,9 +20,9 @@ import { cn } from "@/lib/utils";
 import type { AuditLog } from "@/types";
 
 const actionConfig: Record<string, { label: string; icon: any; color: string }> = {
-  create: { label: "Created", icon: Plus, color: "text-emerald-400" },
+  create: { label: "Created", icon: Plus, color: "text-success" },
   update: { label: "Updated", icon: Pencil, color: "text-blue-400" },
-  delete: { label: "Deleted", icon: Trash2, color: "text-red-400" },
+  delete: { label: "Deleted", icon: Trash2, color: "text-destructive" },
   add_tag: { label: "Tag Added", icon: Tag, color: "text-violet-400" },
   remove_tag: { label: "Tag Removed", icon: Tag, color: "text-muted-foreground" },
   add_favorite: { label: "Favorited", icon: Star, color: "text-amber-400" },

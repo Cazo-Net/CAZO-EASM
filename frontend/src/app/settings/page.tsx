@@ -340,7 +340,7 @@ function SettingsContent() {
           <div className="flex items-center gap-3">
             <div className="relative">
               <Avatar className="h-10 w-10 border border-border">
-                <AvatarFallback className="bg-gradient-to-br from-[#10B981] to-[#06B6D4] text-xs font-semibold text-black">
+                <AvatarFallback className="bg-primary text-xs font-semibold text-black">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -391,9 +391,9 @@ function SettingsContent() {
                         className={cn(
                           "flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors text-left",
                           isActive
-                            ? "bg-[#10B981]/10 text-[#10B981] font-semibold"
+                            ? "bg-primary/10 text-primary font-semibold"
                             : item.danger
-                              ? "text-red-400/80 hover:text-red-400 hover:bg-red-500/5"
+                              ? "text-destructive/80 hover:text-destructive hover:bg-red-500/5"
                               : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                         )}
                         aria-current={isActive ? "page" : undefined}
@@ -540,12 +540,12 @@ function SectionHeader({ icon: Icon, title, description, color = "brand" }: {
   icon: any; title: string; description: string; color?: string;
 }) {
   const colorMap: Record<string, string> = {
-    brand: "bg-[#10B981]/10 text-[#10B981]",
+    brand: "bg-primary/10 text-primary",
     cyan: "bg-[#06B6D4]/10 text-[#06B6D4]",
     violet: "bg-[#7A5CFF]/10 text-[#7A5CFF]",
     amber: "bg-amber-400/10 text-amber-400",
-    red: "bg-red-500/10 text-red-400",
-    green: "bg-emerald-500/10 text-emerald-400",
+    red: "bg-destructive/10 text-destructive",
+    green: "bg-success/10 text-success",
     pink: "bg-pink-400/10 text-pink-400",
     info: "bg-sky-400/10 text-sky-400",
   };
@@ -578,9 +578,9 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
         <div className="flex items-start gap-6">
           <div className="shrink-0">
             <div className="relative group">
-              <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-[#10B981] to-[#06B6D4] opacity-20 blur-sm group-hover:opacity-40 transition-opacity" />
+              <div className="absolute -inset-1 rounded-full bg-primary opacity-20 blur-sm group-hover:opacity-40 transition-opacity" />
               <Avatar className="relative h-20 w-20 border-2 border-border">
-                <AvatarFallback className="bg-gradient-to-br from-[#10B981] to-[#06B6D4] text-xl font-semibold text-black">
+                <AvatarFallback className="bg-primary text-xl font-semibold text-black">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -626,7 +626,7 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
               <Input value={user?.email || ""} disabled
                 className="bg-muted/20 border-border h-9 opacity-60 max-w-[320px]" />
               <button onClick={() => { setEditingEmail(true); setEmailValue(user?.email || ""); }}
-                className="text-xs text-[#10B981] hover:text-[#10B981]/80 transition-colors font-medium">
+                className="text-xs text-primary hover:text-primary/80 transition-colors font-medium">
                 Edit
               </button>
             </div>
@@ -656,17 +656,17 @@ function ProfileTab({ user, setUser, initials, saving, saveMessage, editingEmail
         {/* Save */}
         <div className="flex items-center gap-3">
           <Button onClick={onSaveProfile} disabled={saving}
-            className="bg-[#10B981] hover:bg-[#10B981]/90 text-black font-medium h-9 px-5">
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-9 px-5">
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
             Save changes
           </Button>
           {saveMessage === "success" && (
-            <span className="flex items-center gap-1.5 text-sm text-emerald-400">
+            <span className="flex items-center gap-1.5 text-sm text-success">
               <Check className="h-4 w-4" /> Saved
             </span>
           )}
           {saveMessage === "error" && (
-            <span className="text-sm text-red-400">Failed to save. Try again.</span>
+            <span className="text-sm text-destructive">Failed to save. Try again.</span>
           )}
         </div>
       </div>
@@ -740,9 +740,9 @@ function SecurityTab(props: any) {
                 <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                   className="bg-muted/30 border-border h-9" placeholder="Confirm new password" />
               </div>
-              {passwordError && <p className="text-xs text-red-400">{passwordError}</p>}
+              {passwordError && <p className="text-xs text-destructive">{passwordError}</p>}
               <Button size="sm" onClick={handleChangePassword} disabled={changingPassword}
-                className="bg-[#10B981] hover:bg-[#10B981]/90 text-black h-8 text-xs font-medium">
+                className="bg-primary hover:bg-primary/90 text-primary-foreground h-8 text-xs font-medium">
                 {changingPassword ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : null}
                 Update password
               </Button>
@@ -760,7 +760,7 @@ function SecurityTab(props: any) {
           {user?.totp_enabled ? (
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-emerald-400">2FA is enabled</p>
+                <p className="text-sm font-medium text-success">2FA is enabled</p>
                 <p className="text-xs text-muted-foreground">Your account is protected with TOTP authentication.</p>
               </div>
               <Button variant="outline" size="sm" onClick={async () => {
@@ -793,7 +793,7 @@ function SecurityTab(props: any) {
                 <Button size="sm" onClick={async () => {
                   try { await enable2FA(twoFACode); setUser({ ...user!, totp_enabled: true }); setTwoFASetup(null); setTwoFACode(""); setShowManual2FA(false); }
                   catch { alert("Invalid code"); }
-                }} className="bg-[#10B981] hover:bg-[#10B981]/90 text-black h-9 text-xs font-medium">Verify</Button>
+                }} className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 text-xs font-medium">Verify</Button>
               </div>
             </div>
           ) : (
@@ -884,7 +884,7 @@ function SessionsTab({ sessions, revokingSession, handleRevokeSession, handleSig
                       IP: <span className="font-mono">{session.ip_address}</span> &middot; Last active: {new Date(session.last_activity).toLocaleString()}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-400 hover:bg-red-500/10 h-8 text-xs"
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 text-xs"
                     onClick={() => handleRevokeSession(session.id)} disabled={revokingSession === session.id}>
                     {revokingSession === session.id ? <Loader2 className="h-3 w-3 animate-spin" /> : "Revoke"}
                   </Button>
@@ -894,7 +894,7 @@ function SessionsTab({ sessions, revokingSession, handleRevokeSession, handleSig
           )}
           {sessions.length > 1 && (
             <div className="border-t border-border px-4 py-2">
-              <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-400 hover:bg-red-500/10 h-8 text-xs"
+              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 text-xs"
                 onClick={handleSignOutAll}>
                 <LogOut className="h-3 w-3 mr-1.5" />
                 Sign out all other sessions
@@ -922,7 +922,7 @@ function SessionsTab({ sessions, revokingSession, handleRevokeSession, handleSig
                       IP: <span className="font-mono">{device.ip_address}</span> &middot; Trusted: {new Date(device.trusted_at).toLocaleDateString()}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-400 hover:bg-red-500/10 h-8 text-xs"
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 text-xs"
                     onClick={() => handleRevokeDevice(device.id)}>
                     Remove
                   </Button>
@@ -947,8 +947,8 @@ function ApiKeysTab({ apiKeys, createdKey, newKeyName, setNewKeyName, creatingKe
 
       <div className="space-y-4">
         {createdKey && (
-          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
-            <p className="text-xs font-medium text-emerald-400 mb-2">
+          <div className="rounded-lg border border-success/30 bg-success/5 p-4">
+            <p className="text-xs font-medium text-success mb-2">
               Your new API key (copy it now, it won&apos;t be shown again):
             </p>
             <div className="flex items-center gap-2">
@@ -972,7 +972,7 @@ function ApiKeysTab({ apiKeys, createdKey, newKeyName, setNewKeyName, creatingKe
                       Created {key.created_at ? new Date(key.created_at).toLocaleDateString() : "—"}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-400 hover:bg-red-500/10 shrink-0 h-8 text-xs"
+                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0 h-8 text-xs"
                     onClick={() => handleRevokeApiKey(key.id)} disabled={revokingKey === key.id}>
                     {revokingKey === key.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                   </Button>
@@ -1081,7 +1081,7 @@ function NotificationsTab({ notifications, setNotifications, savingPrefs, handle
                             onClick={() => togglePref(item.type, "in_app")}
                             className={cn(
                               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                              pref?.in_app_enabled ? "bg-[#10B981]" : "bg-muted"
+                              pref?.in_app_enabled ? "bg-primary" : "bg-muted"
                             )}
                             role="switch"
                             aria-checked={pref?.in_app_enabled}
@@ -1098,7 +1098,7 @@ function NotificationsTab({ notifications, setNotifications, savingPrefs, handle
                             onClick={() => togglePref(item.type, "email")}
                             className={cn(
                               "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                              pref?.email_enabled ? "bg-[#10B981]" : "bg-muted"
+                              pref?.email_enabled ? "bg-primary" : "bg-muted"
                             )}
                             role="switch"
                             aria-checked={pref?.email_enabled}
@@ -1134,12 +1134,12 @@ function DangerTab({ showDeleteConfirm, setShowDeleteConfirm, deleting, handleDe
       <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-red-400">Delete account</p>
-            <p className="text-xs text-red-400/60">Permanently delete your account and all associated data</p>
+            <p className="text-sm font-medium text-destructive">Delete account</p>
+            <p className="text-xs text-destructive/60">Permanently delete your account and all associated data</p>
           </div>
           {!showDeleteConfirm ? (
             <Button variant="destructive" size="sm"
-              className="bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 h-8 text-xs"
+              className="bg-destructive/10 text-destructive hover:bg-red-500/20 border border-red-500/20 h-8 text-xs"
               onClick={() => setShowDeleteConfirm(true)}>
               <Trash2 className="h-3 w-3 mr-1.5" />
               Delete account

@@ -28,11 +28,11 @@ interface ScanHistoryProps {
 function getStatusConfig(status: Scan["status"]) {
   switch (status) {
     case "completed":
-      return { icon: CheckCircle, color: "text-emerald-500", bg: "bg-emerald-500/10", badge: "success" as const };
+      return { icon: CheckCircle, color: "text-success", bg: "bg-success/10", badge: "success" as const };
     case "running":
       return { icon: Loader2, color: "text-blue-500", bg: "bg-blue-500/10", badge: "info" as const };
     case "failed":
-      return { icon: XCircle, color: "text-red-500", bg: "bg-red-500/10", badge: "destructive" as const };
+      return { icon: XCircle, color: "text-red-500", bg: "bg-destructive/10", badge: "destructive" as const };
     default:
       return { icon: Clock, color: "text-muted-foreground", bg: "bg-muted", badge: "secondary" as const };
   }

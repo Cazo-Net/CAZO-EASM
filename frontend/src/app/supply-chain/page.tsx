@@ -232,7 +232,7 @@ function SupplyChainContent() {
               </div>
               <div className="border border-border rounded-lg p-4 bg-muted/5">
                 <div className="text-xs text-muted-foreground">First-Party</div>
-                <div className="text-2xl font-semibold mt-1 text-green-400">{firstParty}</div>
+                <div className="text-2xl font-semibold mt-1 text-success">{firstParty}</div>
               </div>
               <div className="border border-border rounded-lg p-4 bg-muted/5">
                 <div className="text-xs text-muted-foreground">Security Tools</div>
