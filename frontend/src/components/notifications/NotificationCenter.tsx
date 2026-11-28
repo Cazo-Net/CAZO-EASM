@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -23,6 +23,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   deleteNotification,
+  clearAllNotifications,
   getToken,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -87,6 +88,26 @@ export function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Close when clicking anywhere outside the panel, or pressing Escape. (A
+  // backdrop element is not enough: the top bar creates its own layer, so a
+  // fixed backdrop only covers the bar, not the page.)
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const fetchUnreadCount = useCallback(async () => {
     try {
@@ -138,6 +159,20 @@ export function NotificationCenter() {
     }
   };
 
+  const handleClearAll = async () => {
+    const previous = notifications;
+    const previousUnread = unreadCount;
+    setNotifications([]);
+    setUnreadCount(0);
+    try {
+      await clearAllNotifications();
+    } catch {
+      // Put them back if the server did not clear them.
+      setNotifications(previous);
+      setUnreadCount(previousUnread);
+    }
+  };
+
   const handleMarkAllRead = async () => {
     try {
       await markAllNotificationsRead();
@@ -175,10 +210,12 @@ export function NotificationCenter() {
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={rootRef}>
       <Button
         variant="ghost"
         size="icon"
+        aria-label="Notifications"
+        aria-expanded={open}
         className="relative h-9 w-9 text-muted-foreground hover:text-foreground"
         onClick={() => {
           setOpen(!open);
@@ -196,12 +233,6 @@ export function NotificationCenter() {
       <AnimatePresence>
         {open && (
           <>
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setOpen(false)}
-            />
-
             {/* Panel */}
             <motion.div
               initial={{ opacity: 0, y: -8, scale: 0.96 }}
@@ -230,6 +261,17 @@ export function NotificationCenter() {
                     >
                       <CheckCheck className="h-3 w-3" />
                       Read all
+                    </Button>
+                  )}
+                  {notifications.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={handleClearAll}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Clear
                     </Button>
                   )}
                 </div>

@@ -515,3 +515,23 @@ class TestRebuild:
         assert hosts["example.com"].attributes["open_ports"] == [443]
         assert hosts["api.example.com"].miss_count == 0
         assert "asset_disappeared" not in res.alerts
+
+
+class TestNotificationCounts:
+    def test_unread_count_and_read_all(self, client, db_session):
+        """The bell's unread badge: the count used to be always 0."""
+        org = _org(db_session)
+        owner = _user(db_session, org)
+        for i in range(3):
+            db_session.add(Notification(organization_id=org.id, user_id=owner.id, type="inventory_new_asset",
+                                        title=f"n{i}", message="m", read=(i == 0)))
+        db_session.commit()
+        h = _headers(owner)
+        assert client.get("/api/v1/notifications/unread-count", headers=h).json()["count"] == 2
+        body = client.get("/api/v1/notifications", headers=h).json()
+        assert body["unread_count"] == 2 and body["total"] == 3
+        assert len(client.get("/api/v1/notifications?unread_only=true", headers=h).json()["notifications"]) == 2
+        client.put("/api/v1/notifications/read-all", headers=h)
+        assert client.get("/api/v1/notifications/unread-count", headers=h).json()["count"] == 0
+        assert client.delete("/api/v1/notifications", headers=h).status_code == 200
+        assert client.get("/api/v1/notifications", headers=h).json()["total"] == 0
