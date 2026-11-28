@@ -8,6 +8,7 @@
 import * as React from "react";
 import { Check } from "lucide-react";
 import { CazoLogo } from "@/components/marketing/CazoLogo";
+import { AttackSurfaceArt } from "@/components/auth/AttackSurfaceArt";
 
 const POINTS = [
   { t: "Evidence with every finding", d: "See how, when and by which scan each asset was discovered." },
@@ -63,13 +64,15 @@ export function AuthShell({
         />
         <div className="pointer-events-none absolute -right-40 -top-40 h-[480px] w-[480px] rounded-full bg-primary/20 blur-[130px]" />
         <div className="relative">
+          {/* Hidden on short screens so the text is never pushed out of view. */}
+          <AttackSurfaceArt className="-ml-4 mb-8 w-full max-w-[520px] [@media(max-height:820px)]:hidden" />
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
             External attack surface management
           </p>
           <p className="mt-4 text-3xl font-semibold leading-tight tracking-tight">
             You can&apos;t defend what you forgot you own.
           </p>
-          <ul className="mt-10 space-y-6">
+          <ul className="mt-8 space-y-5">
             {POINTS.map((p) => (
               <li key={p.t} className="flex gap-3">
                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
