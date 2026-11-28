@@ -11,9 +11,10 @@ import time
 from abc import ABC, abstractmethod
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Optional
+from email.mime.application import MIMEApplication
+from typing import List, Optional, Tuple
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ class EmailMessage:
     from_email: str = ""
     retries: int = 0
     max_retries: int = 3
+    # (filename, content, mime type), e.g. ("report.pdf", b"...", "application/pdf")
+    attachments: List[Tuple[str, bytes, str]] = field(default_factory=list)
 
 
 class EmailProvider(ABC):
@@ -49,7 +52,8 @@ class SMTPProvider(EmailProvider):
 
     def send(self, message: EmailMessage) -> bool:
         try:
-            msg = MIMEMultipart("alternative")
+            body = MIMEMultipart("alternative")
+            msg = MIMEMultipart("mixed") if message.attachments else body
             msg["Subject"] = message.subject
             msg["From"] = f"{message.from_name} <{message.from_email or self.from_email}>"
             msg["To"] = message.to
@@ -57,8 +61,14 @@ class SMTPProvider(EmailProvider):
             msg["List-Unsubscribe"] = "<mailto:unsubscribe@cazo.io?subject=unsubscribe>"
 
             if message.text_body:
-                msg.attach(MIMEText(message.text_body, "plain"))
-            msg.attach(MIMEText(message.html_body, "html"))
+                body.attach(MIMEText(message.text_body, "plain"))
+            body.attach(MIMEText(message.html_body, "html"))
+            if message.attachments:
+                msg.attach(body)
+                for filename, content, mime in message.attachments:
+                    part = MIMEApplication(content, _subtype=(mime.split("/", 1)[-1] or "octet-stream"))
+                    part.add_header("Content-Disposition", "attachment", filename=filename)
+                    msg.attach(part)
 
             with smtplib.SMTP(self.host, self.port, timeout=30) as server:
                 if self.use_tls:
@@ -79,17 +89,24 @@ class ResendProvider(EmailProvider):
 
     def send(self, message: EmailMessage) -> bool:
         try:
+            import base64
             import httpx
+            payload = {
+                "from": f"{message.from_name} <{message.from_email or self.from_email}>",
+                "to": [message.to],
+                "subject": message.subject,
+                "html": message.html_body,
+                "text": message.text_body or "",
+            }
+            if message.attachments:
+                payload["attachments"] = [
+                    {"filename": name, "content": base64.b64encode(content).decode()}
+                    for name, content, _mime in message.attachments
+                ]
             resp = httpx.post(
                 "https://api.resend.com/emails",
                 headers={"Authorization": f"Bearer {self.api_key}"},
-                json={
-                    "from": f"{message.from_name} <{message.from_email or self.from_email}>",
-                    "to": [message.to],
-                    "subject": message.subject,
-                    "html": message.html_body,
-                    "text": message.text_body or "",
-                },
+                json=payload,
                 timeout=30,
             )
             return resp.status_code == 200
@@ -116,11 +133,13 @@ class EmailService:
         self._worker: Optional[threading.Thread] = None
 
     def send(self, to: str, subject: str, html_body: str, text_body: str = "",
-             from_name: str = "CAZO", from_email: str = "") -> bool:
+             from_name: str = "CAZO", from_email: str = "",
+             attachments: Optional[List[Tuple[str, bytes, str]]] = None) -> bool:
         """Send email immediately (synchronous)."""
         msg = EmailMessage(
             to=to, subject=subject, html_body=html_body,
             text_body=text_body, from_name=from_name, from_email=from_email,
+            attachments=list(attachments or []),
         )
         return self.provider.send(msg)
 

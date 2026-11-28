@@ -19,6 +19,7 @@ import {
   LogOut,
   History,
   ScrollText,
+  CalendarClock,
   Link2,
   ShieldCheck,
   ChevronRight,
@@ -57,6 +58,7 @@ import { AuditLogViewer } from "@/components/AuditLogViewer";
 import { WebhookManager } from "@/components/settings/WebhookManager";
 import { IntegrationsPanel } from "@/components/settings/IntegrationsPanel";
 import { AuditLogPanel } from "@/components/settings/AuditLogPanel";
+import { ScheduledReportsPanel } from "@/components/settings/ScheduledReportsPanel";
 import { useChecklistAutoComplete } from "@/components/onboarding/GettingStartedChecklist";
 import type { User as UserType } from "@/types";
 
@@ -97,6 +99,7 @@ const navSections: NavSection[] = [
       { id: "webhooks", label: "Webhooks", icon: Link2 },
       { id: "notifications", label: "Notifications", icon: Bell },
       { id: "integrations", label: "Integrations", icon: Link2 },
+      { id: "scheduled-reports", label: "Scheduled reports", icon: CalendarClock },
     ],
   },
   {
@@ -522,6 +525,7 @@ function SettingsContent() {
           {activeTab === "webhooks" && <WebhookManager />}
           {activeTab === "integrations" && <IntegrationsPanel />}
           {activeTab === "audit-log" && <AuditLogPanel />}
+          {activeTab === "scheduled-reports" && <ScheduledReportsPanel />}
           {activeTab === "danger" && (
             <DangerTab
               showDeleteConfirm={showDeleteConfirm}
