@@ -5,10 +5,13 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
+  ArrowUpRight,
   CreditCard,
+  Globe,
   ExternalLink,
   FileText,
   Gauge,
+  Info,
   Loader2,
   Plus,
   Receipt,
@@ -56,23 +59,51 @@ function fmtDate(value: string | null) {
   return new Date(value).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+const METER_HINT: Record<LimitKey, string> = {
+  root_domains: "Domains you have scanned or added as scopes",
+  hosts: "Live hosts found across your root domains",
+  users: "Members plus pending invitations",
+  scans_per_month: "Resets on the 1st of each month (UTC)",
+};
+
 function Meter({ name, used, limit }: { name: LimitKey; used: number; limit: number | null }) {
   const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
-  const tone = limit == null ? "bg-primary" : pct >= 100 ? "bg-red-500" : pct >= 80 ? "bg-amber-400" : "bg-primary";
+  const over = limit != null && used > limit;
+  const full = limit != null && used >= limit;
+  const tone = limit == null ? "bg-primary/50" : over ? "bg-red-500" : full ? "bg-amber-400" : pct >= 80 ? "bg-amber-400/80" : "bg-primary";
   return (
     <div>
-      <div className="flex items-baseline justify-between text-sm">
+      <div className="flex items-baseline justify-between gap-3 text-sm">
         <span>{LIMIT_LABELS[name]}</span>
         <span className="font-mono text-xs text-muted-foreground">
-          {used.toLocaleString()} / {limit == null ? "unlimited" : limit.toLocaleString()}
+          <span className={cn(over ? "text-red-400" : full ? "text-amber-400" : "text-foreground")}>
+            {used.toLocaleString()}
+          </span>{" "}
+          / {limit == null ? "unlimited" : limit.toLocaleString()}
         </span>
       </div>
-      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted/40">
-        <div className={cn("h-full rounded-full transition-all", tone)} style={{ width: `${limit == null ? 4 : pct}%` }} />
+      <div
+        className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted/40"
+        role="meter"
+        aria-label={LIMIT_LABELS[name]}
+        aria-valuemin={0}
+        aria-valuemax={limit ?? undefined}
+        aria-valuenow={used}
+      >
+        <div className={cn("h-full rounded-full transition-all", tone)} style={{ width: `${limit == null ? 100 : Math.max(pct, used > 0 ? 2 : 0)}%` }} />
       </div>
+      <p className={cn("mt-1 text-[11px]", over ? "text-red-400" : full ? "text-amber-400" : "text-muted-foreground")}>
+        {over
+          ? `Over your plan by ${(used - (limit as number)).toLocaleString()}`
+          : full
+            ? "Limit reached"
+            : METER_HINT[name]}
+      </p>
     </div>
   );
 }
+
+const SALES_EMAIL = process.env.NEXT_PUBLIC_SALES_EMAIL || "sales@cazoeasm.io";
 
 function BillingInner() {
   const params = useSearchParams();
@@ -162,8 +193,18 @@ function BillingInner() {
   }
 
   const o = overview;
-  const status = STATUS_LABEL[o?.status ?? "none"] ?? STATUS_LABEL.none;
+  const isTrial = !o || o.plan.id === "free";
+  const status = isTrial
+    ? o?.status === "expired"
+      ? STATUS_LABEL.expired
+      : { label: "Free trial", variant: "secondary" as const }
+    : STATUS_LABEL[o?.status ?? "none"] ?? STATUS_LABEL.none;
   const isPaid = o && o.plan.id !== "free" && ["active", "trialing", "past_due"].includes(o.status);
+  const managed = !!o?.managed_by_staff;
+  const paused = o?.root_domains.filter((d) => !d.active) ?? [];
+  const atLimit = o
+    ? (Object.keys(o.usage) as LimitKey[]).filter((k) => o.usage[k].limit != null && o.usage[k].used >= (o.usage[k].limit as number))
+    : [];
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
@@ -192,6 +233,44 @@ function BillingInner() {
       {error && (
         <div className="rounded-xl border border-red-500/40 bg-destructive/10 p-3 text-sm">{error}</div>
       )}
+      {o && (paused.length > 0 || atLimit.length > 0) && (
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/[0.08] p-4 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-3">
+            <Gauge className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+            <div>
+              <p className="font-medium">
+                {paused.length > 0
+                  ? `${paused.length} root domain${paused.length === 1 ? " is" : "s are"} paused`
+                  : `You have reached your ${o.plan.name} plan limit`}
+              </p>
+              <p className="mt-0.5 text-muted-foreground">
+                {paused.length > 0
+                  ? `Your organization has more root domains than the ${o.plan.name} plan covers. The oldest ${o.usage.root_domains.limit} keep scanning; ${paused.map((d) => d.domain).join(", ")} will not scan until you upgrade or remove domains.`
+                  : `Limit reached for ${atLimit.map((k) => LIMIT_LABELS[k].toLowerCase()).join(", ")}. New ones will be refused until you upgrade${atLimit.includes("scans_per_month") ? " or the month resets" : ""}.`}
+              </p>
+            </div>
+          </div>
+          {canManage && !managed && (
+            <Button asChild size="sm" className="shrink-0">
+              <Link href={`/billing/checkout?plan=${isPaid ? o.plan.id : "essentials"}`}>
+                {isPaid ? "Upgrade" : "Choose a plan"} <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          )}
+        </div>
+      )}
+      {managed && (
+        <div className="flex gap-2 rounded-xl border border-border bg-muted/30 p-3 text-sm">
+          <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <span>
+            Your plan is managed by CAZO and invoiced directly. To change it, contact{" "}
+            <a className="text-primary underline" href={`mailto:${SALES_EMAIL}?subject=CAZO%20EASM%20plan%20change`}>
+              {SALES_EMAIL}
+            </a>
+            .
+          </span>
+        </div>
+      )}
       {o?.last_payment_error && (
         <div className="flex gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
@@ -217,7 +296,9 @@ function BillingInner() {
               <div>
                 <dt className="text-xs text-muted-foreground">Billing</dt>
                 <dd>
-                  {o.payment_mode === "subscription"
+                  {isTrial
+                    ? "Free, no card needed"
+                    : o.payment_mode === "subscription"
                     ? `Auto-renew, ${o.interval === "quarter" ? "quarterly" : "annually"}`
                     : o.payment_mode === "prepaid"
                       ? `Prepaid ${o.interval === "quarter" ? "quarter" : "year"}`
@@ -226,18 +307,43 @@ function BillingInner() {
                         : "Free trial"}
                 </dd>
               </div>
+              {!isTrial && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">
+                    {o.cancel_at_period_end || o.payment_mode !== "subscription" ? "Ends on" : "Renews on"}
+                  </dt>
+                  <dd>{o.current_period_end ? fmtDate(o.current_period_end) : "No end date"}</dd>
+                </div>
+              )}
               <div>
-                <dt className="text-xs text-muted-foreground">
-                  {o.cancel_at_period_end || o.payment_mode === "prepaid" ? "Ends on" : "Renews on"}
-                </dt>
-                <dd>{fmtDate(o.current_period_end)}</dd>
+                <dt className="text-xs text-muted-foreground">Scheduled scans</dt>
+                <dd className="capitalize">{o.plan.scan_frequency}</dd>
               </div>
+              {isTrial && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">Upgrade</dt>
+                  <dd>Any time, takes effect at once</dd>
+                </div>
+              )}
             </dl>
 
-            {canManage && (
+            {!canManage && (
+              <p className="mt-6 text-xs text-muted-foreground">Only an organization owner or admin can change the plan.</p>
+            )}
+            {canManage && managed && (
+              <div className="mt-6 flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="outline">
+                  <a href={`mailto:${SALES_EMAIL}?subject=CAZO%20EASM%20plan%20change`}>Contact CAZO</a>
+                </Button>
+                <Button asChild size="sm" variant="ghost">
+                  <Link href="/pricing">Compare plans</Link>
+                </Button>
+              </div>
+            )}
+            {canManage && !managed && (
               <div className="mt-6 flex flex-wrap gap-2">
                 <Button asChild size="sm">
-                  <Link href={`/billing/checkout?plan=${isPaid ? o.plan.id : "business"}`}>
+                  <Link href={`/billing/checkout?plan=${isPaid ? o.plan.id : "essentials"}`}>
                     {isPaid ? "Change plan" : "Choose a plan"}
                   </Link>
                 </Button>
@@ -280,11 +386,51 @@ function BillingInner() {
                 <Meter key={k} name={k} used={o.usage[k].used} limit={o.usage[k].limit} />
               ))}
             </div>
-            <p className="mt-4 text-[11px] text-muted-foreground">
-              Root domains are counted from the domains your organization has scanned. Scans reset on the 1st of each month (UTC).
-            </p>
           </SectionCard>
         </div>
+      )}
+
+      {o && (
+        <SectionCard
+          title="Root domains"
+          description="Each registrable domain (example.com) counts once, with all its subdomains."
+          icon={<Globe className="h-4 w-4" />}
+          actions={
+            <Button asChild size="sm" variant="outline">
+              <Link href="/scopes">Manage scopes</Link>
+            </Button>
+          }
+        >
+          {o.root_domains.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No root domains yet. Add one on the{" "}
+              <Link href="/scopes" className="text-primary underline">Scopes</Link> page or{" "}
+              <Link href="/scan/new" className="text-primary underline">start a scan</Link>.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border/40">
+              {o.root_domains.map((d) => (
+                <li key={d.domain} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="truncate font-mono text-sm">{d.domain}</p>
+                    <p className="text-[11px] text-muted-foreground">Added {fmtDate(d.first_seen)}</p>
+                  </div>
+                  {d.active ? (
+                    <Badge variant="success">Active</Badge>
+                  ) : (
+                    <Badge variant="warning">Paused, over plan</Badge>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {paused.length > 0 && (
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              The oldest domains up to your allowance stay active. To free a slot, remove the domain&apos;s scopes and
+              scans, or add extra root domains to your plan.
+            </p>
+          )}
+        </SectionCard>
       )}
 
       {canManage && o && (

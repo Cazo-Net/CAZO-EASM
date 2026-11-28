@@ -162,8 +162,11 @@ async def run_scan_v2(
     risk evaluation → graph mapping.
     """
     import asyncio
+    from app.billing.entitlements import check_root_domain_allowed, check_scan_allowed, record_adhoc_scan
     from app.core.scope import authorize_scan_target
 
+    # Plan allowance before scope auto-registration (HTTP 402 if over).
+    check_root_domain_allowed(db, current_user.organization_id, request.domain)
     auth = await asyncio.to_thread(
         authorize_scan_target, db, current_user.organization_id, request.domain,
         actor_id=current_user.id,
@@ -172,8 +175,9 @@ async def run_scan_v2(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=auth.as_error_detail())
     request.domain = auth.target
 
-    from app.billing.entitlements import check_scan_allowed
-    check_scan_allowed(db, current_user.organization_id, request.domain, counts_toward_quota=False)
+    # Ad-hoc v2 scans count toward the monthly quota like any other scan.
+    check_scan_allowed(db, current_user.organization_id, request.domain)
+    record_adhoc_scan(db, current_user.organization_id, current_user.id, request.domain, request.scan_type)
 
     from app.scanners.v2.runner import EnhancedScanRunner
 
@@ -326,13 +330,26 @@ async def scan_stream_v2(websocket: WebSocket):
         return
 
     import asyncio
+    from app.billing.entitlements import (
+        PlanLimitExceeded, check_root_domain_allowed, check_scan_allowed, record_adhoc_scan,
+    )
     from app.core.scope import authorize_scan_target
 
     ws_db = _database.SessionLocal()
     try:
-        auth = await asyncio.to_thread(
-            authorize_scan_target, ws_db, ws_org_id, domain, actor_id=ws_user_id,
-        )
+        try:
+            check_root_domain_allowed(ws_db, ws_org_id, domain)
+            auth = await asyncio.to_thread(
+                authorize_scan_target, ws_db, ws_org_id, domain, actor_id=ws_user_id,
+            )
+            if auth.authorized:
+                # Same plan rules as the REST endpoint; counts toward the monthly quota.
+                check_scan_allowed(ws_db, ws_org_id, auth.target)
+                record_adhoc_scan(ws_db, ws_org_id, ws_user_id, auth.target, scan_type)
+        except PlanLimitExceeded as exc:
+            await websocket.send_json({"type": "error", "message": exc.message, "detail": exc.as_detail()})
+            await websocket.close()
+            return
     finally:
         ws_db.close()
     if not auth.authorized:
@@ -432,7 +449,9 @@ async def create_monitor(
     import asyncio
     from app.core.scope import authorize_scan_target
     from app.scanners.v2.monitoring import monitor as v2_monitor, MonitorScheduleData
+    from app.billing.entitlements import check_root_domain_allowed, check_schedule_allowed
 
+    check_root_domain_allowed(db, current_user.organization_id, request.domain)
     auth = await asyncio.to_thread(
         authorize_scan_target, db, current_user.organization_id, request.domain,
         actor_id=current_user.id,
@@ -440,6 +459,8 @@ async def create_monitor(
     if not auth.authorized:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=auth.as_error_detail())
     request.domain = auth.target
+    # Monitors are schedules too: root-domain allowance and plan frequency (HTTP 402).
+    check_schedule_allowed(db, current_user.organization_id, auth.target, request.interval_hours)
 
     schedule_data = MonitorScheduleData(
         interval_hours=request.interval_hours,
@@ -579,7 +600,9 @@ async def create_schedule(
     import uuid
     from app.core.scope import authorize_scan_target
     from app.models.v2_scanner import MonitorSchedule
+    from app.billing.entitlements import check_root_domain_allowed
 
+    check_root_domain_allowed(db, current_user.organization_id, request.domain)
     auth = await asyncio.to_thread(
         authorize_scan_target, db, current_user.organization_id, request.domain,
         actor_id=current_user.id,

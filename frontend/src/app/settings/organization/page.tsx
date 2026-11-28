@@ -31,7 +31,18 @@ import api, {
   removeOrganizationMember,
   getOrganizationStats,
   inviteMember,
+  getErrorMessage,
 } from "@/lib/api";
+
+// Display names for plan ids (the catalog lives in backend/app/billing/plans.py).
+const PLAN_NAMES: Record<string, string> = {
+  free: "Trial",
+  essentials: "Essentials",
+  business: "Business",
+  plus: "Plus",
+  mssp: "MSSP",
+  internal: "Internal",
+};
 import { PageHeader } from "@/components/common/PageHeader";
 import { StatCard } from "@/components/common/StatCard";
 import { SectionCard } from "@/components/common/SectionCard";
@@ -168,8 +179,9 @@ function OrganizationSettingsContent() {
       await inviteMember(inviteEmail.trim(), inviteRole);
       setInviteEmail("");
       await load();
-    } catch {
-      setError("Failed to send invitation.");
+    } catch (e) {
+      // Shows the plan-limit message (HTTP 402) when all seats are taken.
+      setError(getErrorMessage(e, "Failed to send invitation."));
     } finally {
       setInviting(false);
     }
@@ -308,7 +320,11 @@ function OrganizationSettingsContent() {
           />
           <StatCard
             label="Plan"
-            value={<span className="text-xl capitalize">{stats.plan}</span>}
+            value={
+              <Link href="/billing" className="text-xl hover:underline">
+                {PLAN_NAMES[stats.plan] ?? stats.plan}
+              </Link>
+            }
             icon={<ShieldCheck className="h-5 w-5" />}
             accent="warning"
           />
@@ -396,9 +412,9 @@ function OrganizationSettingsContent() {
                     Plan
                   </label>
                   <Input
-                    value={org.plan}
+                    value={PLAN_NAMES[org.plan] ?? org.plan}
                     disabled
-                    className="bg-muted/20 opacity-60 capitalize"
+                    className="bg-muted/20 opacity-60"
                   />
                 </div>
               </div>

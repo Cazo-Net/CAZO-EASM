@@ -36,19 +36,40 @@ Prices are in the smallest currency unit (cents, sen).
 ## What is enforced
 
 Checks live in `backend/app/billing/entitlements.py`. When a limit is hit the
-API answers **HTTP 402** with `detail.code = "plan_limit_reached"`.
+API answers **HTTP 402** with `detail.code = "plan_limit_reached"`, and the web
+app shows the message with "Upgrade plan" and "View usage" buttons.
 
-- **Root domains**: distinct registrable domains the org has scanned. A scan of
-  a new root domain is refused when the allowance is used. Re-scanning an
-  existing domain is always allowed.
-- **Hosts**: distinct hostnames found across the org's scans. Over the
-  allowance, new root domains are refused; existing ones keep scanning.
-- **Scans per month**: scans created since the 1st (UTC). Ad-hoc v2 scans that
-  do not create a scan record do not count.
+- **Root domains**: distinct registrable domains (example.com, example.com.my)
+  the organization monitors. A domain counts when it is scanned, added as a
+  domain or wildcard scope, or used in an ad-hoc Scanner v2 scan in the last 30
+  days. Adding a new one is refused on every path once the allowance is used:
+  scans, Scanner v2 scans (REST and live stream), schedules, monitors and the
+  Scopes page. A refused scan does not leave an auto-registered scope behind.
+  Subdomains of a counted domain are always free. To free a slot, remove the
+  domain's scopes and scans.
+- **Over the allowance** (after a downgrade or an expired term): the oldest
+  root domains up to the allowance keep working; the rest are **paused** and
+  shown as such on the Billing page. Paused domains cannot be scanned, and their
+  schedules are skipped (the owner gets a notification). Nothing is deleted.
+- **Hosts**: hosts in the inventory. Over the allowance, new root domains are
+  refused; existing ones keep scanning.
+- **Scans per month**: scans created since the 1st (UTC), including ad-hoc
+  Scanner v2 scans. Scheduled runs count toward the number but are never
+  stopped by it, so monitoring does not silently stop.
 - **Scheduled scan frequency**: weekly plans cannot schedule more often than
-  every 168 hours, daily plans every 24 hours.
-- **Users**: active members plus pending invitations, checked when inviting and
-  when accepting.
+  every 168 hours, daily plans every 24 hours. This is checked across all
+  schedules on the same root domain, so several weekly schedules cannot add up
+  to a daily one. After a downgrade, existing schedules run at the new plan's
+  frequency.
+- **Users**: active members plus pending invitations, checked when inviting,
+  when accepting, when SSO creates a user, and when an admin re-enables a user.
+
+Plan changes: checkout refuses (HTTP 409, `plan_change_over_limit`) a plan
+whose allowances are below what the organization already uses, unless the
+request carries `accept_over_limit: true`. The checkout page lists what is
+over and asks the customer to confirm. Organizations on a staff-managed
+(manual) plan cannot start an online checkout; they are told to contact CAZO.
+The organization's `plan` field is set by billing only; clients cannot set it.
 
 `BILLING_ENFORCE_LIMITS=false` turns all checks off. A plan keeps working for
 `BILLING_GRACE_DAYS` (default 7) after a failed renewal or the end of a term,

@@ -8,6 +8,7 @@ import { IntervalToggle, PlanCard } from "@/components/billing/PlanGrid";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   formatMoney,
+  getBillingOverview,
   getPlans,
   METHOD_LABELS,
   type BillingInterval,
@@ -61,6 +62,14 @@ export default function PricingPage() {
   const [error, setError] = useState("");
   const [interval, setBillingInterval] = useState<BillingInterval>("year");
   const [clients, setClients] = useState(10);
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    getBillingOverview()
+      .then((o) => setCurrentPlan(["active", "trialing", "past_due"].includes(o.status) ? o.plan.id : null))
+      .catch(() => undefined);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     getPlans()
@@ -77,7 +86,7 @@ export default function PricingPage() {
   };
 
   const methods = Array.from(new Set(catalog?.payment_options.flatMap((o) => o.methods) ?? []));
-  const salesHref = `mailto:${process.env.NEXT_PUBLIC_SALES_EMAIL || "sales@cazo.io"}?subject=CAZO%20EASM%20pricing`;
+  const salesHref = `mailto:${process.env.NEXT_PUBLIC_SALES_EMAIL || "sales@cazoeasm.io"}?subject=CAZO%20EASM%20pricing`;
 
   return (
     <div className="h-screen overflow-y-auto bg-void text-foreground">
@@ -127,6 +136,7 @@ export default function PricingPage() {
                 interval={interval}
                 clients={clients}
                 onClientsChange={setClients}
+                current={currentPlan === plan.id}
                 cta={
                   <Link
                     href={checkoutHref(plan.id)}
@@ -136,7 +146,7 @@ export default function PricingPage() {
                         : "inline-flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background/40 px-4 py-2.5 text-sm font-medium transition hover:border-primary/60"
                     }
                   >
-                    Choose {plan.name} <ArrowRight className="h-4 w-4" />
+                    {currentPlan === plan.id ? "Manage plan" : `Choose ${plan.name}`} <ArrowRight className="h-4 w-4" />
                   </Link>
                 }
               />

@@ -133,6 +133,7 @@ def run_due_schedules(db: Session, limit: int = 50) -> int:
     schedule creates a normal ``Scan`` row (so results show up in the UI,
     history and change tracking) and a durable job.
     """
+    from app.billing.entitlements import scheduled_run_blocker, schedule_min_hours
     from app.core.scope import authorize_scan_target
     from app.models.scan import Scan
     from app.models.v2_scanner import MonitorSchedule
@@ -156,6 +157,9 @@ def run_due_schedules(db: Session, limit: int = 50) -> int:
     claimed = []
     for sched in due:
         hours = max(1, int(sched.interval_hours or 24))
+        # A downgrade takes effect on existing schedules: never run more often
+        # than the organization's current plan allows.
+        hours = max(hours, schedule_min_hours(db, sched.organization_id))
         sched.last_run_at = now
         sched.next_run_at = now + timedelta(hours=hours)
         sched.updated_at = now
@@ -166,6 +170,16 @@ def run_due_schedules(db: Session, limit: int = 50) -> int:
     created = 0
     for sched_id, domain, scan_type, org_id, user_id, project_id in claimed:
         try:
+            blocked = scheduled_run_blocker(db, org_id, domain, 0)
+            if blocked:
+                logger.info("Skipping scheduled scan %s for %s: %s", sched_id, domain, blocked)
+                log_event(
+                    db, action="scan.schedule.plan_paused", organization_id=org_id, actor_id=user_id,
+                    target_type="domain", target_id=domain, status="denied",
+                    detail={"schedule_id": sched_id, "reason": blocked},
+                )
+                _notify_schedule_skipped(db, org_id, user_id, sched_id, domain, blocked)
+                continue
             auth = authorize_scan_target(db, org_id, domain, actor_id=user_id, auto_register=False)
             if not auth.authorized:
                 logger.warning("Skipping scheduled scan %s for %s: %s", sched_id, domain, auth.reason)
