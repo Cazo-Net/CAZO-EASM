@@ -231,15 +231,17 @@ export function SupportChat() {
         onClick={toggle}
         data-testid="support-chat-launcher"
         className={cn(
-          "fixed bottom-5 right-5 z-50 flex items-center justify-center w-12 h-12 rounded-full transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105",
-          isOpen ? "bg-card border border-border text-foreground" : "bg-primary text-primary-foreground"
+          "fixed bottom-5 right-5 z-50 flex items-center justify-center w-14 h-14 rounded-full transition-all duration-200 shadow-lg hover:shadow-xl hover:scale-105",
+          isOpen
+            ? "bg-card border border-border text-foreground"
+            : "bg-card border-2 border-primary/70 shadow-primary/20 hover:border-primary"
         )}
         aria-label={
           isOpen ? "Close support chat" : unreadCount > 0 ? `Open support chat, ${unreadCount} new` : "Open support chat"
         }
         aria-expanded={isOpen}
       >
-        {isOpen ? <X className="h-5 w-5" /> : <MessageSquare className="h-5 w-5" />}
+        {isOpen ? <X className="h-5 w-5" /> : <CazoMark className="h-9 w-9" />}
         {!isOpen && unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 flex items-center justify-center rounded-full bg-foreground text-background text-[11px] font-semibold border-2 border-background">
             {unreadCount > 9 ? "9+" : unreadCount}
