@@ -31,8 +31,8 @@ export function DocsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen bg-[#09090B]">
-      <header className="border-b border-border/40 bg-void/80 backdrop-blur-xl">
+    <div className="min-h-screen bg-background">
+      <header className="border-b border-border bg-void/80">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2">
             <CazoLogo />
@@ -58,7 +58,7 @@ export function DocsLayout({ children }: { children: React.ReactNode }) {
           <ul className="space-y-0.5">
             {DOCS_NAV.map((link, i) => {
               if (link.label === "---") {
-                return <li key={`sep-${i}`} className="my-2 border-t border-border/30" />;
+                return <li key={`sep-${i}`} className="my-2 border-t border-border" />;
               }
               const active =
                 link.href === "/docs"
@@ -86,14 +86,14 @@ export function DocsLayout({ children }: { children: React.ReactNode }) {
         <main className="min-w-0 flex-1">{children}</main>
       </div>
 
-      <footer className="border-t border-border/40 bg-void">
+      <footer className="border-t border-border bg-void">
         <div className="mx-auto flex h-12 max-w-6xl items-center justify-between px-6">
-          <p className="font-mono text-[11px] text-muted-foreground/50">
+          <p className="font-mono text-[11px] text-muted-foreground">
             &copy; {new Date().getFullYear()} CAZO
           </p>
           <Link
             href="/"
-            className="font-mono text-[11px] text-muted-foreground/50 hover:text-foreground"
+            className="font-mono text-[11px] text-muted-foreground hover:text-foreground"
           >
             cazo.io
           </Link>

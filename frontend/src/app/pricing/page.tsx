@@ -61,8 +61,8 @@ export default function PricingPage() {
       <LandingNav scrolled />
 
       <section className="mx-auto max-w-6xl px-6 pb-10 pt-16 text-center">
-        <span className="font-mono text-[11px] uppercase tracking-[0.25em] text-phosphor">Pricing</span>
-        <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] md:text-5xl">
+        <span className=" text-[11px] uppercase tracking-wide text-phosphor">Pricing</span>
+        <h1 className="mt-4 text-4xl font-semibold leading-[1.05] md:text-5xl">
           Priced by root domain. No surprise bills.
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-muted-foreground">
@@ -103,8 +103,8 @@ export default function PricingPage() {
                     href={checkoutHref(plan.id)}
                     className={
                       plan.highlight
-                        ? "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-phosphor px-4 py-2.5 text-sm font-semibold text-void shadow-glow-sm transition hover:shadow-glow-md"
-                        : "inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border/60 px-4 py-2.5 text-sm font-medium transition hover:border-phosphor/60"
+                        ? "inline-flex w-full items-center justify-center gap-2 rounded-xl bg-phosphor px-4 py-2.5 text-sm font-semibold text-void transition hover:"
+                        : "inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium transition hover:border-phosphor/60"
                     }
                   >
                     Choose {plan.name} <ArrowRight className="h-4 w-4" />
@@ -117,14 +117,14 @@ export default function PricingPage() {
 
         {catalog && (
           <div className="mt-8 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-border/50 bg-card/40 p-5 text-sm">
+            <div className="rounded-xl border border-border bg-card p-5 text-sm">
               <p className="font-medium">Extra root domains</p>
               <p className="mt-1 text-muted-foreground">
                 {formatMoney(catalog.addons.extra_domain.monthly_price, catalog.currency)} per domain per
                 month on any plan, added at checkout.
               </p>
             </div>
-            <div className="rounded-2xl border border-border/50 bg-card/40 p-5 text-sm">
+            <div className="rounded-xl border border-border bg-card p-5 text-sm">
               <p className="font-medium">Payment methods</p>
               <p className="mt-1 text-muted-foreground">
                 {methods.map((m) => METHOD_LABELS[m] ?? m).join(", ")}. Payments are processed
@@ -134,7 +134,7 @@ export default function PricingPage() {
           </div>
         )}
 
-        <div className="mt-8 flex flex-col items-start justify-between gap-4 rounded-2xl border border-border/50 bg-card/40 p-6 md:flex-row md:items-center">
+        <div className="mt-8 flex flex-col items-start justify-between gap-4 rounded-xl border border-border bg-card p-6 md:flex-row md:items-center">
           <div className="flex gap-3">
             <Building2 className="mt-0.5 h-5 w-5 text-cyan-signal" />
             <div>
@@ -146,7 +146,7 @@ export default function PricingPage() {
           </div>
           <a
             href={`mailto:${process.env.NEXT_PUBLIC_SALES_EMAIL || "sales@cazo.io"}?subject=CAZO%20EASM%20pricing`}
-            className="inline-flex items-center gap-2 rounded-xl border border-border/60 px-4 py-2 text-sm font-medium transition hover:border-phosphor/60"
+            className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium transition hover:border-phosphor/60"
           >
             Contact sales
           </a>
@@ -154,7 +154,7 @@ export default function PricingPage() {
       </section>
 
       <section className="mx-auto max-w-3xl px-6 pb-20">
-        <h2 className="font-display text-2xl font-semibold">Questions</h2>
+        <h2 className="text-2xl font-semibold">Questions</h2>
         <dl className="mt-6 space-y-5">
           {FAQ.map((f) => (
             <div key={f.q}>

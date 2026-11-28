@@ -108,7 +108,7 @@ export default function LoginPage() {
                 required
                 maxLength={20}
                 aria-label="Authentication code"
-                className="h-10 text-center font-mono tracking-widest"
+                className="h-10 text-center font-mono tracking-wide"
               />
               <Button
                 type="submit"

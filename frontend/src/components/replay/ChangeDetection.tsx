@@ -29,7 +29,7 @@ function ChangeRow({ item, icon: Icon, tone }: { item: RowItem; icon: any; tone:
     <div className={cn("flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs", tone)}>
       <Icon className="h-3 w-3 shrink-0" />
       <span className="font-mono truncate">{item.entity_key}</span>
-      <span className="ml-auto text-[9px] uppercase text-muted-foreground/60">{item.entity_type}</span>
+      <span className="ml-auto text-[9px] uppercase text-muted-foreground">{item.entity_type}</span>
     </div>
   );
 }

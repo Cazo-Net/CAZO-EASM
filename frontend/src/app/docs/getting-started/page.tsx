@@ -11,7 +11,7 @@ export default function GettingStartedDocPage() {
   return (
     <DocsLayout>
       <article className="max-w-2xl">
-        <h1 className="font-display text-3xl font-semibold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           Getting Started
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
@@ -29,20 +29,20 @@ export default function GettingStartedDocPage() {
         </p>
         <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">1.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">1.</span>
             <span>
               Go to <strong className="text-foreground">Scans → Authorized Scopes</strong>.
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">2.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">2.</span>
             <span>
               Click <strong className="text-foreground">Add Scope</strong> and enter your
               domain (e.g., <code className="text-xs text-foreground/70">example.com</code>).
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">3.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">3.</span>
             <span>
               Use <code className="text-xs text-foreground/70">*.example.com</code> as a
               wildcard to cover all subdomains.
@@ -55,19 +55,19 @@ export default function GettingStartedDocPage() {
         </h2>
         <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">1.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">1.</span>
             <span>
               Go to <strong className="text-foreground">Scans → New Scan</strong>.
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">2.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">2.</span>
             <span>
               Enter your target domain and select <strong className="text-foreground">Full Scan</strong>.
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">3.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">3.</span>
             <span>
               Click <strong className="text-foreground">Start Scan</strong>. The scan runs
               in the background — you can track progress in real time.
@@ -151,7 +151,7 @@ export default function GettingStartedDocPage() {
           </li>
         </ul>
 
-        <div className="mt-10 rounded-xl border border-border/50 bg-card/40 p-5">
+        <div className="mt-10 rounded-xl border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">
             See also:{" "}
             <Link href="/docs/authorized-scope" className="text-phosphor hover:underline">

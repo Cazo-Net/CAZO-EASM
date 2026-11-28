@@ -100,13 +100,13 @@ export function CommentThread({ assetId }: { assetId: string }) {
         </div>
       )}
 
-      <div className="rounded-xl border border-border/60 bg-surface-2/40 p-3">
+      <div className="rounded-xl border border-border bg-surface-2 p-3">
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Add a comment…"
           rows={3}
-          className="w-full resize-none rounded-lg border border-border/60 bg-card px-3 py-2 text-sm outline-none focus:border-brand"
+          className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:border-brand"
         />
         <div className="mt-2 flex justify-end">
           <button
@@ -124,7 +124,7 @@ export function CommentThread({ assetId }: { assetId: string }) {
       ) : (
         <ul className="space-y-3">
           {comments.map((c) => (
-            <li key={c.id} className="rounded-xl border border-border/60 bg-card/60 p-3">
+            <li key={c.id} className="rounded-xl border border-border bg-card p-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm">
                   <span className="font-medium">{authorLabel(c.author_email, c.author_name)}</span>
@@ -150,13 +150,13 @@ export function CommentThread({ assetId }: { assetId: string }) {
               <p className="mt-1 whitespace-pre-wrap text-sm">{c.content}</p>
 
               {replyTo === c.id && (
-                <div className="mt-2 rounded-lg border border-border/60 bg-surface-2/40 p-2">
+                <div className="mt-2 rounded-lg border border-border bg-surface-2 p-2">
                   <textarea
                     value={replyContent}
                     onChange={(e) => setReplyContent(e.target.value)}
                     placeholder="Write a reply…"
                     rows={2}
-                    className="w-full resize-none rounded-lg border border-border/60 bg-card px-2 py-1.5 text-sm outline-none focus:border-brand"
+                    className="w-full resize-none rounded-lg border border-border bg-card px-2 py-1.5 text-sm outline-none focus:border-brand"
                   />
                   <div className="mt-2 flex justify-end gap-2">
                     <button
@@ -177,7 +177,7 @@ export function CommentThread({ assetId }: { assetId: string }) {
               )}
 
               {c.replies.length > 0 && (
-                <ul className="mt-3 space-y-2 border-l-2 border-border/60 pl-3">
+                <ul className="mt-3 space-y-2 border-l-2 border-border pl-3">
                   {c.replies.map((r) => (
                     <li key={r.id}>
                       <div className="flex items-center justify-between">

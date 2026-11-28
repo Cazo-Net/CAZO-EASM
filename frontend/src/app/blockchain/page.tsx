@@ -507,7 +507,7 @@ function BlockchainContent() {
                         risk.score
                       )}`}
                     >
-                      <span className="text-2xl font-bold">{risk.score}</span>
+                      <span className="text-2xl font-semibold">{risk.score}</span>
                     </div>
                     <div className="mt-2">
                       <Badge variant="outline" className={getRiskColor(risk.score)}>

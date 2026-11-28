@@ -121,7 +121,7 @@ function CyberNode({ data, selected }: NodeProps) {
           />
         ) : (
           <span
-            className="relative z-10 font-mono font-bold"
+            className="relative z-10 font-mono font-semibold"
             style={{ color: ringColor, fontSize: meta.size * 0.4 }}
           >
             {String(d.label).replace(":", "").slice(0, 6)}
@@ -186,7 +186,7 @@ function ZoneOverlay({ nodes }: { nodes: Node[] }) {
           }}
         >
           <span
-            className="absolute -top-3 left-3 font-mono text-[10px] uppercase tracking-wider px-1"
+            className="absolute -top-3 left-3 text-[11px] uppercase tracking-wider px-1"
             style={{ color: `${z.color}88`, background: "#0A0B0F", border: `1px solid ${z.color}22` }}
           >
             [{z.label}]
@@ -208,7 +208,7 @@ function HeatMeter({ vulnCount, criticalCount }: { vulnCount: number; criticalCo
 
   return (
     <div className="flex items-center gap-2 rounded border px-3 py-1.5" style={{ borderColor: `${heatColor}44`, background: "#0A0B0Fdd" }}>
-      <span className="font-mono text-[10px] font-bold uppercase" style={{ color: heatColor }}>HEAT</span>
+      <span className=" text-[11px] font-semibold uppercase" style={{ color: heatColor }}>HEAT</span>
       <div className="flex gap-0.5">
         {Array.from({ length: 10 }, (_, i) => (
           <div
@@ -250,7 +250,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: `${ringColor}22` }}>
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: "#10B981" }}>
+          <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#10B981" }}>
             NODE INTEL
           </span>
         </div>
@@ -263,7 +263,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
       <div className="px-4 py-2 border-b" style={{ borderColor: "#161B26" }}>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] text-muted-foreground">STATUS</span>
-          <span className="px-1.5 py-0.5 rounded font-mono text-[9px] font-bold" style={{ background: `${ringColor}22`, color: ringColor }}>
+          <span className="px-1.5 py-0.5 rounded font-mono text-[9px] font-semibold" style={{ background: `${ringColor}22`, color: ringColor }}>
             {d.severity?.toUpperCase() || "ACTIVE"}
           </span>
         </div>
@@ -272,16 +272,16 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
       {/* Node info */}
       <div className="px-4 py-3 space-y-3">
         <div>
-          <span className="font-mono text-[9px] text-muted-foreground uppercase">Type</span>
+          <span className=" text-[11px] text-muted-foreground uppercase">Type</span>
           <p className="font-mono text-xs mt-0.5" style={{ color: ringColor }}>{meta.label}</p>
         </div>
         <div>
-          <span className="font-mono text-[9px] text-muted-foreground uppercase">Label</span>
+          <span className=" text-[11px] text-muted-foreground uppercase">Label</span>
           <p className="font-mono text-xs mt-0.5 text-foreground">{d.label}</p>
         </div>
         {d.ips?.length > 0 && (
           <div>
-            <span className="font-mono text-[9px] text-muted-foreground uppercase">IPs</span>
+            <span className=" text-[11px] text-muted-foreground uppercase">IPs</span>
             {d.ips.map((ip: string, i: number) => (
               <p key={i} className="font-mono text-xs mt-0.5 text-foreground/80">{ip}</p>
             ))}
@@ -289,7 +289,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
         )}
         {ports.length > 0 && (
           <div>
-            <span className="font-mono text-[9px] text-muted-foreground uppercase">Open Ports ({ports.length})</span>
+            <span className=" text-[11px] text-muted-foreground uppercase">Open Ports ({ports.length})</span>
             <div className="mt-1 space-y-1">
               {ports.slice(0, 20).map((p: any, i: number) => (
                 <div key={i} className="flex items-center justify-between rounded px-2 py-1" style={{ background: "#161B26" }}>
@@ -302,7 +302,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
         )}
         {osDetection && (
           <div>
-            <span className="font-mono text-[9px] text-muted-foreground uppercase">OS Detection</span>
+            <span className=" text-[11px] text-muted-foreground uppercase">OS Detection</span>
             <div className="mt-1 rounded px-2 py-1" style={{ background: "#161B26" }}>
               {typeof osDetection === "string" ? (
                 <p className="font-mono text-[10px] text-foreground">{osDetection}</p>
@@ -326,7 +326,7 @@ function NodeIntelPanel({ node, onClose }: { node: Node; onClose: () => void }) 
         )}
         {hostScripts.length > 0 && (
           <div>
-            <span className="font-mono text-[9px] text-muted-foreground uppercase">Host Scripts ({hostScripts.length})</span>
+            <span className=" text-[11px] text-muted-foreground uppercase">Host Scripts ({hostScripts.length})</span>
             <div className="mt-1 space-y-1">
               {hostScripts.slice(0, 5).map((s: any, i: number) => (
                 <div key={i} className="rounded px-2 py-1" style={{ background: "#161B26" }}>
@@ -472,7 +472,7 @@ function GraphCanvas({
           showZoom
           showFitView
           showInteractive={false}
-          className="!rounded !border !bg-[#0A0B0Fdd] !backdrop-blur-xl"
+          className="!rounded !border !bg-[#0A0B0Fdd] !"
           style={{ borderColor: "#161B26", background: "#0A0B0Fdd" }}
         />
       </ReactFlow>
@@ -581,7 +581,7 @@ function GraphContent() {
           {/* Threat status */}
           <div className="flex items-center gap-2">
             <span
-              className="font-mono text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+              className=" text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded"
               style={{
                 color: nodeStats.critical > 0 ? "#FB7185" : "#10B981",
                 background: nodeStats.critical > 0 ? "#FB718515" : "#10B98115",
@@ -621,7 +621,7 @@ function GraphContent() {
         {/* Filter toggles (left) */}
         {graphData && !loadingGraph && (
           <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 rounded border p-2" style={{ borderColor: "#161B26", background: "#0A0B0Fee", backdropFilter: "blur(8px)" }}>
-            <span className="font-mono text-[9px] text-muted-foreground uppercase mb-1">Types</span>
+            <span className=" text-[11px] text-muted-foreground uppercase mb-1">Types</span>
             {ALL_TYPES.map((t) => {
               const m = TYPE_META[t];
               const on = typeFilters[t];

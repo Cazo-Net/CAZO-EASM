@@ -309,7 +309,7 @@ export function WebhookManager() {
 
       {/* Webhook form */}
       {showForm && (
-        <div className="border border-border/50 rounded-lg p-4 mb-6 bg-muted/20">
+        <div className="border border-border rounded-lg p-4 mb-6 bg-muted/20">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-medium">
               {editing ? "Edit Webhook" : "New Webhook"}
@@ -364,7 +364,7 @@ export function WebhookManager() {
               <label className="text-xs text-muted-foreground mb-2 block">
                 Event Types
               </label>
-              <p className="text-xs text-muted-foreground/60 mb-3">
+              <p className="text-xs text-muted-foreground mb-3">
                 Leave empty to subscribe to all events.
               </p>
               <div className="space-y-3">
@@ -424,10 +424,10 @@ export function WebhookManager() {
 
       {/* Webhook list */}
       {webhooks.length === 0 ? (
-        <div className="rounded-lg border border-border/30 bg-muted/10 p-12 text-center">
+        <div className="rounded-lg border border-border bg-muted/10 p-12 text-center">
           <Webhook className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground mb-1">No webhooks configured</p>
-          <p className="text-xs text-muted-foreground/50">
+          <p className="text-xs text-muted-foreground">
             Add a webhook to receive event notifications.
           </p>
         </div>
@@ -436,7 +436,7 @@ export function WebhookManager() {
           {webhooks.map((webhook) => (
             <div
               key={webhook.id}
-              className="border border-border/50 rounded-lg p-4 hover:border-border/80 transition-colors"
+              className="border border-border rounded-lg p-4 hover:border-border transition-colors"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
@@ -490,7 +490,7 @@ export function WebhookManager() {
                       </Badge>
                     </div>
                   )}
-                  <div className="mt-2 text-[10px] text-muted-foreground/60">
+                  <div className="mt-2 text-[10px] text-muted-foreground">
                     {webhook.last_triggered_at
                       ? `Last triggered ${new Date(webhook.last_triggered_at).toLocaleString()}`
                       : "Never triggered"}

@@ -29,10 +29,10 @@ export default function HeroPreviewPage() {
     >
       {/* Intro block above the sequence so scroll behaviour matches the real page */}
       <section className="min-h-[70vh] flex flex-col items-center justify-center text-center px-6">
-        <span className="font-mono text-[11px] uppercase tracking-[0.25em] text-phosphor mb-4">
+        <span className=" text-[11px] uppercase tracking-wide text-phosphor mb-4">
           hero sequence preview
         </span>
-        <h1 className="font-display text-4xl md:text-6xl font-semibold max-w-3xl leading-[1.05]">
+        <h1 className="text-4xl md:text-6xl font-semibold max-w-3xl leading-[1.05]">
           You can&apos;t defend what you forgot you own.
         </h1>
         <p className="mt-5 max-w-xl text-muted-foreground">

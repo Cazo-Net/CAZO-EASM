@@ -32,7 +32,7 @@ export function FilterBar({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-wrap items-center gap-1 rounded-xl border border-border/60 bg-surface-2/50 p-1", className)}>
+    <div className={cn("flex flex-wrap items-center gap-1 rounded-xl border border-border bg-surface-2 p-1", className)}>
       {filters.map((f) => (
         <button
           key={f.value}

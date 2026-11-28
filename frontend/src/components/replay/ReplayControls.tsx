@@ -33,7 +33,7 @@ export function ReplayControls() {
   return (
     <div className="flex flex-wrap items-center gap-3">
       {/* Playback controls */}
-      <div className="flex items-center gap-1 rounded-xl border border-border/30 bg-card/20 p-1 backdrop-blur-sm">
+      <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
         <button
           onClick={() => {
             if (state.scans.length > 0) {
@@ -62,7 +62,7 @@ export function ReplayControls() {
           className={cn(
             "flex h-9 w-9 items-center justify-center rounded-xl transition-all",
             state.isPlaying
-              ? "bg-brand text-white shadow-lg shadow-brand/20"
+              ? "bg-brand text-white"
               : "bg-brand/10 text-brand hover:bg-brand/20"
           )}
           title={state.isPlaying ? "Pause" : "Play"}
@@ -93,7 +93,7 @@ export function ReplayControls() {
       </div>
 
       {/* Speed selector */}
-      <div className="flex items-center gap-1 rounded-xl border border-border/30 bg-card/20 p-1 backdrop-blur-sm">
+      <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
         {speeds.map((s) => (
           <button
             key={s}
@@ -111,7 +111,7 @@ export function ReplayControls() {
       </div>
 
       {/* Mode selector */}
-      <div className="flex items-center gap-1 rounded-xl border border-border/30 bg-card/20 p-1 backdrop-blur-sm">
+      <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1">
         {modes.map((m) => (
           <button
             key={m.value}

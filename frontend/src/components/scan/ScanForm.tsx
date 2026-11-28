@@ -78,13 +78,13 @@ export function ScanForm() {
   };
 
   return (
-    <div className="rounded-xl border border-border/50 bg-card/60 backdrop-blur-xl overflow-hidden">
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="px-5 pt-5 pb-3">
         <div className="flex items-center gap-2 mb-1">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand/10">
             <Radar className="h-3.5 w-3.5 text-brand" />
           </div>
-          <h3 className="text-sm font-semibold font-display">Start New Scan</h3>
+          <h3 className="text-sm font-semibold ">Start New Scan</h3>
         </div>
         <p className="text-xs text-muted-foreground pl-9">
           Enter a domain to discover subdomains, ports, SSL certs, and
@@ -103,7 +103,7 @@ export function ScanForm() {
                 setError("");
               }}
               disabled={loading}
-              className="h-11 pl-11 pr-4 bg-muted/30 border-border/50 focus:border-primary/50 focus:ring-primary/20 text-sm"
+              className="h-11 pl-11 pr-4 bg-muted/30 border-border focus:border-primary/50 focus:ring-primary/20 text-sm"
             />
           </div>
 
@@ -117,7 +117,7 @@ export function ScanForm() {
                 className={`flex-1 rounded-lg px-3 py-2 text-xs font-medium border transition-all ${
                   profile === p.value
                     ? "bg-primary/10 border-primary/50 text-primary"
-                    : "bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted/50"
+                    : "bg-muted/30 border-border text-muted-foreground hover:bg-muted/50"
                 }`}
               >
                 <div>{p.label}</div>
@@ -139,7 +139,7 @@ export function ScanForm() {
           )}
 
           {/* Vulnerability note — pure-code detection (no Nuclei binary) */}
-          <p className="text-[10px] text-muted-foreground/70 leading-relaxed">
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
             Vulnerabilities are detected in pure Python: heuristic misconfig
             checks + version-based CVE correlation against a local NVD snapshot.
             Findings are marked UNVERIFIED <DocTooltip article="unverified-cves" /> (no live exploit verification).
@@ -164,7 +164,7 @@ export function ScanForm() {
                     min={0}
                     value={maxSubs}
                     onChange={(e) => setMaxSubs(Number(e.target.value))}
-                    className="h-9 bg-muted/30 border-border/50 text-sm"
+                    className="h-9 bg-muted/30 border-border text-sm"
                   />
                 </div>
 
@@ -180,7 +180,7 @@ export function ScanForm() {
                         className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-medium border transition-all ${
                           portMode === mode
                             ? "bg-primary/10 border-primary/50 text-primary"
-                            : "bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted/50"
+                            : "bg-muted/30 border-border text-muted-foreground hover:bg-muted/50"
                         }`}
                       >
                         {mode === "quick" ? "Quick (top ports)" : "Full (1-9999)"}
@@ -203,7 +203,7 @@ export function ScanForm() {
                         className={`rounded-lg px-3 py-1.5 text-xs font-medium border transition-all ${
                           selectedTools.includes(tool.value)
                             ? "bg-primary/10 border-primary/50 text-primary"
-                            : "bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted/50"
+                            : "bg-muted/30 border-border text-muted-foreground hover:bg-muted/50"
                         }`}
                       >
                         {tool.label}
@@ -218,7 +218,7 @@ export function ScanForm() {
           <Button
             type="submit"
             disabled={loading || !domain.trim()}
-            className="w-full h-10 bg-gradient-to-r from-primary to-cyan-signal hover:from-primary/90 hover:to-cyan-signal/90 text-brand-foreground font-medium shadow-glow-sm transition-all"
+            className="w-full h-10 bg-primary hover:from-primary/90 hover:to-cyan-signal/90 text-brand-foreground font-medium transition-all"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

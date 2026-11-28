@@ -61,7 +61,7 @@ export function StatusSelect({
                 "flex items-center gap-1 rounded-lg border px-2 py-1 text-xs transition-all",
                 value === key
                   ? `${config.bg} ${config.color} border-current/20`
-                  : "border-border/50 text-muted-foreground hover:bg-muted/30"
+                  : "border-border text-muted-foreground hover:bg-muted/30"
               )}
             >
               <Icon className="h-3 w-3" />

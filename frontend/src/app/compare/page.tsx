@@ -115,7 +115,7 @@ function ComparePageContent() {
         {/* Selectors */}
         <div className="grid gap-4 md:grid-cols-2">
           {/* Scan A */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-strong rounded-2xl p-6 gradient-border">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="glass-strong rounded-xl p-6 gradient-border">
             <h3 className="font-semibold mb-3 text-sm">Scan A (Before)</h3>
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -123,7 +123,7 @@ function ComparePageContent() {
                 placeholder="Search scans..."
                 value={searchA}
                 onChange={(e) => setSearchA(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-sm focus:border-brand/40 focus:outline-none"
+                className="w-full h-9 pl-9 pr-3 rounded-lg bg-muted/50 border border-border text-sm focus:border-brand/40 focus:outline-none"
               />
             </div>
             <div className="max-h-48 overflow-y-auto space-y-1 scrollbar-thin">
@@ -141,7 +141,7 @@ function ComparePageContent() {
                     className={`w-full text-left p-3 rounded-lg border transition-all text-sm ${
                       selectedA === s.id
                         ? "border-primary/50 bg-brand/10"
-                        : "border-border/30 hover:bg-muted/50"
+                        : "border-border hover:bg-muted/50"
                     }`}
                   >
                     <p className="font-medium font-mono">{s.domain}</p>
@@ -153,7 +153,7 @@ function ComparePageContent() {
           </motion.div>
 
           {/* Scan B */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-strong rounded-2xl p-6 gradient-border">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="glass-strong rounded-xl p-6 gradient-border">
             <h3 className="font-semibold mb-3 text-sm">Scan B (After)</h3>
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -161,7 +161,7 @@ function ComparePageContent() {
                 placeholder="Search scans..."
                 value={searchB}
                 onChange={(e) => setSearchB(e.target.value)}
-                className="w-full h-9 pl-9 pr-3 rounded-lg bg-muted/50 border border-border/30 text-sm focus:border-brand/40 focus:outline-none"
+                className="w-full h-9 pl-9 pr-3 rounded-lg bg-muted/50 border border-border text-sm focus:border-brand/40 focus:outline-none"
               />
             </div>
             <div className="max-h-48 overflow-y-auto space-y-1 scrollbar-thin">
@@ -179,7 +179,7 @@ function ComparePageContent() {
                     className={`w-full text-left p-3 rounded-lg border transition-all text-sm ${
                       selectedB === s.id
                         ? "border-primary/50 bg-brand/10"
-                        : "border-border/30 hover:bg-muted/50"
+                        : "border-border hover:bg-muted/50"
                     }`}
                   >
                     <p className="font-medium font-mono">{s.domain}</p>
@@ -196,7 +196,7 @@ function ComparePageContent() {
           <Button
             onClick={handleCompare}
             disabled={!selectedA || !selectedB || selectedA === selectedB || loading}
-            className="bg-gradient-to-r from-primary to-cyan-signal hover:from-primary/90 hover:to-cyan-signal/90 text-brand-foreground shadow shadow-primary/20 px-8"
+            className="bg-primary hover:from-primary/90 hover:to-cyan-signal/90 text-brand-foreground shadow shadow-primary/20 px-8"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -227,7 +227,7 @@ function ComparePageContent() {
               const totalChanges = section.added.length + section.removed.length;
               return (
                 <div key={section.label} className="glass rounded-xl overflow-hidden">
-                  <div className="flex items-center justify-between p-4 border-b border-border/30">
+                  <div className="flex items-center justify-between p-4 border-b border-border">
                     <div className="flex items-center gap-2">
                       <SectionIcon className="h-4 w-4 text-brand" />
                       <h3 className="font-semibold text-sm">{section.label}</h3>

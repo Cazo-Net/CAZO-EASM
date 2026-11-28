@@ -204,7 +204,7 @@ function BillingInner() {
           <SectionCard title="Current plan" icon={<Star className="h-4 w-4" />} accent="brand">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-display text-2xl font-semibold">{o.plan.name}</p>
+                <p className="text-2xl font-semibold">{o.plan.name}</p>
                 <p className="text-sm text-muted-foreground">
                   {o.plan.per_client ? `${o.clients} client organizations` : o.plan.tagline}
                   {o.extra_domains ? ` · +${o.extra_domains} extra root domains` : ""}

@@ -36,7 +36,7 @@ export function RiskSummary({ vendorTypeCounts }: RiskSummaryProps) {
   if (entries.length === 0) return null;
 
   return (
-    <div className="mt-6 border border-border/50 rounded-lg p-4 bg-muted/5">
+    <div className="mt-6 border border-border rounded-lg p-4 bg-muted/5">
       <h3 className="text-sm font-medium mb-4">Vendor Concentration Risk</h3>
       <div className="space-y-3">
         {entries.map((entry) => {

@@ -81,7 +81,7 @@ export function AuditLogViewer() {
         <select
           value={actionFilter}
           onChange={(e) => setActionFilter(e.target.value)}
-          className="rounded-lg border border-border/50 bg-muted/30 px-2 py-1 text-xs"
+          className="rounded-lg border border-border bg-muted/30 px-2 py-1 text-xs"
         >
           <option value="">All actions</option>
           {actions.map((a) => (
@@ -91,7 +91,7 @@ export function AuditLogViewer() {
         <select
           value={entityFilter}
           onChange={(e) => setEntityFilter(e.target.value)}
-          className="rounded-lg border border-border/50 bg-muted/30 px-2 py-1 text-xs"
+          className="rounded-lg border border-border bg-muted/30 px-2 py-1 text-xs"
         >
           <option value="">All entities</option>
           {entities.map((e) => (
@@ -132,7 +132,7 @@ export function AuditLogViewer() {
                       <span className="text-muted-foreground"> &quot;{log.entity_name}&quot;</span>
                     )}
                   </p>
-                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
                     {timeAgo(log.created_at)}
                   </p>
                 </div>

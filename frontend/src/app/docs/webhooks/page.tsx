@@ -11,7 +11,7 @@ export default function WebhooksDocPage() {
   return (
     <DocsLayout>
       <article className="max-w-2xl">
-        <h1 className="font-display text-3xl font-semibold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           Webhooks
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
@@ -26,32 +26,32 @@ export default function WebhooksDocPage() {
         </h2>
         <ol className="mt-3 space-y-3 text-sm text-muted-foreground">
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">1.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">1.</span>
             <span>
               Go to <strong className="text-foreground">Settings → Access → Webhooks</strong>.
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">2.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">2.</span>
             <span>
               Click <strong className="text-foreground">Add Webhook</strong>.
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">3.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">3.</span>
             <span>
               Enter your endpoint URL (must accept POST requests over HTTPS).
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">4.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">4.</span>
             <span>
               Select which event types to subscribe to (leave empty for all
               events).
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">5.</span>
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">5.</span>
             <span>
               Click <strong className="text-foreground">Create Webhook</strong>. CAZO will
               send a test payload immediately.
@@ -112,7 +112,7 @@ export default function WebhooksDocPage() {
                 {cat.events.map((e) => (
                   <code
                     key={e}
-                    className="text-[11px] px-2 py-0.5 rounded border border-border/50 bg-muted/30 text-muted-foreground"
+                    className="text-[11px] px-2 py-0.5 rounded border border-border bg-muted/30 text-muted-foreground"
                   >
                     {e}
                   </code>
@@ -159,7 +159,7 @@ export default function WebhooksDocPage() {
           CAZO and not tampered with. Use the webhook secret (shown once at
           creation time) to compute:
         </p>
-        <div className="mt-4 rounded-lg border border-border/50 bg-muted/20 p-4">
+        <div className="mt-4 rounded-lg border border-border bg-muted/20 p-4">
           <code className="text-xs text-muted-foreground">
             signature = HMAC-SHA256(webhook_secret, request_body)
           </code>
@@ -201,7 +201,7 @@ export default function WebhooksDocPage() {
           </li>
         </ul>
 
-        <div className="mt-10 rounded-xl border border-border/50 bg-card/40 p-5">
+        <div className="mt-10 rounded-xl border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">
             See also:{" "}
             <Link href="/docs/integrations" className="text-phosphor hover:underline">

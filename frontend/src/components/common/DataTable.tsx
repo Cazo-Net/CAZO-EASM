@@ -37,7 +37,7 @@ export function DataTable<T>({
     <div className={cn("w-full overflow-x-auto", className)}>
       <table className="w-full border-collapse text-sm">
         <thead>
-          <tr className="border-b border-border/60">
+          <tr className="border-b border-border">
             {columns.map((c) => (
               <th
                 key={c.key}
@@ -70,8 +70,8 @@ export function DataTable<T>({
                 key={rowKey(row, i)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
                 className={cn(
-                  "border-b border-border/40 transition-colors last:border-0",
-                  onRowClick && "cursor-pointer hover:bg-surface-2/60"
+                  "border-b border-border transition-colors last:border-0",
+                  onRowClick && "cursor-pointer hover:bg-surface-2"
                 )}
               >
                 {columns.map((c) => (

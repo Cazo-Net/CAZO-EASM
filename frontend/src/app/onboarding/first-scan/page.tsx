@@ -122,7 +122,7 @@ function FirstScanContent() {
   if (!domain) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-24 text-center">
-        <Radar className="h-10 w-10 text-muted-foreground/40" />
+        <Radar className="h-10 w-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
           No domain found from onboarding. You can skip to the dashboard and start a scan manually.
         </p>
@@ -197,7 +197,7 @@ function FirstScanContent() {
                   ? "border-phosphor/20 bg-phosphor/5"
                   : stageStatus === "active"
                   ? "border-cyan-signal/30 bg-cyan-signal/5"
-                  : "border-border/40 bg-card/20"
+                  : "border-border bg-card"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -207,7 +207,7 @@ function FirstScanContent() {
                       ? "bg-phosphor/10 text-phosphor"
                       : stageStatus === "active"
                       ? "bg-cyan-signal/10 text-cyan-signal"
-                      : "bg-muted text-muted-foreground/50"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {stageStatus === "complete" ? (
@@ -292,8 +292,8 @@ function FirstScanContent() {
 export default function FirstScanPage() {
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-[#09090B]">
-        <header className="border-b border-border/40 bg-void/80 backdrop-blur-xl">
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-void/80">
           <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
             <CazoLogo />
           </div>

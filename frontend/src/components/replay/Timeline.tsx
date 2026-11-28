@@ -142,7 +142,7 @@ export function Timeline() {
       {/* Timeline track */}
       <div
         ref={trackRef}
-        className="relative h-12 cursor-pointer rounded-xl border border-border/30 bg-card/20 backdrop-blur-sm"
+        className="relative h-12 cursor-pointer rounded-xl border border-border bg-card"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -212,7 +212,7 @@ export function Timeline() {
           animate={{ left: `${currentPct}%` }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
         >
-          <div className="h-5 w-5 rounded-full border-2 border-brand bg-background shadow-lg shadow-brand/20" />
+          <div className="h-5 w-5 rounded-full border-2 border-brand bg-background" />
         </motion.div>
       </div>
 
@@ -225,7 +225,7 @@ export function Timeline() {
               key={s.scan_id}
               className={cn(
                 "absolute -translate-x-1/2 text-[9px]",
-                s.scan_id === state.selectedScan?.scan_id ? "font-medium text-brand" : "text-muted-foreground/50"
+                s.scan_id === state.selectedScan?.scan_id ? "font-medium text-brand" : "text-muted-foreground"
               )}
               style={{ left: `${s.pct}%` }}
             >

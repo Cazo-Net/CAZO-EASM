@@ -63,8 +63,8 @@ export function VendorGrid({ technologies }: VendorGridProps) {
         return (
           <div
             key={`${tech.name}-${tech.category}-${i}`}
-            className={`border rounded-lg p-3 transition-colors hover:border-border/80 ${
-              VENDOR_TYPE_COLORS[tech.vendor_type] || "border-border/30 bg-muted/5"
+            className={`border rounded-lg p-3 transition-colors hover:border-border ${
+              VENDOR_TYPE_COLORS[tech.vendor_type] || "border-border bg-muted/5"
             }`}
           >
             <div className="flex items-start justify-between">

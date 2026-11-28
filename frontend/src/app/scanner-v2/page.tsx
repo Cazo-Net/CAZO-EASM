@@ -277,7 +277,7 @@ function ScannerV2Content() {
                 <CardContent className="pt-6">
                   <div className="text-center">
                     <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full border-2 ${getRiskColor(riskScore)}`}>
-                      <span className="text-2xl font-bold">{riskScore}</span>
+                      <span className="text-2xl font-semibold">{riskScore}</span>
                     </div>
                     <p className="mt-2 text-sm font-medium">
                       {getRiskLabel(riskScore)}

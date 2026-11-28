@@ -178,7 +178,7 @@ export default function ChangeFeedPage() {
             {items.map((item) => (
               <div
                 key={item.id}
-                className="flex items-start gap-3 rounded-lg border border-border/40 bg-muted/20 p-3 transition-colors hover:bg-muted/40"
+                className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3 transition-colors hover:bg-muted/40"
               >
                 <div className="mt-0.5">{changeIcon(item.change_type)}</div>
                 <div className="min-w-0 flex-1">

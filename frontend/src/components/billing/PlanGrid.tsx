@@ -27,7 +27,7 @@ export function IntervalToggle({
     <div
       role="radiogroup"
       aria-label="Billing interval"
-      className="inline-flex rounded-xl border border-border/60 bg-card/40 p-1"
+      className="inline-flex rounded-xl border border-border bg-card p-1"
     >
       {catalog.intervals.map((i) => (
         <button
@@ -38,7 +38,7 @@ export function IntervalToggle({
           className={cn(
             "rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
             value === i.id
-              ? "bg-phosphor text-void shadow-glow-sm"
+              ? "bg-phosphor text-void"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
@@ -65,7 +65,7 @@ export function ClientStepper({
         aria-label="Fewer clients"
         onClick={() => onChange(Math.max(min, value - 1))}
         disabled={value <= min}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition hover:text-foreground disabled:opacity-40"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:text-foreground disabled:opacity-40"
       >
         <Minus className="h-3.5 w-3.5" />
       </button>
@@ -75,13 +75,13 @@ export function ClientStepper({
         value={value}
         aria-label="Number of clients"
         onChange={(e) => onChange(Math.max(min, Number(e.target.value) || min))}
-        className="h-8 w-16 rounded-lg border border-border/60 bg-transparent text-center font-mono text-sm"
+        className="h-8 w-16 rounded-lg border border-border bg-transparent text-center font-mono text-sm"
       />
       <button
         type="button"
         aria-label="More clients"
         onClick={() => onChange(value + 1)}
-        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 text-muted-foreground transition hover:text-foreground"
+        className="flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground transition hover:text-foreground"
       >
         <Plus className="h-3.5 w-3.5" />
       </button>
@@ -113,26 +113,26 @@ export function PlanCard({
   return (
     <div
       className={cn(
-        "relative flex flex-col rounded-2xl border bg-card/50 p-6 backdrop-blur-sm",
-        plan.highlight ? "border-phosphor/60 shadow-glow-sm" : "border-border/50"
+        "relative flex flex-col rounded-xl border bg-card p-6",
+        plan.highlight ? "border-phosphor/60" : "border-border"
       )}
     >
       {plan.highlight && (
-        <span className="absolute -top-3 left-6 rounded-full bg-phosphor px-3 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-void">
+        <span className="absolute -top-3 left-6 rounded-full bg-phosphor px-3 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-void">
           Most popular
         </span>
       )}
       {current && (
-        <span className="absolute -top-3 right-6 rounded-full border border-cyan-signal/60 bg-void px-3 py-0.5 font-mono text-[10px] uppercase tracking-widest text-cyan-signal">
+        <span className="absolute -top-3 right-6 rounded-full border border-cyan-signal/60 bg-void px-3 py-0.5 text-[11px] uppercase tracking-wide text-cyan-signal">
           Current plan
         </span>
       )}
-      <h3 className="font-display text-xl font-semibold">{plan.name}</h3>
+      <h3 className="text-xl font-semibold">{plan.name}</h3>
       <p className="mt-1 min-h-[40px] text-sm text-muted-foreground">{plan.tagline}</p>
 
       <div className="mt-5">
         <div className="flex items-baseline gap-1.5">
-          <span className="font-display text-4xl font-semibold">
+          <span className="text-4xl font-semibold">
             {formatMoney(plan.monthly_price, catalog.currency)}
           </span>
           <span className="text-sm text-muted-foreground">
@@ -146,7 +146,7 @@ export function PlanCard({
       </div>
 
       {plan.per_client && (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border/40 p-3">
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border p-3">
           <span className="text-xs text-muted-foreground">
             Clients <span className="opacity-60">(min {plan.min_quantity})</span>
           </span>

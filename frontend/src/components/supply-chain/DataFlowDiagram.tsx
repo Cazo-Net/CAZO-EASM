@@ -70,7 +70,7 @@ export function DataFlowDiagram({ technologies, categoryCounts }: DataFlowDiagra
                     ? { label: "Medium", color: "text-yellow-400" }
                     : { label: "Low", color: "text-green-400" };
                 return (
-                  <tr key={`${tech.name}-${i}`} className="border-b border-border/30">
+                  <tr key={`${tech.name}-${i}`} className="border-b border-border">
                     <td className="py-2 font-medium">{tech.name}</td>
                     <td className="py-2">
                       <Badge

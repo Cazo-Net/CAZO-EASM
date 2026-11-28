@@ -168,7 +168,7 @@ function PortNode({ data, selected }: { data: any; selected?: boolean }) {
           className="flex items-center gap-2 px-3 py-2"
           style={{ background: `${color}11`, borderBottom: `1px solid ${color}22` }}
         >
-          <span className="font-mono text-[10px] font-bold uppercase" style={{ color }}>
+          <span className=" text-[11px] font-semibold uppercase" style={{ color }}>
             {data.label || data.asset_type || "Node"}
           </span>
         </div>
@@ -434,7 +434,7 @@ function CanvasContent() {
       <div className="w-56 border-r flex flex-col shrink-0" style={{ borderColor: "#161B26", background: "#0A0B0F" }}>
         {/* Header */}
         <div className="px-3 py-2 border-b flex items-center justify-between" style={{ borderColor: "#161B26" }}>
-          <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: "#10B981" }}>
+          <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#10B981" }}>
             Node Editor
           </span>
           <span className="font-mono text-[9px] text-muted-foreground">*.gnt</span>
@@ -490,7 +490,7 @@ function CanvasContent() {
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
           {filteredCategories.map((cat) => (
             <div key={cat.label}>
-              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider">
+              <span className=" text-[11px] text-muted-foreground uppercase tracking-wider">
                 {cat.label} ({cat.nodes.length})
               </span>
               <div className="mt-1 space-y-1">
@@ -568,7 +568,7 @@ function CanvasContent() {
                 showZoom
                 showFitView
                 showInteractive={false}
-                className="!rounded !border !bg-[#0A0B0Fdd] !backdrop-blur-xl"
+                className="!rounded !border !bg-[#0A0B0Fdd] !"
                 style={{ borderColor: "#161B26" }}
               />
             </ReactFlow>
@@ -593,7 +593,7 @@ function CanvasContent() {
         {activeCanvas && (
           <div className="shrink-0 border-t" style={{ borderColor: "#161B26", background: "#0A0B0F" }}>
             <div className="flex items-center justify-between px-4 py-1.5 border-b" style={{ borderColor: "#161B26" }}>
-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider" style={{ color: "#10B981" }}>
+              <span className=" text-[11px] font-semibold uppercase tracking-wider" style={{ color: "#10B981" }}>
                 Generated Code
               </span>
               <button
@@ -621,7 +621,7 @@ function CanvasContent() {
             style={{ borderColor: "#161B26", background: "#0A0B0F" }}
           >
             <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: "#161B26" }}>
-              <span className="font-mono text-[10px] font-bold uppercase" style={{ color: "#10B981" }}>
+              <span className=" text-[11px] font-semibold uppercase" style={{ color: "#10B981" }}>
                 Properties
               </span>
               <button onClick={() => setSelectedNode(null)} className="text-muted-foreground hover:text-foreground">
@@ -630,7 +630,7 @@ function CanvasContent() {
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
               <div>
-                <label className="font-mono text-[9px] text-muted-foreground uppercase">Label</label>
+                <label className=" text-[11px] text-muted-foreground uppercase">Label</label>
                 <input
                   value={(selectedNode.data.label as string) || ""}
                   onChange={(e) => {
@@ -647,13 +647,13 @@ function CanvasContent() {
                 />
               </div>
               <div>
-                <label className="font-mono text-[9px] text-muted-foreground uppercase">Type</label>
+                <label className=" text-[11px] text-muted-foreground uppercase">Type</label>
                 <p className="font-mono text-[10px] mt-1" style={{ color: NODE_COLORS[selectedNode.data.asset_type as string] || "#10B981" }}>
                   {(selectedNode.data.asset_type as string) || "unknown"}
                 </p>
               </div>
               <div>
-                <label className="font-mono text-[9px] text-muted-foreground uppercase">Notes</label>
+                <label className=" text-[11px] text-muted-foreground uppercase">Notes</label>
                 <textarea
                   value={(selectedNode.data.notes as string) || ""}
                   onChange={(e) => {
@@ -722,7 +722,7 @@ function ImportModal({ onImport, onClose }: { onImport: (scanId: string, assetId
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#161B26" }}>
-          <span className="font-mono text-[10px] font-bold uppercase" style={{ color: "#10B981" }}>
+          <span className=" text-[11px] font-semibold uppercase" style={{ color: "#10B981" }}>
             Import Scan
           </span>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">

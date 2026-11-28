@@ -11,7 +11,7 @@ export default function DocsIndexPage() {
   return (
     <DocsLayout>
       <div className="max-w-2xl">
-        <h1 className="font-display text-3xl font-semibold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           Documentation
         </h1>
         <p className="mt-3 text-base text-muted-foreground">
@@ -37,7 +37,7 @@ export default function DocsIndexPage() {
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
         <Link
           href="/docs/getting-started"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             Getting Started
@@ -49,7 +49,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/blockchain-intel"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             Blockchain Intelligence
@@ -61,7 +61,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/supply-chain"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             Supply Chain Intelligence
@@ -73,7 +73,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/exposure-validation"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             Exposure Validation
@@ -85,7 +85,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/webhooks"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             Webhooks
@@ -97,7 +97,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/integrations"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             Integrations
@@ -109,7 +109,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/shadow-assets"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             What is a Shadow Asset?
@@ -121,7 +121,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/threat-score"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             Threat Exposure Score
@@ -133,7 +133,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/unverified-cves"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             What &ldquo;unverified&rdquo; means on a CVE
@@ -145,7 +145,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/evidence-panel"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             Reading the Evidence Panel
@@ -157,7 +157,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/authorized-scope"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             Authorized Scope
@@ -169,7 +169,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/scan-statuses"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             Why &ldquo;blocked by CDN&rdquo;?
@@ -181,7 +181,7 @@ export default function DocsIndexPage() {
 
         <Link
           href="/docs/glossary"
-          className="group rounded-xl border border-border/50 bg-card/40 p-5 transition-colors hover:border-phosphor/30 sm:col-span-2"
+          className="group rounded-xl border border-border bg-card p-5 transition-colors hover:border-phosphor/30 sm:col-span-2"
         >
           <h3 className="text-sm font-semibold text-foreground group-hover:text-phosphor">
             Glossary

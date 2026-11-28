@@ -184,7 +184,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
   const iconClass = (active: boolean) =>
     cn(
       "h-4 w-4 shrink-0 transition-colors",
-      active ? "text-primary" : "text-muted-foreground/80 group-hover:text-foreground"
+      active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
     );
 
   return (
@@ -239,11 +239,11 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
           {navSections.map((section) => {
             const expanded = collapsed || isSectionExpanded(section.label);
             return (
-              <div key={section.label} className={cn(collapsed ? "mb-2 border-b border-border/60 pb-2 last:border-0" : "mb-3")}>
+              <div key={section.label} className={cn(collapsed ? "mb-2 border-b border-border pb-2 last:border-0" : "mb-3")}>
                 {!collapsed && (
                   <button
                     onClick={() => toggleSection(section.label)}
-                    className="group/section mb-1 flex w-full items-center justify-between rounded px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground/70 transition-colors hover:text-foreground"
+                    className="group/section mb-1 flex w-full items-center justify-between rounded px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground transition-colors hover:text-foreground"
                     aria-expanded={expanded}
                   >
                     <span>{section.label}</span>
@@ -338,11 +338,11 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                   </div>
                   <div className="flex-1 min-w-0 text-left">
                     <p className="text-xs font-medium truncate">Organization</p>
-                    <p className="text-[10px] text-muted-foreground/60 truncate font-mono">
+                    <p className="text-[10px] text-muted-foreground truncate font-mono">
                       {user.organization_id.slice(0, 12)}...
                     </p>
                   </div>
-                  <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+                  <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-56" side="top">
@@ -392,7 +392,7 @@ export function Sidebar({ collapsed, onCollapsedChange }: SidebarProps) {
                 <p className="truncate text-xs font-medium">
                   {user?.full_name || user?.email || "User"}
                 </p>
-                <p className="truncate text-[10px] text-muted-foreground/60">
+                <p className="truncate text-[10px] text-muted-foreground">
                   {user?.email || ""}
                 </p>
               </div>

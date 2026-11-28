@@ -100,7 +100,7 @@ export default function SecurityCenterPage() {
             <Card>
               <CardContent className="p-4 text-center">
                 <Fingerprint className="w-6 h-6 text-brand mx-auto mb-2" />
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-2xl font-semibold text-foreground">
                   {dashboard.mfa_enabled ? "On" : "Off"}
                 </p>
                 <p className="text-xs text-muted-foreground">MFA Status</p>
@@ -109,21 +109,21 @@ export default function SecurityCenterPage() {
             <Card>
               <CardContent className="p-4 text-center">
                 <Smartphone className="w-6 h-6 text-accent-2 mx-auto mb-2" />
-                <p className="text-2xl font-bold text-foreground">{dashboard.trusted_devices}</p>
+                <p className="text-2xl font-semibold text-foreground">{dashboard.trusted_devices}</p>
                 <p className="text-xs text-muted-foreground">Trusted Devices</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
                 <Clock className="w-6 h-6 text-warning mx-auto mb-2" />
-                <p className="text-2xl font-bold text-foreground">{dashboard.failed_logins_30d}</p>
+                <p className="text-2xl font-semibold text-foreground">{dashboard.failed_logins_30d}</p>
                 <p className="text-xs text-muted-foreground">Failed Logins (30d)</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
                 <Key className="w-6 h-6 text-info mx-auto mb-2" />
-                <p className="text-2xl font-bold text-foreground">{dashboard.active_api_keys}</p>
+                <p className="text-2xl font-semibold text-foreground">{dashboard.active_api_keys}</p>
                 <p className="text-xs text-muted-foreground">Active API Keys</p>
               </CardContent>
             </Card>

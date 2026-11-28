@@ -75,7 +75,7 @@ export function ScanHistory({ scans, loading, onDelete }: ScanHistoryProps) {
   if (scans.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/50 mb-3">
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-muted/50 mb-3">
           <Globe className="h-7 w-7 text-muted-foreground" />
         </div>
         <p className="text-sm text-muted-foreground">
@@ -101,7 +101,7 @@ export function ScanHistory({ scans, loading, onDelete }: ScanHistoryProps) {
           >
             <Link
               href={`/scan/${scan.id}`}
-              className="group flex items-center justify-between rounded-xl border border-border/30 p-4 transition-all hover:border-primary/20 hover:bg-muted/20 hover:shadow-sm"
+              className="group flex items-center justify-between rounded-xl border border-border p-4 transition-all hover:border-primary/20 hover:bg-muted/20 hover:shadow-sm"
             >
               <div className="flex items-center gap-3">
                 <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", config.bg)}>

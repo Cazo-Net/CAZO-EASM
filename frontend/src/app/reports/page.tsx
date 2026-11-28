@@ -206,7 +206,7 @@ function ReportsContent() {
           >
             <div className="relative mb-6">
               <div className="absolute inset-0 rounded-full bg-brand/20 blur-2xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-border/50 bg-card/80">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-xl border border-border bg-card">
                 <FileText className="h-10 w-10 text-muted-foreground" />
               </div>
             </div>
@@ -218,7 +218,7 @@ function ReportsContent() {
             </p>
             <button
               onClick={() => setDialogOpen(true)}
-              className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-primary/25 hover:bg-primary/90 transition-all"
+              className="inline-flex items-center gap-2 rounded-lg gradient-brand px-5 py-2.5 text-sm font-medium text-white hover:bg-primary/90 transition-all"
             >
               <Plus className="h-4 w-4" />
               Generate Your First Report
@@ -237,7 +237,7 @@ function ReportsContent() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ delay: i * 0.05 }}
-                    className="group relative rounded-xl border border-border/50 bg-card/60 p-5 transition-all duration-300 hover:border-brand/30 hover:shadow-lg hover:shadow-brand/5 hover:-translate-y-0.5"
+                    className="group relative rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:border-brand/30 hover:shadow-lg hover:shadow-brand/5 hover:-translate-y-0.5"
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
@@ -261,7 +261,7 @@ function ReportsContent() {
                       </div>
                       <Badge
                         variant="outline"
-                        className="uppercase text-xs font-bold"
+                        className="uppercase text-xs font-semibold"
                       >
                         {report.format}
                       </Badge>
@@ -307,7 +307,7 @@ function ReportsContent() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md border-border/50 bg-card/95 backdrop-blur-xl">
+        <DialogContent className="sm:max-w-md border-border bg-card">
           <DialogHeader>
             <DialogTitle>Generate Report</DialogTitle>
             <DialogDescription>
@@ -321,7 +321,7 @@ function ReportsContent() {
               <select
                 value={selectedScan}
                 onChange={(e) => setSelectedScan(e.target.value)}
-                className="flex h-10 w-full rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/50"
+                className="flex h-10 w-full rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/50"
               >
                 <option value="">Choose a scan...</option>
                 {scans
@@ -354,7 +354,7 @@ function ReportsContent() {
                         "flex items-center gap-2 rounded-lg border p-3 text-sm font-medium transition-all",
                         selectedFormat === fmt.value
                           ? "border-brand/50 bg-brand/10 text-brand"
-                          : "border-border/50 bg-muted/30 text-muted-foreground hover:border-border hover:text-foreground"
+                          : "border-border bg-muted/30 text-muted-foreground hover:border-border hover:text-foreground"
                       )}
                     >
                       <FIcon className="h-4 w-4" />

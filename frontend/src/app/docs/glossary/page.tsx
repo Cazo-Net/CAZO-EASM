@@ -148,7 +148,7 @@ export default function GlossaryDocPage() {
   return (
     <DocsLayout>
       <article className="max-w-2xl">
-        <h1 className="font-display text-3xl font-semibold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           Glossary
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">

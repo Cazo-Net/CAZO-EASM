@@ -210,8 +210,8 @@ export function IntegrationsPanel() {
               key={integration.env_var}
               className={`border rounded-lg p-4 transition-colors ${
                 isConfigured
-                  ? "border-border/50 bg-muted/5"
-                  : "border-border/30 bg-muted/20"
+                  ? "border-border bg-muted/5"
+                  : "border-border bg-muted/20"
               }`}
             >
               <div className="flex items-start justify-between">
@@ -257,7 +257,7 @@ export function IntegrationsPanel() {
 
               {/* Setup instructions */}
               {!isConfigured && (
-                <div className="mt-3 text-xs text-muted-foreground/60 bg-muted/30 rounded px-3 py-2">
+                <div className="mt-3 text-xs text-muted-foreground bg-muted/30 rounded px-3 py-2">
                   Set <code className="text-foreground/70">{integration.env_var}</code> in your
                   Railway dashboard environment variables.
                 </div>

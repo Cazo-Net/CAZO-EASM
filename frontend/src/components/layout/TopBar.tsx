@@ -86,7 +86,7 @@ export function TopBar({ sidebarCollapsed, onToggleSidebar, onOpenPalette }: Top
     <TooltipProvider delayDuration={0}>
       <header
         className={cn(
-          "flex h-14 shrink-0 items-center border-b border-border bg-background/85 backdrop-blur-md z-40"
+          "flex h-14 shrink-0 items-center border-b border-border bg-background/85 z-40"
         )}
         role="banner"
       >

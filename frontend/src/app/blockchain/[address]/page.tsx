@@ -234,7 +234,7 @@ function AddressDetailContent() {
                     risk.score
                   )}`}
                 >
-                  <span className="text-lg font-bold">{risk.score}</span>
+                  <span className="text-lg font-semibold">{risk.score}</span>
                 </div>
                 <div className="mt-1">
                   <Badge variant="outline" className={`text-xs ${getRiskColor(risk.score)}`}>
@@ -421,7 +421,7 @@ function AddressDetailContent() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">Anomaly Score</span>
-                    <span className={`text-sm font-bold ${
+                    <span className={`text-sm font-semibold ${
                       anomaly.anomaly_score > 0.7 ? "text-red-400" :
                       anomaly.anomaly_score > 0.4 ? "text-yellow-400" :
                       "text-green-400"

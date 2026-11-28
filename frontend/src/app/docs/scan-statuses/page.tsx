@@ -11,7 +11,7 @@ export default function ScanStatusesDocPage() {
   return (
     <DocsLayout>
       <article className="max-w-2xl">
-        <h1 className="font-display text-3xl font-semibold text-foreground">
+        <h1 className="text-3xl font-semibold text-foreground">
           Why did this show as &ldquo;blocked by CDN&rdquo; instead of a result?
         </h1>
         <p className="mt-4 text-base leading-relaxed text-muted-foreground">
@@ -28,7 +28,7 @@ export default function ScanStatusesDocPage() {
           The status badges
         </h2>
         <div className="mt-4 space-y-3">
-          <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/40 p-3">
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-phosphor" />
             <div>
               <span className="text-sm font-semibold text-foreground">ok</span>
@@ -37,7 +37,7 @@ export default function ScanStatusesDocPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/40 p-3">
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-warning" />
             <div>
               <span className="text-sm font-semibold text-foreground">
@@ -49,7 +49,7 @@ export default function ScanStatusesDocPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/40 p-3">
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-warning" />
             <div>
               <span className="text-sm font-semibold text-foreground">
@@ -61,7 +61,7 @@ export default function ScanStatusesDocPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-card/40 p-3">
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-destructive" />
             <div>
               <span className="text-sm font-semibold text-foreground">error</span>
@@ -82,7 +82,7 @@ export default function ScanStatusesDocPage() {
         </p>
         <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">
               1.
             </span>
             <span>
@@ -90,7 +90,7 @@ export default function ScanStatusesDocPage() {
             </span>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-0.5 text-xs font-mono text-muted-foreground/60">
+            <span className="mt-0.5 text-xs font-mono text-muted-foreground">
               2.
             </span>
             <span>
@@ -141,7 +141,7 @@ export default function ScanStatusesDocPage() {
           </li>
         </ul>
 
-        <div className="mt-10 rounded-xl border border-border/50 bg-card/40 p-5">
+        <div className="mt-10 rounded-xl border border-border bg-card p-5">
           <p className="text-sm text-muted-foreground">
             See also:{" "}
             <Link href="/docs/evidence-panel" className="text-phosphor hover:underline">

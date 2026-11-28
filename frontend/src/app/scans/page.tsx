@@ -88,7 +88,7 @@ function formatDate(dateStr: string) {
 function ScansContent() {
   const [scans, setScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteDialog, setDeleteDialog] = useState<Scan | null>(null);
@@ -196,7 +196,7 @@ function ScansContent() {
                   "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
                   statusFilter === f.value
                     ? "bg-brand/10 text-brand"
-                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2/60"
+                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2"
                 )}
               >
                 {f.label}
@@ -219,7 +219,7 @@ function ScansContent() {
                 placeholder="Search scans..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 pl-9 pr-8 rounded-lg bg-surface-2/50 border border-border/60 text-sm focus:border-brand/40 focus:outline-none transition-colors w-56"
+                className="h-9 pl-9 pr-8 rounded-lg bg-surface-2 border border-border text-sm focus:border-brand/40 focus:outline-none transition-colors w-56"
               />
               {searchQuery && (
                 <button
@@ -231,7 +231,7 @@ function ScansContent() {
               )}
             </div>
 
-            <div className="flex items-center rounded-lg border border-border/60 bg-surface-2/50 p-0.5">
+            <div className="flex items-center rounded-lg border border-border bg-surface-2 p-0.5">
               <button
                 onClick={() => setViewMode("grid")}
                 className={cn(
@@ -269,7 +269,7 @@ function ScansContent() {
           >
             <div className="relative mb-6">
               <div className="absolute inset-0 bg-brand/10 rounded-full blur-xl" />
-              <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-surface-2/60 border border-border/30">
+              <div className="relative flex h-20 w-20 items-center justify-center rounded-xl bg-surface-2 border border-border">
                 <Globe className="h-10 w-10 text-muted-foreground" />
               </div>
             </div>
@@ -306,7 +306,7 @@ function ScansContent() {
                     transition={{ delay: i * 0.05 }}
                   >
                     <Link href={`/scan/${scan.id}`} className="block">
-                      <div className="group glass rounded-xl p-5 transition-all duration-300 hover-glow hover:-translate-y-0.5 cursor-pointer h-full">
+                      <div className="group glass rounded-xl p-5 transition-all duration-300 hover:-translate-y-0.5 cursor-pointer h-full">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-3 min-w-0">
                             <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl", config.bg)}>
@@ -374,7 +374,7 @@ function ScansContent() {
           >
             <Table>
               <TableHeader>
-                <TableRow className="border-border/30 hover:bg-transparent">
+                <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="text-xs font-semibold">Domain</TableHead>
                   <TableHead className="text-xs font-semibold">Type</TableHead>
                   <TableHead className="text-xs font-semibold">Status</TableHead>
@@ -388,7 +388,7 @@ function ScansContent() {
                   const config = getStatusConfig(scan.status);
                   const ScanTypeIcon = getScanTypeIcon(scan.scan_type);
                   return (
-                    <TableRow key={scan.id} className="border-border/20 hover:bg-muted/20 cursor-pointer">
+                    <TableRow key={scan.id} className="border-border hover:bg-muted/20 cursor-pointer">
                       <Link href={`/scan/${scan.id}`} className="contents">
                         <TableCell>
                           <div className="flex items-center gap-2.5">

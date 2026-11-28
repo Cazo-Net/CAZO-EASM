@@ -38,7 +38,7 @@ export function DocTooltip({
     >
       <button
         type="button"
-        className="inline-flex items-center text-muted-foreground/50 transition-colors hover:text-muted-foreground"
+        className="inline-flex items-center text-muted-foreground transition-colors hover:text-muted-foreground"
         aria-label={`Learn more about ${article.replace(/-/g, " ")}`}
         onClick={() => setOpen(!open)}
       >
@@ -46,7 +46,7 @@ export function DocTooltip({
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded-xl border border-border/60 bg-card/95 p-3 shadow-elevation-3 backdrop-blur-xl">
+        <div className="absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded-xl border border-border bg-card p-3 shadow-elevation-3">
           {summary && (
             <p className="text-xs leading-relaxed text-muted-foreground">
               {summary}
@@ -61,7 +61,7 @@ export function DocTooltip({
             <ExternalLink className="h-3 w-3" />
           </Link>
           {/* arrow */}
-          <div className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-border/60 bg-card/95" />
+          <div className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-border bg-card" />
         </div>
       )}
     </span>

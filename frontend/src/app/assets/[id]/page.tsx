@@ -263,17 +263,17 @@ export default function Asset360Page() {
                 </div>
               </dl>
 
-              <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border/40 pt-4 text-center">
+              <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-4 text-center">
                 <div>
-                  <p className="text-lg font-bold tabular-nums">{counts.subdomains}</p>
+                  <p className="text-lg font-semibold tabular-nums">{counts.subdomains}</p>
                   <p className="text-[11px] uppercase text-muted-foreground">Subdomains</p>
                 </div>
                 <div>
-                  <p className="text-lg font-bold tabular-nums">{counts.ports}</p>
+                  <p className="text-lg font-semibold tabular-nums">{counts.ports}</p>
                   <p className="text-[11px] uppercase text-muted-foreground">Ports</p>
                 </div>
                 <div>
-                  <p className="text-lg font-bold tabular-nums">
+                  <p className="text-lg font-semibold tabular-nums">
                     {counts.vulnerabilities}
                   </p>
                   <p className="text-[11px] uppercase text-muted-foreground">Vulns</p>
@@ -297,7 +297,7 @@ export default function Asset360Page() {
                   {attributeEntries.map(([key, value]) => (
                     <div
                       key={key}
-                      className="flex items-start justify-between gap-4 border-b border-border/30 pb-2 last:border-0 last:pb-0"
+                      className="flex items-start justify-between gap-4 border-b border-border pb-2 last:border-0 last:pb-0"
                     >
                       <dt className="capitalize text-muted-foreground">
                         {key.replace(/_/g, " ")}
@@ -381,7 +381,7 @@ export default function Asset360Page() {
                 {changes.map((c) => (
                   <div
                     key={c.id}
-                    className="flex items-start gap-3 rounded-lg border border-border/40 bg-muted/20 p-3"
+                    className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3"
                   >
                     <div className="mt-0.5">{changeIcon(c.change_type)}</div>
                     <div className="min-w-0 flex-1">
@@ -450,7 +450,7 @@ export default function Asset360Page() {
                 </SectionCard>
 
                 <SectionCard title="Open Ports" icon={<Server className="h-4 w-4" />}>
-                  <p className="text-3xl font-bold tabular-nums font-mono">
+                  <p className="text-3xl font-semibold tabular-nums">
                     {host.ports.filter((p) => p.state === "open").length}
                     <span className="ml-1 text-sm font-normal text-muted-foreground">
                       / {host.ports.length}
@@ -460,7 +460,7 @@ export default function Asset360Page() {
                 </SectionCard>
 
                 <SectionCard title="Exposure" icon={<ShieldCheck className="h-4 w-4" />}>
-                  <p className="text-3xl font-bold tabular-nums font-mono">
+                  <p className="text-3xl font-semibold tabular-nums">
                     {host.vulnerabilities.length}
                     <span className="ml-1 text-sm font-normal text-muted-foreground">
                       vulns
@@ -491,7 +491,7 @@ export default function Asset360Page() {
                         className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 md:flex-row md:items-start md:gap-4"
                       >
                         <div className="flex shrink-0 items-center gap-2">
-                          <span className="inline-flex items-center justify-center rounded-lg bg-brand-2/10 px-2.5 py-1 font-mono text-base font-bold text-brand-2">
+                          <span className="inline-flex items-center justify-center rounded-lg bg-brand-2/10 px-2.5 py-1 font-mono text-base font-semibold text-brand-2">
                             {p.port}
                           </span>
                           <Badge
@@ -511,7 +511,7 @@ export default function Asset360Page() {
                             ) : null}
                           </p>
                           {p.banner ? (
-                            <pre className="mt-1.5 overflow-x-auto rounded-md border border-border/40 bg-surface-2/60 p-2 font-mono text-[11px] text-muted-foreground">
+                            <pre className="mt-1.5 overflow-x-auto rounded-md border border-border bg-surface-2 p-2 font-mono text-[11px] text-muted-foreground">
                               {p.banner}
                             </pre>
                           ) : (
@@ -543,7 +543,7 @@ export default function Asset360Page() {
                       {host.technologies.map((t, i) => (
                         <span
                           key={i}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-surface-2/50 px-2.5 py-1 text-xs"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-2.5 py-1 text-xs"
                         >
                           <span className="font-medium">{t.name}</span>
                           {t.version ? (
@@ -578,7 +578,7 @@ export default function Asset360Page() {
                       {host.certificates.map((c, i) => (
                         <div
                           key={i}
-                          className="rounded-lg border border-border/40 bg-muted/20 p-3"
+                          className="rounded-lg border border-border bg-muted/20 p-3"
                         >
                           <div className="flex items-center justify-between">
                             <p className="truncate font-mono text-xs">
@@ -612,7 +612,7 @@ export default function Asset360Page() {
                     {host.vulnerabilities.map((v) => (
                       <div
                         key={v.id}
-                        className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 p-3"
+                        className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-3"
                       >
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{v.name}</p>

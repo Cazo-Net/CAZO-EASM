@@ -76,7 +76,7 @@ function SummaryContent() {
   if (error || !scan) {
     return (
       <div className="flex flex-col items-center gap-4 py-24 text-center">
-        <AlertTriangle className="h-10 w-10 text-muted-foreground/40" />
+        <AlertTriangle className="h-10 w-10 text-muted-foreground" />
         <p className="text-sm text-muted-foreground max-w-md">
           {error || "No scan results to display."}
         </p>
@@ -118,33 +118,33 @@ function SummaryContent() {
         transition={{ delay: 0.1 }}
         className="grid grid-cols-2 gap-3 mb-8"
       >
-        <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Globe className="h-4 w-4 text-phosphor" />
             <span className="text-xs text-muted-foreground">Subdomains</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{subdomains.length}</p>
+          <p className="text-2xl font-semibold text-foreground">{subdomains.length}</p>
         </div>
-        <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Server className="h-4 w-4 text-cyan-signal" />
             <span className="text-xs text-muted-foreground">Open Ports</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{ports.length}</p>
+          <p className="text-2xl font-semibold text-foreground">{ports.length}</p>
         </div>
-        <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Network className="h-4 w-4 text-neon-violet" />
             <span className="text-xs text-muted-foreground">Technologies</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{technologies.length}</p>
+          <p className="text-2xl font-semibold text-foreground">{technologies.length}</p>
         </div>
-        <div className="rounded-xl border border-border/50 bg-card/40 p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Bug className="h-4 w-4 text-signal-red" />
             <span className="text-xs text-muted-foreground">Findings</span>
           </div>
-          <p className="text-2xl font-bold text-foreground">{vulnerabilities.length}</p>
+          <p className="text-2xl font-semibold text-foreground">{vulnerabilities.length}</p>
         </div>
       </motion.div>
 
@@ -154,7 +154,7 @@ function SummaryContent() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="rounded-xl border border-border/50 bg-card/40 p-4 mb-6"
+          className="rounded-xl border border-border bg-card p-4 mb-6"
         >
           <p className="text-sm font-medium text-foreground mb-3">Findings by severity</p>
           <div className="flex gap-4 text-xs">
@@ -192,14 +192,14 @@ function SummaryContent() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="rounded-xl border border-border/50 bg-card/40 p-4 mb-8"
+          className="rounded-xl border border-border bg-card p-4 mb-8"
         >
           <p className="text-sm font-medium text-foreground mb-3">What stood out</p>
           <div className="space-y-2">
             {topFindings.map((v) => (
               <div
                 key={v.id}
-                className="flex items-start gap-3 rounded-lg border border-border/40 bg-obsidian/40 px-3 py-2"
+                className="flex items-start gap-3 rounded-lg border border-border bg-obsidian/40 px-3 py-2"
               >
                 <span
                   className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
@@ -257,7 +257,7 @@ function SummaryContent() {
         <div className="grid gap-2">
           <button
             onClick={() => router.push("/vulnerabilities")}
-            className="flex items-center gap-3 rounded-xl border border-border/50 bg-card/40 p-4 text-left transition-colors hover:border-phosphor/30"
+            className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-phosphor/30"
           >
             <Bug className="h-5 w-5 text-signal-red shrink-0" />
             <div className="flex-1 min-w-0">
@@ -268,7 +268,7 @@ function SummaryContent() {
           </button>
           <button
             onClick={() => router.push("/graph")}
-            className="flex items-center gap-3 rounded-xl border border-border/50 bg-card/40 p-4 text-left transition-colors hover:border-phosphor/30"
+            className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-phosphor/30"
           >
             <Network className="h-5 w-5 text-neon-violet shrink-0" />
             <div className="flex-1 min-w-0">
@@ -279,7 +279,7 @@ function SummaryContent() {
           </button>
           <button
             onClick={() => router.push("/settings")}
-            className="flex items-center gap-3 rounded-xl border border-border/50 bg-card/40 p-4 text-left transition-colors hover:border-phosphor/30"
+            className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-phosphor/30"
           >
             <Shield className="h-5 w-5 text-phosphor shrink-0" />
             <div className="flex-1 min-w-0">
@@ -306,8 +306,8 @@ function SummaryContent() {
 export default function FirstScanSummaryPage() {
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-[#09090B]">
-        <header className="border-b border-border/40 bg-void/80 backdrop-blur-xl">
+      <div className="min-h-screen bg-background">
+        <header className="border-b border-border bg-void/80">
           <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
             <CazoLogo />
           </div>

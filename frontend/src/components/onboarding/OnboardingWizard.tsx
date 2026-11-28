@@ -97,13 +97,13 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#09090B] p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(0,212,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,212,255,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
         <div className="absolute top-1/3 left-1/4 h-96 w-96 rounded-full bg-phosphor/5 blur-[128px]" />
         <div className="absolute bottom-1/3 right-1/4 h-96 w-96 rounded-full bg-cyan-signal/5 blur-[128px]" />
       </div>
-      <Card className="relative w-full max-w-2xl border-border/50 bg-card/80 backdrop-blur-xl shadow-2xl shadow-black/20">
+      <Card className="relative w-full max-w-2xl border-border bg-card shadow-2xl shadow-black/20">
         <CardContent className="p-8">
           {/* Progress */}
           <div className="flex items-center justify-between mb-8">
@@ -135,7 +135,7 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
 
           {/* Step content */}
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-foreground mb-2">{step.title}</h2>
+            <h2 className="text-2xl font-semibold text-foreground mb-2">{step.title}</h2>
             <p className="text-muted-foreground">{step.description}</p>
           </div>
 
@@ -166,7 +166,7 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
                   onChange={(e) => setOrgName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleCreateOrg()}
                   placeholder="acme-security"
-                  className="h-11 bg-muted/30 border-border/50 focus:border-phosphor/50 focus:ring-phosphor/20"
+                  className="h-11 bg-muted/30 border-border focus:border-phosphor/50 focus:ring-phosphor/20"
                 />
               </div>
               {orgError && (
@@ -193,7 +193,7 @@ export function OnboardingWizard({ onComplete, onSkip, onOrgCreated }: Onboardin
                   onChange={(e) => setScope(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && scopeAuthConfirmed && handleSaveScopeAndContinue()}
                   placeholder="example.com"
-                  className="h-11 bg-muted/30 border-border/50 focus:border-phosphor/50 focus:ring-phosphor/20"
+                  className="h-11 bg-muted/30 border-border focus:border-phosphor/50 focus:ring-phosphor/20"
                 />
               </div>
 

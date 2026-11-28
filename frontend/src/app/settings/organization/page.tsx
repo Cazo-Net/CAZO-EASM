@@ -236,7 +236,7 @@ export default function OrganizationSettingsPage() {
               <Button
                 onClick={handleCreateOrg}
                 disabled={creating || !orgName.trim()}
-                className="bg-gradient-to-r gradient-brand hover:from-primary/90 hover:to-cyan-500/90 shadow-lg shadow-primary/25"
+                
               >
                 {creating ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -406,7 +406,7 @@ export default function OrganizationSettingsPage() {
                   Description
                 </label>
                 <textarea
-                  className="h-24 w-full rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-sm focus:border-primary/50 focus:ring-primary/20"
+                  className="h-24 w-full rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm focus:border-primary/50 focus:ring-primary/20"
                   placeholder="Describe your organization..."
                   value={org.description || ""}
                   disabled={!canManage}
@@ -419,7 +419,7 @@ export default function OrganizationSettingsPage() {
                   <Button
                     onClick={handleSaveProfile}
                     disabled={saving}
-                    className="bg-gradient-to-r gradient-brand hover:from-primary/90 hover:to-cyan-500/90 shadow-lg shadow-primary/25"
+                    
                   >
                     {saving ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -472,7 +472,7 @@ export default function OrganizationSettingsPage() {
                     size="sm"
                     onClick={handleInvite}
                     disabled={inviting || !inviteEmail.trim()}
-                    className="bg-gradient-to-r gradient-brand"
+                    className="bg-primary"
                   >
                     {inviting ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -501,7 +501,7 @@ export default function OrganizationSettingsPage() {
                       key={m.id}
                       className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                     >
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand/20 to-brand-2/20 text-xs font-semibold text-brand">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-brand">
                         {(m.full_name || m.email).slice(0, 2).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -559,7 +559,7 @@ export default function OrganizationSettingsPage() {
             icon={<Shield className="h-4 w-4" />}
           >
             <div className="space-y-4">
-              <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 p-4">
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-4">
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="mt-0.5 h-5 w-5 text-brand" />
                   <div>
@@ -595,7 +595,7 @@ export default function OrganizationSettingsPage() {
                   <Button
                     onClick={handleSaveProfile}
                     disabled={saving}
-                    className="bg-gradient-to-r gradient-brand hover:from-primary/90 hover:to-cyan-500/90 shadow-lg shadow-primary/25"
+                    
                   >
                     {saving ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -607,7 +607,7 @@ export default function OrganizationSettingsPage() {
                 </div>
               )}
 
-              <div className="rounded-lg border border-border/40 bg-muted/20 p-4">
+              <div className="rounded-lg border border-border bg-muted/20 p-4">
                 <p className="text-xs font-medium text-muted-foreground mb-2">
                   Role distribution
                 </p>

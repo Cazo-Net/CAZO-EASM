@@ -62,7 +62,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs shadow-lg backdrop-blur-sm",
+                  "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-xs shadow-lg",
                   COLORS[t.type]
                 )}
               >
