@@ -24,7 +24,7 @@ from app.schemas.blockchain import (
     WalletSummary,
     WalletType,
 )
-from app.services.blockchain.providers.base import ChainProvider
+from app.services.blockchain.providers.base import ChainProvider, DataSourceUnavailable
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +62,16 @@ class BitcoinProvider(ChainProvider):
                 if attempt < 2:
                     await asyncio.sleep(0.5 * (attempt + 1))
                 continue
+            except httpx.HTTPStatusError:
+                raise
             except Exception as exc:
                 last_error = exc
                 break
-        raise last_error  # type: ignore[misc]
+        logger.warning("Blockstream unavailable: %s", last_error)
+        raise DataSourceUnavailable(
+            Chain.BITCOIN, "upstream_error",
+            "Blockstream did not answer, so no live Bitcoin data is shown. Try again shortly.",
+        ) from last_error
 
     async def _get_first_tx_time(self, address: str) -> datetime | None:
         """Fetch the earliest transaction time for an address."""
@@ -89,8 +95,13 @@ class BitcoinProvider(ChainProvider):
     async def get_wallet_summary(self, address: str) -> WalletSummary:
         try:
             addr_info = await self._get(f"/address/{address}")
-        except httpx.HTTPStatusError:
-            return WalletSummary(address=address, chain=Chain.BITCOIN)
+        except httpx.HTTPStatusError as exc:
+            if exc.response is not None and exc.response.status_code == 400:
+                raise ValueError("That is not a valid Bitcoin address.") from exc
+            raise DataSourceUnavailable(
+                Chain.BITCOIN, "upstream_error",
+                "Blockstream returned an error, so no live Bitcoin data is shown. Try again shortly.",
+            ) from exc
 
         stats = addr_info.get("chain_stats", {})
         mempool = addr_info.get("mempool_stats", {})
@@ -113,8 +124,12 @@ class BitcoinProvider(ChainProvider):
                 if confirmed_txs:
                     timestamps = [tx["status"]["block_time"] for tx in confirmed_txs if tx.get("status", {}).get("block_time")]
                     if timestamps:
-                        first_seen = datetime.fromtimestamp(min(timestamps), tz=timezone.utc)
                         last_active = datetime.fromtimestamp(max(timestamps), tz=timezone.utc)
+                        # The endpoint returns only the newest transactions, so
+                        # the oldest one here is the real first one only when
+                        # it covers the whole history.
+                        if len(confirmed_txs) >= tx_count:
+                            first_seen = datetime.fromtimestamp(min(timestamps), tz=timezone.utc)
         except Exception:
             pass
 

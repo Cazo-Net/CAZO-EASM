@@ -25,10 +25,36 @@ async def compute_risk(address: str, chain: Chain) -> RiskScore:
     """Compute risk score for an address.
 
     Combines:
-    1. Curated label risk (sanctions = critical, mixers = high, etc.)
+    0. Live OFAC SDN screening (listed = critical)
+    1. Curated label risk (mixers = high, exchanges = info)
     2. Provider-native risk score (if available)
     3. Rule-based heuristics
     """
+    from app.services.blockchain.sanctions import check_address
+
+    screening = await check_address(address, chain)
+    if screening.get("is_sanctioned"):
+        return RiskScore(
+            address=address,
+            chain=chain,
+            score=100,
+            band=RiskBand.CRITICAL,
+            factors=[
+                RiskFactor(
+                    category="sanctions",
+                    label="Address is on the OFAC SDN sanctions list",
+                    weight=5.0,
+                    contribution=100,
+                    evidence=[Evidence(
+                        source="ofac",
+                        type=EvidenceType.SANCTIONS_LIST,
+                        confidence=100,
+                        reason=f"Listed on {screening.get('source')}",
+                    )],
+                )
+            ],
+        )
+
     curated = lookup_address(address)
 
     if curated and curated.entity_name:

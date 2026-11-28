@@ -1,6 +1,7 @@
 """Solana provider using Solana RPC and Solscan API.
 
-Returns simulated data when public RPC/API is unavailable.
+Uses the public Solana JSON-RPC endpoint (no key needed). Raises
+DataSourceUnavailable when it does not answer; never invents data.
 """
 from __future__ import annotations
 
@@ -33,22 +34,12 @@ from app.schemas.blockchain import (
     WalletSummary,
     WalletType,
 )
-from app.services.blockchain.providers.base import ChainProvider
+from app.services.blockchain.providers.base import ChainProvider, DataSourceUnavailable
 
 logger = logging.getLogger(__name__)
 
 SOLANA_RPC = "https://api.mainnet-beta.solana.com"
 SOLSCAN_API = "https://api.solscan.io"
-
-
-def _simulated_balance(address: str) -> int:
-    h = int(hashlib.sha256(address.lower().encode()).hexdigest(), 16)
-    return (h % 10000) * 10**9  # 0–10000 SOL in lamports
-
-
-def _simulated_tx_count(address: str) -> int:
-    h = int(hashlib.md5(address.lower().encode()).hexdigest(), 16)
-    return (h % 500) + 1
 
 
 class SolanaProvider(ChainProvider):
@@ -59,37 +50,6 @@ class SolanaProvider(ChainProvider):
 
     def is_available(self) -> bool:
         return True
-
-    def _simulated_wallet(self, address: str) -> WalletSummary:
-        bal = _simulated_balance(address)
-        return WalletSummary(
-            address=address,
-            chain=Chain.SOLANA,
-            wallet_type=WalletType.EOA,
-            balance=str(bal / 10**9),
-            tx_count=_simulated_tx_count(address),
-            token_count=0,
-            risk_score=15,
-            risk_band=RiskBand.LOW,
-        )
-
-    def _simulated_transactions(self, address: str, count: int = 5) -> list[TransactionSummary]:
-        txs = []
-        h = int(hashlib.sha256(address.lower().encode()).hexdigest(), 16)
-        for i in range(min(count, 10)):
-            val = ((h + i * 137) % 500) * 10**9
-            ts = 1700000000 + i * 3600
-            txs.append(TransactionSummary(
-                hash=hashlib.md5(f"{address}{i}".encode()).hexdigest(),
-                chain=Chain.SOLANA,
-                status=TransactionStatus.SUCCESS,
-                block_number=180000000 + i * 100,
-                timestamp=datetime.fromtimestamp(ts, tz=timezone.utc),
-                from_address=address if i % 2 == 0 else "11111111111111111111111111111111",
-                to_address="11111111111111111111111111111112" if i % 2 == 0 else address,
-                value=str(val / 10**9),
-            ))
-        return txs
 
     async def _throttle(self) -> None:
         now = asyncio.get_event_loop().time()
@@ -135,7 +95,6 @@ class SolanaProvider(ChainProvider):
 
             signatures_result = await self._rpc("getSignaturesForAddress", [address, {"limit": 1}])
             signatures = signatures_result.get("value", [])
-            total_tx_count = len(signatures) if isinstance(signatures, list) else 0
 
             try:
                 account_info = await self._rpc("getAccountInfo", [address, {"encoding": "jsonParsed"}])
@@ -145,13 +104,12 @@ class SolanaProvider(ChainProvider):
                 logger.debug("Failed to get account info for %s: %s", address, e)
                 wallet_type = WalletType.EOA
 
+            # Only the newest signature is fetched, so "first seen" stays
+            # unknown instead of being guessed.
             first_seen = None
             last_active = None
             if signatures and isinstance(signatures, list):
-                first_sig = signatures[-1] if signatures else None
-                last_sig = signatures[0] if signatures else None
-                if first_sig and first_sig.get("blockTime"):
-                    first_seen = datetime.fromtimestamp(first_sig["blockTime"], tz=timezone.utc)
+                last_sig = signatures[0]
                 if last_sig and last_sig.get("blockTime"):
                     last_active = datetime.fromtimestamp(last_sig["blockTime"], tz=timezone.utc)
 
@@ -171,94 +129,50 @@ class SolanaProvider(ChainProvider):
                 chain=Chain.SOLANA,
                 wallet_type=wallet_type,
                 balance=balance_sol,
-                tx_count=total_tx_count,
                 first_seen=first_seen,
                 last_active=last_active,
                 token_count=token_count,
             )
         except Exception as e:
-            logger.warning("Solana RPC unavailable, returning simulated data: %s", e)
-            return self._simulated_wallet(address)
-
-    def _simulated_wallet(self, address: str) -> WalletSummary:
-        h = int(hashlib.sha256(address.lower().encode()).hexdigest(), 16)
-        bal = (h % 5000) * 10**9
-        tx_count = (h % 500) + 1
-        return WalletSummary(
-            address=address,
-            chain=Chain.SOLANA,
-            wallet_type=WalletType.EOA,
-            balance=str(bal / 10**9),
-            tx_count=tx_count,
-            first_seen=datetime(2021, 1, 1, tzinfo=timezone.utc),
-            last_active=datetime.now(tz=timezone.utc),
-            risk_score=15,
-            risk_band=RiskBand.LOW,
-        )
-
-    def _simulated_transactions(self, address: str, count: int = 5) -> list[TransactionSummary]:
-        txs = []
-        h = int(hashlib.sha256(address.lower().encode()).hexdigest(), 16)
-        for i in range(min(count, 10)):
-            val = ((h + i * 137) % 1000) * 10**7
-            ts = 1700000000 + i * 3600
-            txs.append(TransactionSummary(
-                hash=hashlib.md5(f"{address}{i}".encode()).hexdigest(),
-                chain=Chain.SOLANA,
-                status=TransactionStatus.SUCCESS,
-                block_number=200000000 + i * 100,
-                timestamp=datetime.fromtimestamp(ts, tz=timezone.utc),
-                from_address=address if i % 2 == 0 else "11111111111111111111111111111111",
-                to_address="11111111111111111111111111111112" if i % 2 == 0 else address,
-                value=str(val / 10**9),
-                fee=str(val / 10**11),
-            ))
-        return txs
+            logger.warning("Solana RPC unavailable: %s", e)
+            raise DataSourceUnavailable(self.chain, "upstream_error", "Solana RPC did not answer, so no live data is shown. Try again shortly.") from e
 
     # ── Transactions ─────────────────────────────────────────────────────
 
     async def get_transactions(
         self, address: str, page: int = 1, page_size: int = 20
     ) -> list[TransactionSummary]:
-        try:
-            params: dict[str, Any] = {"address": address, "page": str(page), "page_size": str(page_size)}
-            data = await self._solscan_get("/v2/account/transactions", params=params)
-        except Exception as e:
-            logger.warning("Solscan unavailable, returning simulated transactions: %s", e)
-            return self._simulated_transactions(address, page_size)
+        """Recent transaction signatures from the public Solana RPC.
 
-        txs = data if isinstance(data, list) else []
+        Uses ``getSignaturesForAddress`` (no key needed). Signatures carry
+        the slot, time and success flag; amounts are not part of that call,
+        so ``value`` is left empty rather than guessed. Pages past the first
+        walk backwards with the ``before`` cursor.
+        """
+        try:
+            before: str | None = None
+            batch: list[dict[str, Any]] = []
+            for _ in range(max(1, page)):
+                opts: dict[str, Any] = {"limit": page_size}
+                if before:
+                    opts["before"] = before
+                batch = await self._rpc("getSignaturesForAddress", [address, opts]) or []
+                if not isinstance(batch, list) or not batch:
+                    return []
+                before = batch[-1].get("signature")
+        except Exception as e:
+            logger.warning("Solana RPC unavailable: %s", e)
+            raise DataSourceUnavailable(self.chain, "upstream_error", "Solana RPC did not answer, so no live data is shown. Try again shortly.") from e
 
         summaries = []
-        for tx in txs:
-            status = TransactionStatus.SUCCESS if tx.get("status") == "Success" else TransactionStatus.FAILED
-            timestamp = None
-            if tx.get("block_time"):
-                timestamp = datetime.fromtimestamp(tx["block_time"], tz=timezone.utc)
-
-            fee_lamports = tx.get("fee", 0)
-            fee_sol = str(fee_lamports / 10**9) if fee_lamports else None
-
-            from_addr = ""
-            to_addr = ""
-            value = "0"
-            if tx.get("transfers"):
-                transfer = tx["transfers"][0]
-                from_addr = transfer.get("from", "")
-                to_addr = transfer.get("to", "")
-                value = str(transfer.get("amount", 0))
-
+        for sig in batch:
             summaries.append(TransactionSummary(
-                hash=tx.get("signature", ""),
+                hash=sig.get("signature", ""),
                 chain=Chain.SOLANA,
-                status=status,
-                block_number=tx.get("slot"),
-                timestamp=timestamp,
-                from_address=from_addr,
-                to_address=to_addr,
-                value=value,
-                fee=fee_sol,
-                method=tx.get("type"),
+                status=TransactionStatus.FAILED if sig.get("err") else TransactionStatus.SUCCESS,
+                block_number=sig.get("slot"),
+                timestamp=(datetime.fromtimestamp(sig["blockTime"], tz=timezone.utc) if sig.get("blockTime") else None),
+                value="",
             ))
         return summaries
 
